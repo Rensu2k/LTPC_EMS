@@ -31,17 +31,17 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        session()->regenerate();
+        $request->session()->regenerate();
 
         $user = Auth::user();
         if ($user->hasRole('admin')) {
-            return redirect()->intended(route('admin.dashboard', absolute: false));
+            return redirect()->route('admin.dashboard');
         } elseif ($user->hasRole('officer')) {
-            return redirect()->intended(route('officer.dashboard', absolute: false));
+            return redirect()->route('officer.dashboard');
         } elseif ($user->hasRole('cashier')) {
-            return redirect()->intended(route('cashier.dashboard', absolute: false));
+            return redirect()->route('cashier.dashboard');
         }
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('dashboard'));
     }
 
     /**

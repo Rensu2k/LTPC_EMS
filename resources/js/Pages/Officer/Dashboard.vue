@@ -48,38 +48,27 @@ const enrollments = ref([
 </script>
 
 <template>
-    <Head title="Dashboard" />
-
+    <Head title="Enrollment Officer Dashboard" />
     <AuthenticatedLayout>
-        <template #header>
-            <div class="flex flex-col gap-1">
-                <span class="text-lg font-semibold text-gray-400 tracking-wide"
-                    >Dashboard</span
-                >
-            </div>
-        </template>
-
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
-            <div class="mb-6">
-                <h1 class="text-3xl font-extrabold text-gray-900">
-                    Enrollment Officer Dashboard
-                </h1>
-                <p class="text-base text-gray-500 mt-1">
-                    Good evening, Enrollment Officer. Welcome to your enrollment
-                    officer dashboard.
-                </p>
-            </div>
+            <h1 class="text-3xl font-extrabold text-gray-900">
+                Enrollment Officer Dashboard
+            </h1>
+            <p class="text-base text-gray-500 mt-1 mb-6">
+                Good evening, Enrollment Officer. Welcome to your enrollment
+                officer dashboard.
+            </p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div
-                    class="bg-white rounded-xl shadow p-6 flex items-center gap-4"
+                    class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
                     <div class="flex-1">
                         <div class="text-sm text-gray-500 font-medium">
                             Total Enrollments
                         </div>
-                        <div class="text-4xl font-bold text-gray-900">756</div>
+                        <div class="text-3xl font-bold text-gray-900">756</div>
                         <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-sm font-semibold"
+                            <span class="text-green-600 text-xs font-semibold"
                                 >↑ 12%</span
                             >
                             <span class="text-xs text-gray-400"
@@ -90,7 +79,7 @@ const enrollments = ref([
                     <div class="bg-blue-50 rounded-full p-3">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            class="h-7 w-7 text-blue-500"
+                            class="h-6 w-6 text-blue-500"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -105,15 +94,15 @@ const enrollments = ref([
                     </div>
                 </div>
                 <div
-                    class="bg-white rounded-xl shadow p-6 flex items-center gap-4"
+                    class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
                     <div class="flex-1">
                         <div class="text-sm text-gray-500 font-medium">
                             Active Courses
                         </div>
-                        <div class="text-4xl font-bold text-gray-900">24</div>
+                        <div class="text-3xl font-bold text-gray-900">24</div>
                         <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-sm font-semibold"
+                            <span class="text-green-600 text-xs font-semibold"
                                 >↑ 3%</span
                             >
                             <span class="text-xs text-gray-400"
@@ -124,7 +113,7 @@ const enrollments = ref([
                     <div class="bg-green-50 rounded-full p-3">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            class="h-7 w-7 text-green-500"
+                            class="h-6 w-6 text-green-500"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -149,15 +138,15 @@ const enrollments = ref([
                     </div>
                 </div>
                 <div
-                    class="bg-white rounded-xl shadow p-6 flex items-center gap-4"
+                    class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
                     <div class="flex-1">
                         <div class="text-sm text-gray-500 font-medium">
                             Completed Trainings
                         </div>
-                        <div class="text-4xl font-bold text-gray-900">189</div>
+                        <div class="text-3xl font-bold text-gray-900">189</div>
                         <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-sm font-semibold"
+                            <span class="text-green-600 text-xs font-semibold"
                                 >↑ 8%</span
                             >
                             <span class="text-xs text-gray-400"
@@ -168,7 +157,7 @@ const enrollments = ref([
                     <div class="bg-yellow-50 rounded-full p-3">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            class="h-7 w-7 text-yellow-500"
+                            class="h-6 w-6 text-yellow-500"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -183,14 +172,15 @@ const enrollments = ref([
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-xl shadow p-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-2xl font-bold text-gray-900">
-                        Recent Enrollments
-                    </h3>
+            <div class="mb-4 text-xl font-semibold text-gray-900">
+                Recent Enrollments
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="font-semibold text-lg">Recent Enrollments</div>
                     <a
                         href="#"
-                        class="text-blue-600 hover:underline text-base font-semibold"
+                        class="text-blue-600 hover:underline text-sm font-medium"
                         >View All</a
                     >
                 </div>
@@ -269,42 +259,42 @@ const enrollments = ref([
                                 <td class="px-6 py-4">
                                     <span
                                         v-if="enrollment.status === 'Active'"
-                                        class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Active</span
                                     >
                                     <span
                                         v-else-if="
                                             enrollment.status === 'Completed'
                                         "
-                                        class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Completed</span
                                     >
                                     <span
                                         v-else-if="
                                             enrollment.status === 'Dropped'
                                         "
-                                        class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-gray-50 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Dropped</span
                                     >
                                 </td>
                                 <td class="px-6 py-4">
                                     <span
                                         v-if="enrollment.payment === 'Paid'"
-                                        class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Paid</span
                                     >
                                     <span
                                         v-else-if="
                                             enrollment.payment === 'Partial'
                                         "
-                                        class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Partial</span
                                     >
                                     <span
                                         v-else-if="
                                             enrollment.payment === 'Unpaid'
                                         "
-                                        class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold"
+                                        class="bg-red-50 text-red-700 px-3 py-1 rounded-full text-xs font-semibold"
                                         >Unpaid</span
                                     >
                                 </td>
@@ -352,7 +342,7 @@ const enrollments = ref([
                         </tbody>
                     </table>
                 </div>
-                <div class="flex justify-between items-center mt-6">
+                <div class="flex justify-between items-center mt-4">
                     <div class="text-sm text-gray-500">
                         Showing 1 to 5 of 5 results
                     </div>

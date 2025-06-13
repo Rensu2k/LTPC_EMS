@@ -24,6 +24,7 @@ const pageTitle = computed(() => {
     if (currentRoute === "officer.courses") return "Courses";
     if (currentRoute === "officer.trainees") return "Trainees";
     if (currentRoute === "officer.trainers") return "Trainers";
+    if (currentRoute === "officer.assessments") return "Assessments";
 
     // Cashier routes
     if (currentRoute === "cashier.dashboard") return "Cashier Dashboard";
@@ -301,6 +302,40 @@ function logout() {
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
                                 >Trainers</span
+                            >
+                        </span>
+                    </NavLink>
+                    <NavLink
+                        :href="route('officer.assessments')"
+                        :active="route().current('officer.assessments')"
+                        class="group py-3 px-2 rounded-lg"
+                    >
+                        <span class="flex items-center gap-4">
+                            <svg
+                                class="h-6 w-6"
+                                :class="
+                                    route().current('officer.assessments')
+                                        ? 'text-white'
+                                        : 'text-white/70 group-hover:text-white'
+                                "
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M9 12l2 2 4-4M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                            </svg>
+                            <span
+                                :class="
+                                    route().current('officer.assessments')
+                                        ? 'font-semibold text-lg text-white'
+                                        : 'text-lg text-white/80 group-hover:text-white'
+                                "
+                                >Assessments</span
                             >
                         </span>
                     </NavLink>

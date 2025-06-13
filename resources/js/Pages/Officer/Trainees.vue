@@ -1,77 +1,48 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head } from "@inertiajs/vue3";
-import { ref } from "vue";
+import TraineeRegistrationModal from "@/Components/TraineeRegistrationModal.vue";
+import TraineeDetailsModal from "@/Components/TraineeDetailsModal.vue";
+import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import { Head, router } from "@inertiajs/vue3";
+import { ref, computed } from "vue";
+
+const props = defineProps({
+    trainees: Array,
+    courses: Array,
+});
 
 // Sample data - replace with real data from backend
 const searchQuery = ref("");
 const selectedCourse = ref("All Courses");
+const showRegistrationModal = ref(false);
+const showDetailsModal = ref(false);
+const showDeleteModal = ref(false);
+const selectedTrainee = ref(null);
+const processing = ref(false);
 
-const courses = [
-    "All Courses",
-    "Computer Basics",
-    "Welding",
-    "Cooking",
-    "Automotive",
-    "Electronics",
-];
-
-const trainees = ref([
-    {
-        id: "T-2023-0124",
-        name: "Juan Dela Cruz",
+// Process trainees data to match the expected format
+const traineesList = ref(
+    props.trainees?.map((trainee) => ({
+        id: trainee.id, // Keep original ID for key purposes
+        uli_number: trainee.uli_number || "Not assigned",
+        name: `${trainee.first_name} ${trainee.last_name}`,
         trainer: "Not assigned",
-        enrollmentDate: "5/10/2023",
-        status: "Active",
-        payment: "Paid",
-        avatar: "JD",
-    },
-    {
-        id: "T-2023-0125",
-        name: "Maria Santos",
-        trainer: "Not assigned",
-        enrollmentDate: "5/15/2023",
-        status: "Active",
-        payment: "Paid",
-        avatar: "MS",
-    },
-    {
-        id: "T-2023-0126",
-        name: "Pedro Reyes",
-        trainer: "Not assigned",
-        enrollmentDate: "5/20/2023",
-        status: "Active",
-        payment: "Unpaid",
-        avatar: "PR",
-    },
-    {
-        id: "T-2023-0127",
-        name: "Ana Lim",
-        trainer: "Not assigned",
-        enrollmentDate: "6/1/2023",
-        status: "Active",
-        payment: "Unpaid",
-        avatar: "AL",
-    },
-    {
-        id: "T-2023-0128",
-        name: "Roberto Aquino",
-        trainer: "Not assigned",
-        enrollmentDate: "6/10/2023",
-        status: "Active",
-        payment: "Unpaid",
-        avatar: "RA",
-    },
-    {
-        id: "T-2023-0129",
-        name: "Elena Torres",
-        trainer: "Not assigned",
-        enrollmentDate: "6/15/2023",
-        status: "Completed",
-        payment: "Paid",
-        avatar: "ET",
-    },
-]);
+        enrollmentDate: trainee.entry_date
+            ? new Date(trainee.entry_date).toLocaleDateString()
+            : new Date().toLocaleDateString(),
+        status: trainee.status
+            ? trainee.status.charAt(0).toUpperCase() + trainee.status.slice(1)
+            : "Active",
+        payment: trainee.payment_status
+            ? trainee.payment_status.charAt(0).toUpperCase() +
+              trainee.payment_status.slice(1)
+            : "Unpaid",
+        avatar: `${trainee.first_name?.charAt(0) || ""}${
+            trainee.last_name?.charAt(0) || ""
+        }`,
+        course: trainee.course_qualification,
+    })) || []
+);
 
 const exportData = () => {
     // Export functionality
@@ -79,21 +50,131 @@ const exportData = () => {
 };
 
 const registerTrainee = () => {
-    // Register new trainee functionality
-    console.log("Register new trainee...");
+    showRegistrationModal.value = true;
+};
+
+const closeRegistrationModal = () => {
+    showRegistrationModal.value = false;
+};
+
+const onTraineeSubmitted = () => {
+    // Refresh the page to show the new trainee
+    window.location.reload();
 };
 
 const viewTrainee = (trainee) => {
-    console.log("View trainee:", trainee);
+    // Find the actual trainee data from props
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    selectedTrainee.value = actualTrainee;
+    showDetailsModal.value = true;
 };
 
 const editTrainee = (trainee) => {
-    console.log("Edit trainee:", trainee);
+    // For now, we'll reuse the registration modal for editing
+    // Find the actual trainee data from props
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    selectedTrainee.value = actualTrainee;
+    // TODO: Implement edit modal or redirect to edit page
+    router.visit(`/officer/trainees/${trainee.id}/edit`);
 };
 
 const deleteTrainee = (trainee) => {
-    console.log("Delete trainee:", trainee);
+    // Double check if trainee can be deleted
+    if (!canDeleteTrainee(trainee)) {
+        alert(
+            `Cannot delete trainee with ${getTraineeStatus(
+                trainee
+            )} status. Only active trainees can be deleted.`
+        );
+        return;
+    }
+
+    selectedTrainee.value = trainee;
+    showDeleteModal.value = true;
 };
+
+const closeDetailsModal = () => {
+    showDetailsModal.value = false;
+    selectedTrainee.value = null;
+};
+
+const closeDeleteModal = () => {
+    showDeleteModal.value = false;
+    selectedTrainee.value = null;
+};
+
+const confirmDelete = () => {
+    if (!selectedTrainee.value) return;
+
+    processing.value = true;
+    router.delete(`/officer/trainees/${selectedTrainee.value.id}`, {
+        onSuccess: () => {
+            processing.value = false;
+            closeDeleteModal();
+        },
+        onError: () => {
+            processing.value = false;
+        },
+    });
+};
+
+const handleEditFromDetails = (trainee) => {
+    closeDetailsModal();
+    editTrainee({ id: trainee.id });
+};
+
+// Helper function to check if trainee can be deleted
+const canDeleteTrainee = (trainee) => {
+    // Find the actual trainee data from props to get the real status
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const status = actualTrainee?.status || trainee.status || "active";
+
+    // Only allow deletion for active trainees
+    return status === "active";
+};
+
+// Helper function to get trainee status for display
+const getTraineeStatus = (trainee) => {
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const status = actualTrainee?.status || trainee.status || "active";
+    return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+// Helper function to get the actual status value (lowercase)
+const getTraineeActualStatus = (trainee) => {
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    return actualTrainee?.status || trainee.status || "active";
+};
+
+// Computed property for filtered trainees
+const filteredTrainees = computed(() => {
+    let filtered = traineesList.value;
+
+    // Filter by course
+    if (selectedCourse.value !== "All Courses") {
+        filtered = filtered.filter(
+            (trainee) => trainee.course === selectedCourse.value
+        );
+    }
+
+    // Filter by search query
+    if (searchQuery.value) {
+        filtered = filtered.filter(
+            (trainee) =>
+                trainee.name
+                    .toLowerCase()
+                    .includes(searchQuery.value.toLowerCase()) ||
+                trainee.uli_number
+                    .toLowerCase()
+                    .includes(searchQuery.value.toLowerCase()) ||
+                trainee.course
+                    ?.toLowerCase()
+                    .includes(searchQuery.value.toLowerCase())
+        );
+    }
+
+    return filtered;
+});
 </script>
 
 <template>
@@ -152,7 +233,7 @@ const deleteTrainee = (trainee) => {
             <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Trainees
+                        All Trainees ({{ filteredTrainees.length }})
                     </h2>
                     <div class="relative">
                         <input
@@ -185,12 +266,13 @@ const deleteTrainee = (trainee) => {
                         v-model="selectedCourse"
                         class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
+                        <option value="All Courses">All Courses</option>
                         <option
                             v-for="course in courses"
-                            :key="course"
-                            :value="course"
+                            :key="course.id"
+                            :value="course.name"
                         >
-                            {{ course }}
+                            {{ course.name }}
                         </option>
                     </select>
                 </div>
@@ -205,7 +287,7 @@ const deleteTrainee = (trainee) => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    ID
+                                    ULI Number
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -241,14 +323,14 @@ const deleteTrainee = (trainee) => {
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
-                                v-for="trainee in trainees"
+                                v-for="trainee in filteredTrainees"
                                 :key="trainee.id"
                                 class="hover:bg-gray-50"
                             >
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                                 >
-                                    {{ trainee.id }}
+                                    {{ trainee.uli_number }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
@@ -278,13 +360,25 @@ const deleteTrainee = (trainee) => {
                                     <span
                                         :class="{
                                             'bg-green-100 text-green-800':
-                                                trainee.status === 'Active',
+                                                getTraineeActualStatus(
+                                                    trainee
+                                                ) === 'active',
                                             'bg-blue-100 text-blue-800':
-                                                trainee.status === 'Completed',
+                                                getTraineeActualStatus(
+                                                    trainee
+                                                ) === 'completed',
+                                            'bg-red-100 text-red-800':
+                                                getTraineeActualStatus(
+                                                    trainee
+                                                ) === 'dropped',
+                                            'bg-yellow-100 text-yellow-800':
+                                                getTraineeActualStatus(
+                                                    trainee
+                                                ) === 'suspended',
                                         }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
-                                        {{ trainee.status }}
+                                        {{ getTraineeStatus(trainee) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -349,6 +443,7 @@ const deleteTrainee = (trainee) => {
                                             </svg>
                                         </button>
                                         <button
+                                            v-if="canDeleteTrainee(trainee)"
                                             @click="deleteTrainee(trainee)"
                                             class="text-orange-600 hover:text-orange-900 p-1 rounded"
                                             title="Archive"
@@ -367,6 +462,27 @@ const deleteTrainee = (trainee) => {
                                                 />
                                             </svg>
                                         </button>
+                                        <span
+                                            v-else
+                                            class="text-gray-400 p-1 rounded cursor-not-allowed"
+                                            :title="`Cannot delete trainee with ${getTraineeStatus(
+                                                trainee
+                                            )} status`"
+                                        >
+                                            <svg
+                                                class="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M5 8l4 4 4-4m5-4v18l-5-4-5 4V4z"
+                                                />
+                                            </svg>
+                                        </span>
                                     </div>
                                 </td>
                             </tr>
@@ -375,5 +491,31 @@ const deleteTrainee = (trainee) => {
                 </div>
             </div>
         </div>
+
+        <!-- Trainee Registration Modal -->
+        <TraineeRegistrationModal
+            :show="showRegistrationModal"
+            :courses="courses"
+            @close="closeRegistrationModal"
+            @submitted="onTraineeSubmitted"
+        />
+
+        <!-- Trainee Details Modal -->
+        <TraineeDetailsModal
+            :show="showDetailsModal"
+            :trainee="selectedTrainee"
+            @close="closeDetailsModal"
+            @edit="handleEditFromDetails"
+        />
+
+        <!-- Delete Confirmation Modal -->
+        <DeleteConfirmationModal
+            :show="showDeleteModal"
+            :processing="processing"
+            title="Delete Trainee"
+            :message="`Are you sure you want to delete ${selectedTrainee?.first_name} ${selectedTrainee?.last_name}? This action cannot be undone.`"
+            @close="closeDeleteModal"
+            @confirm="confirmDelete"
+        />
     </AuthenticatedLayout>
 </template>

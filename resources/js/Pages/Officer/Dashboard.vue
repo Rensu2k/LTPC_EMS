@@ -1,50 +1,61 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed } from "vue";
 
-const enrollments = ref([
-    {
-        id: "enr1",
-        name: "John Smith",
-        course: "Welding Technology",
-        trainer: "Juan Dela Cruz",
-        status: "Active",
-        payment: "Paid",
-    },
-    {
-        id: "enr2",
-        name: "Jane Doe",
-        course: "Food Processing",
-        trainer: "Maria Santos",
-        status: "Active",
-        payment: "Partial",
-    },
-    {
-        id: "enr3",
-        name: "Carlos Mendoza",
-        course: "Automotive Servicing",
-        trainer: "Roberto Reyes",
-        status: "Active",
-        payment: "Unpaid",
-    },
-    {
-        id: "enr4",
-        name: "Sofia Garcia",
-        course: "Electronics Servicing",
-        trainer: "Elena Gomez",
-        status: "Completed",
-        payment: "Paid",
-    },
-    {
-        id: "enr5",
-        name: "Miguel Lopez",
-        course: "Carpentry",
-        trainer: "Pedro Reyes",
-        status: "Dropped",
-        payment: "Partial",
-    },
-]);
+const props = defineProps({
+    statistics: Object,
+    recent_enrollments: Array,
+});
+
+// Computed properties for displaying the statistics
+const totalEnrollments = computed(
+    () => props.statistics?.total_enrollments || { value: 0, change: 0 }
+);
+const activeCourses = computed(
+    () => props.statistics?.active_courses || { value: 0, change: 0 }
+);
+const completedTrainings = computed(
+    () => props.statistics?.completed_trainings || { value: 0, change: 0 }
+);
+
+// Helper function to format percentage change
+const formatChange = (change) => {
+    const sign = change >= 0 ? "↑" : "↓";
+    const color = change >= 0 ? "text-green-600" : "text-red-600";
+    return { sign, color, value: Math.abs(change) };
+};
+
+// Helper function to get status badge class
+const getStatusBadgeClass = (status) => {
+    const statusLower = status.toLowerCase();
+    switch (statusLower) {
+        case "active":
+            return "bg-green-50 text-green-700";
+        case "completed":
+            return "bg-blue-50 text-blue-700";
+        case "dropped":
+        case "suspended":
+            return "bg-gray-50 text-gray-700";
+        default:
+            return "bg-gray-50 text-gray-700";
+    }
+};
+
+// Helper function to get payment badge class
+const getPaymentBadgeClass = (payment) => {
+    const paymentLower = payment.toLowerCase();
+    switch (paymentLower) {
+        case "paid":
+            return "bg-green-50 text-green-700";
+        case "partial":
+            return "bg-yellow-50 text-yellow-700";
+        case "unpaid":
+            return "bg-red-50 text-red-700";
+        default:
+            return "bg-gray-50 text-gray-700";
+    }
+};
 </script>
 
 <template>
@@ -58,7 +69,10 @@ const enrollments = ref([
                 Good evening, Enrollment Officer. Welcome to your enrollment
                 officer dashboard.
             </p>
+
+            <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total Enrollments -->
                 <div
                     class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
@@ -66,11 +80,25 @@ const enrollments = ref([
                         <div class="text-sm text-gray-500 font-medium">
                             Total Enrollments
                         </div>
-                        <div class="text-3xl font-bold text-gray-900">756</div>
-                        <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-xs font-semibold"
-                                >↑ 12%</span
+                        <div class="text-3xl font-bold text-gray-900">
+                            {{ totalEnrollments.value }}
+                        </div>
+                        <div
+                            class="flex items-center gap-1 mt-1"
+                            v-if="totalEnrollments.change !== 0"
+                        >
+                            <span
+                                :class="`${
+                                    formatChange(totalEnrollments.change).color
+                                } text-xs font-semibold`"
                             >
+                                {{
+                                    formatChange(totalEnrollments.change).sign
+                                }}
+                                {{
+                                    formatChange(totalEnrollments.change).value
+                                }}%
+                            </span>
                             <span class="text-xs text-gray-400"
                                 >vs. last month</span
                             >
@@ -93,6 +121,8 @@ const enrollments = ref([
                         </svg>
                     </div>
                 </div>
+
+                <!-- Active Courses -->
                 <div
                     class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
@@ -100,11 +130,21 @@ const enrollments = ref([
                         <div class="text-sm text-gray-500 font-medium">
                             Active Courses
                         </div>
-                        <div class="text-3xl font-bold text-gray-900">24</div>
-                        <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-xs font-semibold"
-                                >↑ 3%</span
+                        <div class="text-3xl font-bold text-gray-900">
+                            {{ activeCourses.value }}
+                        </div>
+                        <div
+                            class="flex items-center gap-1 mt-1"
+                            v-if="activeCourses.change !== 0"
+                        >
+                            <span
+                                :class="`${
+                                    formatChange(activeCourses.change).color
+                                } text-xs font-semibold`"
                             >
+                                {{ formatChange(activeCourses.change).sign }}
+                                {{ formatChange(activeCourses.change).value }}%
+                            </span>
                             <span class="text-xs text-gray-400"
                                 >vs. last month</span
                             >
@@ -137,6 +177,8 @@ const enrollments = ref([
                         </svg>
                     </div>
                 </div>
+
+                <!-- Completed Trainings -->
                 <div
                     class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
                 >
@@ -144,11 +186,27 @@ const enrollments = ref([
                         <div class="text-sm text-gray-500 font-medium">
                             Completed Trainings
                         </div>
-                        <div class="text-3xl font-bold text-gray-900">189</div>
-                        <div class="flex items-center gap-1 mt-1">
-                            <span class="text-green-600 text-xs font-semibold"
-                                >↑ 8%</span
+                        <div class="text-3xl font-bold text-gray-900">
+                            {{ completedTrainings.value }}
+                        </div>
+                        <div
+                            class="flex items-center gap-1 mt-1"
+                            v-if="completedTrainings.change !== 0"
+                        >
+                            <span
+                                :class="`${
+                                    formatChange(completedTrainings.change)
+                                        .color
+                                } text-xs font-semibold`"
                             >
+                                {{
+                                    formatChange(completedTrainings.change).sign
+                                }}
+                                {{
+                                    formatChange(completedTrainings.change)
+                                        .value
+                                }}%
+                            </span>
                             <span class="text-xs text-gray-400"
                                 >vs. last month</span
                             >
@@ -172,6 +230,8 @@ const enrollments = ref([
                     </div>
                 </div>
             </div>
+
+            <!-- Recent Enrollments -->
             <div class="mb-4 text-xl font-semibold text-gray-900">
                 Recent Enrollments
             </div>
@@ -184,7 +244,11 @@ const enrollments = ref([
                         >View All</a
                     >
                 </div>
-                <div class="overflow-x-auto">
+
+                <div
+                    v-if="recent_enrollments && recent_enrollments.length > 0"
+                    class="overflow-x-auto"
+                >
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -227,7 +291,7 @@ const enrollments = ref([
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
-                                v-for="enrollment in enrollments"
+                                v-for="enrollment in recent_enrollments"
                                 :key="enrollment.id"
                             >
                                 <td
@@ -239,12 +303,7 @@ const enrollments = ref([
                                     <span
                                         class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-100 text-xs font-bold text-gray-400 mr-2 border border-gray-200"
                                     >
-                                        {{
-                                            enrollment.name
-                                                .split(" ")
-                                                .map((n) => n[0])
-                                                .join("")
-                                        }}
+                                        {{ enrollment.avatar }}
                                     </span>
                                     <span class="font-medium text-gray-900">{{
                                         enrollment.name
@@ -258,45 +317,21 @@ const enrollments = ref([
                                 </td>
                                 <td class="px-6 py-4">
                                     <span
-                                        v-if="enrollment.status === 'Active'"
-                                        class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Active</span
+                                        :class="`${getStatusBadgeClass(
+                                            enrollment.status
+                                        )} px-3 py-1 rounded-full text-xs font-semibold`"
                                     >
-                                    <span
-                                        v-else-if="
-                                            enrollment.status === 'Completed'
-                                        "
-                                        class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Completed</span
-                                    >
-                                    <span
-                                        v-else-if="
-                                            enrollment.status === 'Dropped'
-                                        "
-                                        class="bg-gray-50 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Dropped</span
-                                    >
+                                        {{ enrollment.status }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4">
                                     <span
-                                        v-if="enrollment.payment === 'Paid'"
-                                        class="bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Paid</span
+                                        :class="`${getPaymentBadgeClass(
+                                            enrollment.payment
+                                        )} px-3 py-1 rounded-full text-xs font-semibold`"
                                     >
-                                    <span
-                                        v-else-if="
-                                            enrollment.payment === 'Partial'
-                                        "
-                                        class="bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Partial</span
-                                    >
-                                    <span
-                                        v-else-if="
-                                            enrollment.payment === 'Unpaid'
-                                        "
-                                        class="bg-red-50 text-red-700 px-3 py-1 rounded-full text-xs font-semibold"
-                                        >Unpaid</span
-                                    >
+                                        {{ enrollment.payment }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 flex gap-2">
                                     <button
@@ -342,9 +377,38 @@ const enrollments = ref([
                         </tbody>
                     </table>
                 </div>
-                <div class="flex justify-between items-center mt-4">
+
+                <!-- Empty State -->
+                <div v-else class="text-center py-12">
+                    <svg
+                        class="mx-auto h-12 w-12 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"
+                        />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">
+                        No enrollments yet
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Get started by adding your first trainee.
+                    </p>
+                </div>
+
+                <!-- Pagination Info -->
+                <div
+                    v-if="recent_enrollments && recent_enrollments.length > 0"
+                    class="flex justify-between items-center mt-4"
+                >
                     <div class="text-sm text-gray-500">
-                        Showing 1 to 5 of 5 results
+                        Showing {{ recent_enrollments.length }} recent
+                        enrollments
                     </div>
                     <div class="flex items-center gap-2">
                         <button

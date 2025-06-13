@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Course;
+use App\Models\Trainer;
+use Inertia\Inertia;
+
+class CourseController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        $courses = Course::latest()->get()->map(function ($course) {
+            return [
+                'id' => $course->id,
+                'name' => $course->name,
+                'description' => $course->description,
+                'duration' => $course->duration,
+                'status' => $course->status,
+                'assigned_trainers' => $course->assigned_trainers,
+                'enrollments' => $course->enrollment_count,
+                'max_enrollments' => $course->max_enrollments,
+                'start_date' => $course->start_date,
+                'end_date' => $course->end_date,
+                'created_at' => $course->created_at,
+            ];
+        });
+
+        $trainers = Trainer::where('status', 'active')->get()->map(function ($trainer) {
+            return [
+                'id' => $trainer->id,
+                'name' => $trainer->full_name,
+                'expertise' => $trainer->expertise,
+            ];
+        });
+
+        return Inertia::render('Officer/Courses', [
+            'courses' => $courses,
+            'trainers' => $trainers
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:courses,name',
+            'description' => 'nullable|string',
+            'duration' => 'required|string|max:255',
+            'assigned_trainers' => 'nullable|array',
+            'assigned_trainers.*' => 'exists:trainers,id',
+            'max_enrollments' => 'nullable|integer|min:1|max:100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $course = Course::create($validated);
+
+        return redirect()->back()->with('success', 'Course created successfully!');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Course $course)
+    {
+        return redirect()->route('officer.courses');
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Course $course)
+    {
+        $trainers = Trainer::where('status', 'active')->get()->map(function ($trainer) {
+            return [
+                'id' => $trainer->id,
+                'name' => $trainer->full_name,
+                'expertise' => $trainer->expertise,
+            ];
+        });
+
+        return Inertia::render('Officer/EditCourse', [
+            'course' => $course,
+            'trainers' => $trainers
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Course $course)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:courses,name,' . $course->id,
+            'description' => 'nullable|string',
+            'duration' => 'required|string|max:255',
+            'assigned_trainers' => 'nullable|array',
+            'assigned_trainers.*' => 'exists:trainers,id',
+            'status' => 'nullable|in:active,inactive',
+            'max_enrollments' => 'nullable|integer|min:1|max:100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $course->update($validated);
+
+        return redirect()->back()->with('success', 'Course updated successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Course $course)
+    {
+        // Check if course has enrolled trainees
+        $enrollmentCount = $course->enrollment_count;
+        if ($enrollmentCount > 0) {
+            return redirect()->back()->with('error', 'Cannot delete course with active enrollments. Please transfer or complete all trainees first.');
+        }
+
+        $course->delete();
+
+        return redirect()->back()->with('success', 'Course deleted successfully!');
+    }
+}

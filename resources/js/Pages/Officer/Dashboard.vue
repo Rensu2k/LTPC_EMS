@@ -62,16 +62,21 @@ const getPaymentBadgeClass = (payment) => {
     <Head title="Enrollment Officer Dashboard" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
-            <h1 class="text-3xl font-extrabold text-gray-900">
-                Enrollment Officer Dashboard
-            </h1>
-            <p class="text-base text-gray-500 mt-1 mb-6">
-                Good evening, Enrollment Officer. Welcome to your enrollment
-                officer dashboard.
-            </p>
+            <!-- Header Section -->
+            <div class="mb-8 animate-fade-in">
+                <h1 class="text-3xl font-extrabold text-gray-900">
+                    Enrollment Officer Dashboard
+                </h1>
+                <p class="text-base text-gray-500 mt-1 mb-6">
+                    Good evening, Enrollment Officer. Welcome to your enrollment
+                    officer dashboard.
+                </p>
+            </div>
 
             <!-- Statistics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fade-in"
+            >
                 <!-- Total Enrollments -->
                 <div
                     class="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4"
@@ -92,9 +97,7 @@ const getPaymentBadgeClass = (payment) => {
                                     formatChange(totalEnrollments.change).color
                                 } text-xs font-semibold`"
                             >
-                                {{
-                                    formatChange(totalEnrollments.change).sign
-                                }}
+                                {{ formatChange(totalEnrollments.change).sign }}
                                 {{
                                     formatChange(totalEnrollments.change).value
                                 }}%
@@ -235,7 +238,11 @@ const getPaymentBadgeClass = (payment) => {
             <div class="mb-4 text-xl font-semibold text-gray-900">
                 Recent Enrollments
             </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+            <!-- Recent Enrollments Section -->
+            <div
+                class="bg-white rounded-xl border border-gray-200 p-6 animate-fade-in"
+            >
                 <div class="flex justify-between items-center mb-4">
                     <div class="font-semibold text-lg">Recent Enrollments</div>
                     <a

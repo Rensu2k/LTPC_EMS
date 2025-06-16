@@ -4,7 +4,9 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "build:prod": "vite build --mode production",
+        "dev": "vite",
+        "preview": "vite preview"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0.0",

@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
+import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 
 const showPassword = ref(false);
 
@@ -118,12 +119,17 @@ const submit = () => {
         </div>
         <!-- Right: Info Panel -->
         <div
-            class="hidden md:flex flex-col justify-center items-start w-1/2 bg-blue-800 text-white px-16"
+            class="hidden md:flex flex-col justify-start items-center w-1/2 bg-blue-800 text-white px-16 pt-32"
         >
-            <h2 class="text-3xl font-bold mb-2">
+            <!-- Logo -->
+            <div class="flex justify-center mb-6 w-full">
+                <ApplicationLogo class="h-48 w-48 bg-white rounded-full p-1" />
+            </div>
+            <!-- Title -->
+            <h2 class="text-3xl font-bold mb-2 text-center">
                 Surigao City LTPC Enrollment Management System
             </h2>
-            <p class="mb-8 text-lg text-blue-100 max-w-xl">
+            <p class="mb-8 text-lg text-blue-100 max-w-xl text-center mx-auto">
                 An integrated system for managing enrollments, courses, and
                 training progress at the Livelihood Training and Productivity
                 Center.

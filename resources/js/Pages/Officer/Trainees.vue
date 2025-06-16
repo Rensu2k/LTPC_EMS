@@ -183,7 +183,7 @@ const filteredTrainees = computed(() => {
     <AuthenticatedLayout>
         <div class="p-8">
             <!-- Header Section -->
-            <div class="flex justify-between items-center mb-8">
+            <div class="flex justify-between items-center mb-8 animate-fade-in">
                 <h1 class="text-3xl font-bold text-gray-900">
                     Trainees Management
                 </h1>
@@ -230,7 +230,9 @@ const filteredTrainees = computed(() => {
             </div>
 
             <!-- Filters and Search Section -->
-            <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <div
+                class="bg-white rounded-lg shadow-sm border p-6 mb-6 animate-fade-in"
+            >
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
                         All Trainees ({{ filteredTrainees.length }})
@@ -279,7 +281,9 @@ const filteredTrainees = computed(() => {
             </div>
 
             <!-- Trainees Table -->
-            <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div
+                class="bg-white rounded-lg shadow-sm border overflow-hidden animate-fade-in"
+            >
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b">

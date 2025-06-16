@@ -140,7 +140,7 @@ const updateFilter = () => {
     <AuthenticatedLayout>
         <div class="p-8">
             <!-- Header Section -->
-            <div class="flex justify-between items-center mb-8">
+            <div class="flex justify-between items-center mb-8 animate-fade-in">
                 <h1 class="text-3xl font-bold text-gray-900">
                     Trainers Management
                 </h1>
@@ -168,7 +168,9 @@ const updateFilter = () => {
             </div>
 
             <!-- Search Section -->
-            <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <div
+                class="bg-white rounded-lg shadow-sm border p-6 mb-6 animate-fade-in"
+            >
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-semibold text-gray-900">
                         All Trainers ({{ filteredTrainers.length }})
@@ -199,7 +201,9 @@ const updateFilter = () => {
             </div>
 
             <!-- Trainers Table -->
-            <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div
+                class="bg-white rounded-lg shadow-sm border overflow-hidden animate-fade-in"
+            >
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b">

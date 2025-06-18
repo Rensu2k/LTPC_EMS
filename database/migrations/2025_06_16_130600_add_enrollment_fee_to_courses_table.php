@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::defaultStringLength(191);
         Schema::table('courses', function (Blueprint $table) {
             if (!Schema::hasColumn('courses', 'enrollment_fee')) {
                 $table->decimal('enrollment_fee', 10, 2)->nullable()->after('max_enrollments');

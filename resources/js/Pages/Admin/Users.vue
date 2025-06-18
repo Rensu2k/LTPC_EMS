@@ -187,7 +187,7 @@ const getRoleColor = (role) => {
                         <div
                             class="bg-white rounded-lg p-4 border border-gray-200 shadow-sm"
                         >
-                            <div class="text-sm font-medium text-gray-600">
+                            <div class="text-sm font-medium text-green-600">
                                 Total Users
                             </div>
                             <div class="text-2xl font-bold text-green-600">

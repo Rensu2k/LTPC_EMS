@@ -164,7 +164,7 @@ const getStatusColor = (status) => {
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                ➕ Add New Course
+                                Add New Course
                             </SecondaryButton>
                             <SecondaryButton
                                 @click="exportCourseReport"
@@ -226,12 +226,12 @@ const getStatusColor = (status) => {
                 <div class="p-6 border-b border-gray-200">
                     <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                         <div
-                            class="bg-blue-50 p-4 rounded-lg border border-blue-200"
+                            class="bg-white-50 p-4 rounded-lg border border-gray-200"
                         >
-                            <div class="text-sm font-medium text-blue-600">
+                            <div class="text-sm font-medium text-green-600">
                                 Total Courses
                             </div>
-                            <div class="text-2xl font-bold text-blue-900">
+                            <div class="text-2xl font-bold text-green-900">
                                 {{ courses?.length || 0 }}
                             </div>
                         </div>
@@ -399,7 +399,7 @@ const getStatusColor = (status) => {
                             id="description"
                             v-model="form.description"
                             rows="3"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 transition-all duration-300"
                             placeholder="Enter course description"
                         ></textarea>
                         <InputError

@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::defaultStringLength(191);
         Schema::table('assessments', function (Blueprint $table) {
             // Applicant type and external applicant info
             $table->enum('applicant_type', ['enrolled_trainee', 'external_applicant'])->default('enrolled_trainee')->after('trainer_id');

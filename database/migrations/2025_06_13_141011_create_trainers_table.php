@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::defaultStringLength(191);
         Schema::create('trainers', function (Blueprint $table) {
             $table->id();
             $table->string('full_name');

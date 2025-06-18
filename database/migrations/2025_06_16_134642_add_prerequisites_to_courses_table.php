@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::defaultStringLength(191);
         Schema::table('courses', function (Blueprint $table) {
             if (!Schema::hasColumn('courses', 'prerequisites')) {
                 $table->text('prerequisites')->nullable()->after('duration');

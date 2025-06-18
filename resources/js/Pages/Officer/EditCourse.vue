@@ -107,6 +107,25 @@
                                     class="mt-2"
                                 />
                             </div>
+                            <div>
+                                <InputLabel
+                                    for="enrollment_fee"
+                                    value="Enrollment Fee"
+                                />
+                                <TextInput
+                                    id="enrollment_fee"
+                                    v-model.number="form.enrollment_fee"
+                                    type="number"
+                                    step="0.01"
+                                    class="mt-1 block w-full"
+                                    min="0"
+                                    placeholder="0.00"
+                                />
+                                <InputError
+                                    :message="form.errors.enrollment_fee"
+                                    class="mt-2"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -151,12 +170,52 @@
 
                     <!-- Assign Trainers -->
                     <div class="mb-6">
+                        <div
+                            class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4"
+                        >
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <svg
+                                        class="h-5 w-5 text-blue-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h4
+                                        class="text-sm font-medium text-blue-800"
+                                    >
+                                        Trainer Assignment
+                                    </h4>
+                                    <p class="text-sm text-blue-700 mt-1">
+                                        Trainers can only be assigned to courses
+                                        after the course has been created. This
+                                        helps ensure proper course setup and
+                                        trainer matching.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">
                             Assign Trainers
                         </h3>
-                        <p class="text-sm text-gray-600 mb-4">
+                        <p class="text-sm text-gray-600 mb-2">
                             Select trainers who will be responsible for this
                             course
+                        </p>
+                        <p class="text-xs text-blue-600 mb-4">
+                            Only showing trainers whose expertise matches "{{
+                                form.name
+                            }}"
                         </p>
 
                         <div v-if="trainers.length > 0" class="space-y-3">
@@ -222,10 +281,14 @@
                                 />
                             </svg>
                             <p class="mt-2 text-sm text-gray-500">
-                                No trainers available
+                                No trainers available with matching expertise
                             </p>
                             <p class="text-xs text-gray-400">
-                                Add trainers to assign them to courses
+                                Only trainers whose expertise matches "{{
+                                    form.name
+                                }}" are shown. Add trainers with relevant
+                                expertise or check existing trainer
+                                specializations.
                             </p>
                         </div>
                         <InputError
@@ -274,6 +337,7 @@ const form = useForm({
     duration: props.course?.duration || "",
     status: props.course?.status || "active",
     max_enrollments: props.course?.max_enrollments || null,
+    enrollment_fee: props.course?.enrollment_fee || null,
     start_date: props.course?.start_date || "",
     end_date: props.course?.end_date || "",
     assigned_trainers: props.course?.assigned_trainers || [],
@@ -290,12 +354,12 @@ const getTrainerInitials = (name) => {
 const submitForm = () => {
     form.put(route("officer.courses.update", props.course.id), {
         onSuccess: () => {
-            router.visit("/officer/courses");
+            router.visit(route("officer.courses"));
         },
     });
 };
 
 const goBack = () => {
-    router.visit("/officer/courses");
+    router.visit(route("officer.courses"));
 };
 </script>

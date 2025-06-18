@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head, useForm, router, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
@@ -13,6 +13,20 @@ import InputError from "@/Components/InputError.vue";
 const props = defineProps({
     courses: Array,
     flash: Object,
+});
+
+const user = computed(() => usePage().props.auth.user);
+const isOfficer = computed(() => user.value?.role === "officer");
+const isAdmin = computed(() => user.value?.role === "admin");
+
+// Determine the correct API endpoint based on user role
+const apiEndpoint = computed(() => {
+    if (isOfficer.value) {
+        return "/officer/courses";
+    } else if (isAdmin.value) {
+        return "/admin/courses";
+    }
+    return "/admin/courses"; // fallback
 });
 
 const showModal = ref(false);
@@ -44,12 +58,14 @@ const filteredCourses = computed(() => {
 });
 
 const openCreateModal = () => {
+    if (!isOfficer.value && !isAdmin.value) return;
     form.reset();
     editingCourse.value = null;
     showModal.value = true;
 };
 
 const openEditModal = (course) => {
+    if (!isOfficer.value && !isAdmin.value) return;
     editingCourse.value = course;
     form.name = course.name;
     form.description = course.description;
@@ -61,20 +77,22 @@ const openEditModal = (course) => {
 };
 
 const openDeleteModal = (course) => {
+    if (!isOfficer.value && !isAdmin.value) return;
     deletingCourse.value = course;
     showDeleteModal.value = true;
 };
 
 const submitForm = () => {
+    if (!isOfficer.value && !isAdmin.value) return;
     if (editingCourse.value) {
-        form.put(`/admin/programs/${editingCourse.value.id}`, {
+        form.put(`${apiEndpoint.value}/${editingCourse.value.id}`, {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
             },
         });
     } else {
-        form.post("/admin/programs", {
+        form.post(apiEndpoint.value, {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
@@ -84,7 +102,8 @@ const submitForm = () => {
 };
 
 const deleteCourse = () => {
-    router.delete(`/admin/programs/${deletingCourse.value.id}`, {
+    if (!isOfficer.value && !isAdmin.value) return;
+    router.delete(`${apiEndpoint.value}/${deletingCourse.value.id}`, {
         onSuccess: () => {
             showDeleteModal.value = false;
             deletingCourse.value = null;
@@ -94,9 +113,9 @@ const deleteCourse = () => {
 
 const formatCurrency = (amount) => {
     if (!amount) return "Free";
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-PH", {
         style: "currency",
-        currency: "USD",
+        currency: "PHP",
     }).format(amount);
 };
 
@@ -115,7 +134,7 @@ const getStatusColor = (status) => {
 </script>
 
 <template>
-    <Head title="Programs Management" />
+    <Head title="Courses Management" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
             <div
@@ -135,16 +154,23 @@ const getStatusColor = (status) => {
                             <h3
                                 class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
                             >
-                                Program Progress Monitoring
+                                Course Progress Monitoring
                             </h3>
-                            <!-- <p class="text-sm text-gray-500">Monitor program capacity and progress (maximum 25 trainees per program)</p> -->
+                            <!-- <p class="text-sm text-gray-500">Monitor course capacity and progress (maximum 25 trainees per course)</p> -->
                         </div>
                         <div class="flex space-x-3">
+                            <SecondaryButton
+                                v-if="isOfficer || isAdmin"
+                                @click="openCreateModal"
+                                class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
+                            >
+                                ➕ Add New Course
+                            </SecondaryButton>
                             <SecondaryButton
                                 @click="exportCourseReport"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                📄 Export Program Report
+                                📄 Export Course Report
                             </SecondaryButton>
                         </div>
                     </div>
@@ -156,14 +182,42 @@ const getStatusColor = (status) => {
                 >
                     <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                         <div class="relative">
-                            <InputLabel for="search" value="Search Programs" />
+                            <InputLabel for="search" value="Search Courses" />
                             <TextInput
                                 id="search"
                                 v-model="searchQuery"
                                 type="text"
-                                placeholder="Search by program name"
+                                placeholder="Search by course name"
                                 class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
                             />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role-based notification -->
+                <div
+                    v-if="!isOfficer && !isAdmin"
+                    class="p-4 bg-yellow-50 border-l-4 border-yellow-400"
+                >
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg
+                                class="h-5 w-5 text-yellow-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">
+                                Only officers and admins can add, edit, or
+                                delete courses. You have view-only access.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -175,7 +229,7 @@ const getStatusColor = (status) => {
                             class="bg-blue-50 p-4 rounded-lg border border-blue-200"
                         >
                             <div class="text-sm font-medium text-blue-600">
-                                Total Programs
+                                Total Courses
                             </div>
                             <div class="text-2xl font-bold text-blue-900">
                                 {{ courses?.length || 0 }}
@@ -192,7 +246,7 @@ const getStatusColor = (status) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Program
+                                    Course
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -202,12 +256,12 @@ const getStatusColor = (status) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Enrollment Fee
+                                    Max Students
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Total Enrollments
+                                    Fee
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -215,6 +269,7 @@ const getStatusColor = (status) => {
                                     Status
                                 </th>
                                 <th
+                                    v-if="isOfficer || isAdmin"
                                     class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Actions
@@ -225,47 +280,32 @@ const getStatusColor = (status) => {
                             <tr
                                 v-for="course in filteredCourses"
                                 :key="course.id"
-                                class="hover:bg-gray-50 transition-colors duration-200"
+                                class="hover:bg-green-50 transition-colors duration-150"
                             >
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-10 w-10">
-                                            <div
-                                                class="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center relative overflow-hidden"
-                                            >
-                                                <span
-                                                    class="text-sm font-medium text-white relative z-10"
-                                                >
-                                                    📚
-                                                </span>
-                                                <div
-                                                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500"
-                                                ></div>
-                                            </div>
+                                    <div>
+                                        <div
+                                            class="text-sm font-medium text-gray-900"
+                                        >
+                                            {{ course.name }}
                                         </div>
-                                        <div class="ml-4">
-                                            <div
-                                                class="text-sm font-medium text-gray-900 transition-colors duration-200 group-hover:text-green-600"
-                                            >
-                                                {{ course.name }}
-                                            </div>
-                                            <div
-                                                class="text-sm text-gray-500 truncate max-w-xs transition-colors duration-200 group-hover:text-green-500"
-                                            >
-                                                {{ course.description }}
-                                            </div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ course.description }}
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ course.duration }} hours
+                                        {{ course.duration }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div
-                                        class="text-sm font-medium text-gray-900"
-                                    >
+                                    <div class="text-sm text-gray-900">
+                                        {{ course.max_students }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
                                         {{
                                             formatCurrency(
                                                 course.enrollment_fee
@@ -273,120 +313,82 @@ const getStatusColor = (status) => {
                                         }}
                                     </div>
                                 </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                                >
-                                    <div>
-                                        {{ course.total_trainees || 0 }} /
-                                        {{ course.max_students || "∞" }}
-                                    </div>
-                                    <div
-                                        class="w-full bg-gray-200 rounded-full h-1 mt-1"
-                                    >
-                                        <div
-                                            class="bg-blue-600 h-1 rounded-full transition-all duration-500"
-                                            :style="`width: ${
-                                                course.max_students
-                                                    ? (course.total_trainees /
-                                                          course.max_students) *
-                                                      100
-                                                    : 0
-                                            }%`"
-                                        ></div>
-                                    </div>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
-                                        :class="[getStatusColor(course.status)]"
-                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
+                                        :class="getStatusColor(course.status)"
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
                                         {{ course.status }}
                                     </span>
                                 </td>
                                 <td
+                                    v-if="isOfficer || isAdmin"
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
                                 >
                                     <div class="flex justify-end space-x-2">
                                         <button
                                             @click="openEditModal(course)"
-                                            class="px-3 py-1 text-green-600 hover:text-white hover:bg-green-600 border border-green-600 rounded transition-all duration-300 font-medium"
+                                            class="text-blue-600 hover:text-blue-800 transition-colors duration-150"
                                         >
-                                            Edit
+                                            ✏️ Edit
                                         </button>
                                         <button
                                             @click="openDeleteModal(course)"
-                                            class="px-3 py-1 text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-all duration-300 font-medium"
+                                            class="text-red-600 hover:text-red-800 transition-colors duration-150"
                                         >
-                                            Delete
+                                            🗑️ Delete
                                         </button>
                                     </div>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
 
-                    <div
-                        v-if="filteredCourses.length === 0"
-                        class="p-8 text-center bg-gradient-to-br from-white to-green-50"
+                <!-- Empty State -->
+                <div
+                    v-if="!filteredCourses.length"
+                    class="text-center py-12 bg-gray-50"
+                >
+                    <div class="text-gray-400 text-6xl mb-4">📚</div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">
+                        No courses found
+                    </h3>
+                    <p class="text-gray-500 mb-4">
+                        {{
+                            searchQuery
+                                ? "Try adjusting your search criteria."
+                                : "Get started by adding your first course."
+                        }}
+                    </p>
+                    <PrimaryButton
+                        v-if="(isOfficer || isAdmin) && !searchQuery"
+                        @click="openCreateModal"
+                        class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                     >
-                        <div class="text-gray-500">
-                            <svg
-                                class="mx-auto h-12 w-12 text-gray-400 animate-bounce"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                                />
-                            </svg>
-                            <h3 class="mt-2 text-sm font-medium text-gray-900">
-                                No programs found
-                            </h3>
-                            <p class="mt-1 text-sm text-gray-500">
-                                {{
-                                    searchQuery
-                                        ? "Try adjusting your filters."
-                                        : "Get started by creating your first program."
-                                }}
-                            </p>
-                        </div>
-                    </div>
+                        Add First Course
+                    </PrimaryButton>
                 </div>
             </div>
         </div>
 
-        <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="2xl">
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-green-900">
-                        {{
-                            editingCourse
-                                ? "Edit Program"
-                                : "Create New Program"
-                        }}
-                    </h3>
-                </div>
+        <!-- Course Modal -->
+        <Modal :show="showModal" @close="showModal = false">
+            <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900">
+                    {{ editingCourse ? "Edit Course" : "Add New Course" }}
+                </h2>
 
-                <form @submit.prevent="submitForm" class="space-y-4">
+                <form @submit.prevent="submitForm" class="mt-6 space-y-6">
                     <div>
-                        <InputLabel for="name" value="Program Name *" />
+                        <InputLabel for="name" value="Course Name" />
                         <TextInput
                             id="name"
+                            ref="nameInput"
                             v-model="form.name"
                             type="text"
-                            class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            placeholder="e.g. Shielded Metal Arc Welding"
-                            required
+                            class="mt-1 block w-full"
+                            placeholder="Enter course name"
                         />
                         <InputError :message="form.errors.name" class="mt-2" />
                     </div>
@@ -396,9 +398,9 @@ const getStatusColor = (status) => {
                         <textarea
                             id="description"
                             v-model="form.description"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            rows="4"
-                            placeholder="Brief description of the program objectives and content..."
+                            rows="3"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500"
+                            placeholder="Enter course description"
                         ></textarea>
                         <InputError
                             :message="form.errors.description"
@@ -406,20 +408,15 @@ const getStatusColor = (status) => {
                         />
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <InputLabel
-                                for="duration"
-                                value="Duration (hours) *"
-                            />
+                            <InputLabel for="duration" value="Duration" />
                             <TextInput
                                 id="duration"
                                 v-model="form.duration"
-                                type="number"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                placeholder="120"
-                                min="1"
-                                required
+                                type="text"
+                                class="mt-1 block w-full"
+                                placeholder="e.g., 3 months"
                             />
                             <InputError
                                 :message="form.errors.duration"
@@ -429,20 +426,18 @@ const getStatusColor = (status) => {
 
                         <div>
                             <InputLabel
-                                for="enrollment_fee"
-                                value="Enrollment Fee (₱)"
+                                for="max_students"
+                                value="Max Students"
                             />
                             <TextInput
-                                id="enrollment_fee"
-                                v-model="form.enrollment_fee"
+                                id="max_students"
+                                v-model="form.max_students"
                                 type="number"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                step="0.01"
-                                min="0"
-                                placeholder="0.00"
+                                class="mt-1 block w-full"
+                                placeholder="25"
                             />
                             <InputError
-                                :message="form.errors.enrollment_fee"
+                                :message="form.errors.max_students"
                                 class="mt-2"
                             />
                         </div>
@@ -453,9 +448,9 @@ const getStatusColor = (status) => {
                         <textarea
                             id="prerequisites"
                             v-model="form.prerequisites"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            rows="3"
-                            placeholder="List any requirements or prerequisites for this program..."
+                            rows="2"
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500"
+                            placeholder="Enter course prerequisites"
                         ></textarea>
                         <InputError
                             :message="form.errors.prerequisites"
@@ -465,56 +460,36 @@ const getStatusColor = (status) => {
 
                     <div>
                         <InputLabel
-                            for="max_students"
-                            value="Maximum Trainees"
+                            for="enrollment_fee"
+                            value="Enrollment Fee (PHP)"
                         />
                         <TextInput
-                            id="max_students"
-                            v-model="form.max_students"
+                            id="enrollment_fee"
+                            v-model="form.enrollment_fee"
                             type="number"
-                            class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            placeholder="25"
-                            min="1"
+                            step="0.01"
+                            class="mt-1 block w-full"
+                            placeholder="0.00"
                         />
                         <InputError
-                            :message="form.errors.max_students"
+                            :message="form.errors.enrollment_fee"
                             class="mt-2"
                         />
                     </div>
 
-                    <div>
-                        <InputLabel for="status" value="Status" />
-                        <select
-                            id="status"
-                            v-model="form.status"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                        >
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                        <InputError
-                            :message="form.errors.status"
-                            class="mt-2"
-                        />
-                    </div>
-
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <SecondaryButton
-                            @click="showModal = false"
-                            class="border-2 border-gray-300 hover:border-green-500 hover:text-green-600 transition-all duration-300"
-                        >
+                    <div class="flex items-center justify-end mt-6 space-x-3">
+                        <SecondaryButton @click="showModal = false">
                             Cancel
                         </SecondaryButton>
                         <PrimaryButton
+                            :class="{ 'opacity-25': form.processing }"
                             :disabled="form.processing"
-                            class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
+                            class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                         >
                             {{
-                                form.processing
-                                    ? "Saving..."
-                                    : editingCourse
-                                    ? "Update"
-                                    : "Create"
+                                editingCourse
+                                    ? "Update Course"
+                                    : "Create Course"
                             }}
                         </PrimaryButton>
                     </div>
@@ -524,35 +499,20 @@ const getStatusColor = (status) => {
 
         <!-- Delete Confirmation Modal -->
         <Modal :show="showDeleteModal" @close="showDeleteModal = false">
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-red-500 to-pink-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-red-900">
-                        Delete Program
-                    </h3>
-                </div>
-                <p class="text-sm text-gray-500 mb-4">
-                    Are you sure you want to delete "{{
-                        deletingCourse?.name
-                    }}"? This action cannot be undone and will affect any
-                    enrolled trainees.
+            <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900">Delete Course</h2>
+
+                <p class="mt-1 text-sm text-gray-600">
+                    Are you sure you want to delete this course? This action
+                    cannot be undone.
                 </p>
-                <div class="flex justify-end space-x-3">
-                    <SecondaryButton
-                        @click="showDeleteModal = false"
-                        class="border-2 border-gray-300 hover:border-red-500 hover:text-red-600 transition-all duration-300"
-                    >
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <SecondaryButton @click="showDeleteModal = false">
                         Cancel
                     </SecondaryButton>
-                    <DangerButton
-                        @click="deleteCourse"
-                        class="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 transition-all duration-300"
-                    >
-                        Delete
+                    <DangerButton @click="deleteCourse">
+                        Delete Course
                     </DangerButton>
                 </div>
             </div>
@@ -573,6 +533,6 @@ const getStatusColor = (status) => {
 }
 
 .animate-fade-in {
-    animation: fade-in 0.6s ease-out;
+    animation: fade-in 0.5s ease-out;
 }
 </style>

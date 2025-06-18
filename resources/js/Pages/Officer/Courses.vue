@@ -25,6 +25,7 @@ const coursesList = ref(
         name: course.name,
         description: course.description,
         duration: course.duration,
+        enrollment_fee: course.enrollment_fee || 0,
         status: course.status,
         enrollments: course.enrollments || 0,
         max_enrollments: course.max_enrollments,
@@ -53,7 +54,7 @@ const viewCourse = (course) => {
 };
 
 const editCourse = (course) => {
-    router.visit(`/officer/courses/${course.id}/edit`);
+    router.visit(route("officer.courses.edit", course.id));
 };
 
 const deleteCourse = (course) => {
@@ -138,6 +139,14 @@ const updateFilter = () => {
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase())
     );
+};
+
+const formatCurrency = (amount) => {
+    if (!amount) return "Free";
+    return new Intl.NumberFormat("en-PH", {
+        style: "currency",
+        currency: "PHP",
+    }).format(amount);
 };
 </script>
 
@@ -238,6 +247,11 @@ const updateFilter = () => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
+                                    Price
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
                                     Trainers
                                 </th>
                                 <th
@@ -290,6 +304,11 @@ const updateFilter = () => {
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
                                     {{ course.duration }}
+                                </td>
+                                <td
+                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                >
+                                    {{ formatCurrency(course.enrollment_fee) }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
@@ -463,7 +482,6 @@ const updateFilter = () => {
         <!-- Course Registration Modal -->
         <CourseRegistrationModal
             :show="showRegistrationModal"
-            :trainers="trainers"
             @close="closeRegistrationModal"
             @submitted="onCourseSubmitted"
         />

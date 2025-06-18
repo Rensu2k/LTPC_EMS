@@ -433,7 +433,12 @@ const exportPaymentReport = () => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="2xl">
+        <Modal
+            :show="showModal"
+            @close="showModal = false"
+            max-width="2xl"
+            :close-on-click-outside="false"
+        >
             <div
                 class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
             >

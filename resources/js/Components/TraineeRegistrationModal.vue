@@ -1,5 +1,10 @@
 <template>
-    <Modal :show="show" @close="closeModal" custom-width="80vw">
+    <Modal
+        :show="show"
+        @close="closeModal"
+        custom-width="80vw"
+        :close-on-click-outside="false"
+    >
         <div class="p-6 max-h-screen overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">
@@ -1140,6 +1145,19 @@
                                 class="mt-1 block w-full"
                                 placeholder="Enter scholarship package type"
                             />
+                            <div
+                                class="bg-green-50 border border-green-200 rounded-lg p-3 mt-2"
+                            >
+                                <p class="text-sm text-green-700 font-medium">
+                                    ✓ Scholars are automatically exempted from
+                                    enrollment and assessment fees
+                                </p>
+                                <p class="text-xs text-green-600 mt-1">
+                                    Payment status will be automatically set to
+                                    "Paid" for trainees with scholarship
+                                    packages
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

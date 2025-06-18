@@ -330,7 +330,12 @@ const getRoleColor = (role) => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="2xl">
+        <Modal
+            :show="showModal"
+            @close="showModal = false"
+            max-width="2xl"
+            :close-on-click-outside="false"
+        >
             <div class="p-6">
                 <div class="mb-6">
                     <h3 class="text-lg font-medium text-gray-900">

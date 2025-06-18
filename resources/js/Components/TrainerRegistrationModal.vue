@@ -78,7 +78,12 @@ watch(
 </script>
 
 <template>
-    <Modal :show="show" @close="closeModal" custom-width="80vw">
+    <Modal
+        :show="show"
+        @close="closeModal"
+        custom-width="80vw"
+        :close-on-click-outside="false"
+    >
         <div class="p-6">
             <!-- Header -->
             <div class="flex justify-between items-center mb-6">

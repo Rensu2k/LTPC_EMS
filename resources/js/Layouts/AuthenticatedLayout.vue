@@ -14,7 +14,7 @@ const pageTitle = computed(() => {
 
     // Admin routes
     if (currentRoute === "admin.dashboard") return "Admin Dashboard";
-    if (currentRoute === "admin.programs") return "Manage Programs";
+    if (currentRoute === "admin.courses") return "Manage Courses";
     if (currentRoute === "admin.trainees") return "Manage Trainees";
     if (currentRoute === "admin.trainers") return "Manage Trainers";
     if (currentRoute === "admin.payments") return "Manage Payments";
@@ -26,9 +26,10 @@ const pageTitle = computed(() => {
 
     // Officer routes
     if (currentRoute === "officer.dashboard") return "Officer Dashboard";
-    if (currentRoute === "officer.programs") return "Programs";
+    if (currentRoute === "officer.courses") return "Courses";
     if (currentRoute === "officer.trainees") return "Trainees";
     if (currentRoute === "officer.trainers") return "Trainers";
+    if (currentRoute === "officer.assessments") return "Assessments";
 
     // Cashier routes
     if (currentRoute === "cashier.dashboard") return "Cashier Dashboard";
@@ -117,15 +118,15 @@ function logout() {
                         </span>
                     </NavLink>
                     <NavLink
-                        :href="route('admin.programs')"
-                        :active="route().current('admin.programs')"
+                        :href="route('admin.courses')"
+                        :active="route().current('admin.courses')"
                         class="group py-3 px-2 rounded-lg"
                     >
                         <span class="flex items-center gap-4">
                             <svg
                                 class="h-6 w-6"
                                 :class="
-                                    route().current('admin.programs')
+                                    route().current('admin.courses')
                                         ? 'text-white'
                                         : 'text-white/70 group-hover:text-white'
                                 "
@@ -144,7 +145,7 @@ function logout() {
                             </svg>
                             <span
                                 :class="
-                                    route().current('admin.programs')
+                                    route().current('admin.courses')
                                         ? 'font-semibold text-lg text-white'
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
@@ -485,15 +486,15 @@ function logout() {
                         </span>
                     </NavLink>
                     <NavLink
-                        :href="route('officer.programs')"
-                        :active="route().current('officer.programs')"
+                        :href="route('officer.courses')"
+                        :active="route().current('officer.courses')"
                         class="group py-3 px-2 rounded-lg"
                     >
                         <span class="flex items-center gap-4">
                             <svg
                                 class="h-6 w-6"
                                 :class="
-                                    route().current('officer.programs')
+                                    route().current('officer.courses')
                                         ? 'text-white'
                                         : 'text-white/70 group-hover:text-white'
                                 "
@@ -512,7 +513,7 @@ function logout() {
                             </svg>
                             <span
                                 :class="
-                                    route().current('officer.programs')
+                                    route().current('officer.courses')
                                         ? 'font-semibold text-lg text-white'
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
@@ -585,6 +586,40 @@ function logout() {
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
                                 >Trainers</span
+                            >
+                        </span>
+                    </NavLink>
+                    <NavLink
+                        :href="route('officer.assessments')"
+                        :active="route().current('officer.assessments')"
+                        class="group py-3 px-2 rounded-lg"
+                    >
+                        <span class="flex items-center gap-4">
+                            <svg
+                                class="h-6 w-6"
+                                :class="
+                                    route().current('officer.assessments')
+                                        ? 'text-white'
+                                        : 'text-white/70 group-hover:text-white'
+                                "
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                            </svg>
+                            <span
+                                :class="
+                                    route().current('officer.assessments')
+                                        ? 'font-semibold text-lg text-white'
+                                        : 'text-lg text-white/80 group-hover:text-white'
+                                "
+                                >Assessments</span
                             >
                         </span>
                     </NavLink>

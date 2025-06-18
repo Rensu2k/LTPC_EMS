@@ -10,7 +10,6 @@ import InputError from "@/Components/InputError.vue";
 
 const props = defineProps({
     show: Boolean,
-    trainers: Array,
 });
 
 const emit = defineEmits(["close", "submitted"]);
@@ -19,8 +18,8 @@ const form = useForm({
     name: "",
     description: "",
     duration: "",
-    assigned_trainers: [],
-    max_enrollments: 30,
+    enrollment_fee: "",
+    max_enrollments: "30",
     start_date: "",
     end_date: "",
 });
@@ -48,19 +47,6 @@ const submitForm = () => {
     });
 };
 
-const toggleTrainer = (trainerId) => {
-    const index = form.assigned_trainers.indexOf(trainerId);
-    if (index > -1) {
-        form.assigned_trainers.splice(index, 1);
-    } else {
-        form.assigned_trainers.push(trainerId);
-    }
-};
-
-const isTrainerSelected = (trainerId) => {
-    return form.assigned_trainers.includes(trainerId);
-};
-
 // Watch for modal show/hide to reset form
 watch(
     () => props.show,
@@ -74,7 +60,12 @@ watch(
 </script>
 
 <template>
-    <Modal :show="show" @close="closeModal" custom-width="80vw">
+    <Modal
+        :show="show"
+        @close="closeModal"
+        custom-width="80vw"
+        :close-on-click-outside="false"
+    >
         <div class="p-6">
             <!-- Header -->
             <div class="flex justify-between items-center mb-6">
@@ -101,9 +92,15 @@ watch(
                 </button>
             </div>
 
-            <p class="text-gray-600 mb-6">
-                Create a new training course in the system.
-            </p>
+            <div class="border-b pb-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Create New Course
+                </h3>
+                <p class="text-sm text-gray-600 mt-2">
+                    Create a new course. You can assign trainers to this course
+                    after it's created by editing the course.
+                </p>
+            </div>
 
             <form @submit.prevent="submitForm" class="space-y-6">
                 <!-- Course Name -->
@@ -150,6 +147,26 @@ watch(
                     <InputError :message="form.errors.duration" class="mt-2" />
                 </div>
 
+                <!-- Enrollment Fee -->
+                <div>
+                    <InputLabel for="enrollment_fee" value="Enrollment Fee" />
+                    <TextInput
+                        id="enrollment_fee"
+                        v-model="form.enrollment_fee"
+                        type="number"
+                        step="0.01"
+                        class="mt-1 block w-full"
+                        placeholder="0.00"
+                    />
+                    <p class="text-sm text-gray-500 mt-1">
+                        Leave blank or set to 0 for free courses
+                    </p>
+                    <InputError
+                        :message="form.errors.enrollment_fee"
+                        class="mt-2"
+                    />
+                </div>
+
                 <!-- Course Settings -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Max Enrollments -->
@@ -189,81 +206,6 @@ watch(
                             class="mt-2"
                         />
                     </div>
-                </div>
-
-                <!-- Assign Trainers -->
-                <div>
-                    <InputLabel value="Assign Trainers" />
-                    <p class="text-sm text-gray-500 mb-3">
-                        Select one or more trainers to assign to this course.
-                    </p>
-
-                    <div
-                        class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg"
-                    >
-                        <div
-                            v-if="trainers && trainers.length > 0"
-                            class="space-y-1 p-3"
-                        >
-                            <div
-                                v-for="trainer in trainers"
-                                :key="trainer.id"
-                                class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
-                                @click="toggleTrainer(trainer.id)"
-                            >
-                                <input
-                                    type="checkbox"
-                                    :checked="isTrainerSelected(trainer.id)"
-                                    class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    @click.stop="toggleTrainer(trainer.id)"
-                                />
-                                <div
-                                    class="ml-3 flex items-center gap-3 flex-1"
-                                >
-                                    <div
-                                        class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold"
-                                    >
-                                        {{
-                                            trainer.name
-                                                .split(" ")
-                                                .map((n) => n[0])
-                                                .join("")
-                                        }}
-                                    </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">
-                                            {{ trainer.name }}
-                                        </div>
-                                        <div class="text-sm text-gray-500">
-                                            {{ trainer.expertise }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="p-6 text-center text-gray-500">
-                            <p>No active trainers available</p>
-                            <p class="text-sm">
-                                Please add trainers first to assign them to
-                                courses.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="form.assigned_trainers.length > 0"
-                        class="mt-2 text-sm text-gray-600"
-                    >
-                        {{ form.assigned_trainers.length }} trainer{{
-                            form.assigned_trainers.length === 1 ? "" : "s"
-                        }}
-                        selected
-                    </div>
-
-                    <InputError
-                        :message="form.errors.assigned_trainers"
-                        class="mt-2"
-                    />
                 </div>
 
                 <!-- Action Buttons -->

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head, useForm, router, usePage } from "@inertiajs/vue3";
 import { ref, reactive, computed } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
@@ -15,6 +15,9 @@ const props = defineProps({
     courses: Array,
     flash: Object,
 });
+
+const user = computed(() => usePage().props.auth.user);
+const isOfficer = computed(() => user.value?.role === "officer");
 
 const showModal = ref(false);
 const showDeleteModal = ref(false);
@@ -71,12 +74,14 @@ const filteredTrainees = computed(() => {
 });
 
 const openCreateModal = () => {
+    if (!isOfficer.value) return;
     form.reset();
     editingTrainee.value = null;
     showModal.value = true;
 };
 
 const openEditModal = (trainee) => {
+    if (!isOfficer.value) return;
     editingTrainee.value = trainee;
     form.first_name = trainee.first_name;
     form.last_name = trainee.last_name;
@@ -91,11 +96,13 @@ const openEditModal = (trainee) => {
 };
 
 const openDeleteModal = (trainee) => {
+    if (!isOfficer.value) return;
     deletingTrainee.value = trainee;
     showDeleteModal.value = true;
 };
 
 const submitForm = () => {
+    if (!isOfficer.value) return;
     if (editingTrainee.value) {
         form.put(`/admin/trainees/${editingTrainee.value.id}`, {
             onSuccess: () => {
@@ -114,6 +121,7 @@ const submitForm = () => {
 };
 
 const deleteTrainee = () => {
+    if (!isOfficer.value) return;
     router.delete(`/admin/trainees/${deletingTrainee.value.id}`, {
         onSuccess: () => {
             showDeleteModal.value = false;
@@ -171,6 +179,13 @@ const getEnrollmentTypeColor = (type) => {
                             <!-- <p class="text-sm text-gray-500">Monitor enrollment numbers and track regular vs scholar trainees</p> -->
                         </div>
                         <div class="flex space-x-3">
+                            <SecondaryButton
+                                v-if="isOfficer"
+                                @click="openCreateModal"
+                                class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
+                            >
+                                ➕ Add New Trainee
+                            </SecondaryButton>
                             <SecondaryButton
                                 @click="exportEnrollments"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
@@ -234,6 +249,34 @@ const getEnrollmentTypeColor = (type) => {
                     </div>
                 </div>
 
+                <!-- Role-based notification -->
+                <div
+                    v-if="!isOfficer"
+                    class="p-4 bg-yellow-50 border-l-4 border-yellow-400"
+                >
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg
+                                class="h-5 w-5 text-yellow-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">
+                                Only officers can add, edit, or delete trainees.
+                                You have view-only access.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Table Section -->
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -257,6 +300,11 @@ const getEnrollmentTypeColor = (type) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
+                                    Batch
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
                                     Type
                                 </th>
                                 <th
@@ -270,6 +318,7 @@ const getEnrollmentTypeColor = (type) => {
                                     Date Enrolled
                                 </th>
                                 <th
+                                    v-if="isOfficer"
                                     class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Actions
@@ -334,6 +383,13 @@ const getEnrollmentTypeColor = (type) => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
+                                    >
+                                        Batch {{ trainee.batch || 1 }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
                                         :class="
                                             getEnrollmentTypeColor(
                                                 trainee.enrollment_type
@@ -362,6 +418,7 @@ const getEnrollmentTypeColor = (type) => {
                                     }}
                                 </td>
                                 <td
+                                    v-if="isOfficer"
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
                                 >
                                     <div class="flex justify-end space-x-2">
@@ -418,7 +475,12 @@ const getEnrollmentTypeColor = (type) => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="2xl">
+        <Modal
+            :show="showModal"
+            @close="showModal = false"
+            max-width="2xl"
+            :close-on-click-outside="false"
+        >
             <div
                 class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
             >

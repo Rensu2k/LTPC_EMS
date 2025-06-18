@@ -73,8 +73,8 @@ return new class extends Migration
             $table->json('requirements')->nullable();
             
             // Status
-            $table->enum('status', ['active', 'completed', 'dropped', 'suspended'])->default('active');
-            $table->enum('payment_status', ['paid', 'unpaid', 'partial'])->default('unpaid');
+            $table->enum('status', ['active', 'completed', 'dropped', 'suspended'])->default('suspended');
+            $table->enum('payment_status', ['paid', 'unpaid'])->default('unpaid');
             
             $table->timestamps();
         });

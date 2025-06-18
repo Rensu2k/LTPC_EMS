@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CourseController;
+use App\Http\Controllers\TrainerController;
+use App\Http\Controllers\TraineeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -25,180 +28,132 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    // Admin routes with role-based access control
-    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
-        // Dashboard
+Route::middleware(['auth', 'verified'])->group(function () {    
+    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {        
         Route::get('/dashboard', function () {
             return Inertia::render('Admin/Dashboard');
         })->name('dashboard');
-
-        // Programs Management
-        Route::get('/programs', function () {
-            return Inertia::render('Admin/Program');
-        })->name('programs');
-        Route::post('/programs', function () {
-            // Store new program
-        })->name('programs.store');
-        Route::put('/programs/{id}', function ($id) {
-            // Update program
-        })->name('programs.update');
-        Route::delete('/programs/{id}', function ($id) {
-            // Delete program
-        })->name('programs.destroy');
-
-        // Trainees Management
-        Route::get('/trainees', function () {
-            return Inertia::render('Admin/Trainees');
-        })->name('trainees');
-        Route::post('/trainees', function () {
-            // Store new trainee
-        })->name('trainees.store');
-        Route::put('/trainees/{id}', function ($id) {
-            // Update trainee
-        })->name('trainees.update');
-        Route::delete('/trainees/{id}', function ($id) {
-            // Delete trainee
-        })->name('trainees.destroy');
-        Route::patch('/trainees/{id}/status', function ($id) {
-            // Update trainee status
-        })->name('trainees.status');
-
-        // Trainers Management
-        Route::get('/trainers', function () {
-            return Inertia::render('Admin/Trainers');
-        })->name('trainers');
-        Route::post('/trainers', function () {
-            // Store new trainer
-        })->name('trainers.store');
-        Route::put('/trainers/{id}', function ($id) {
-            // Update trainer
-        })->name('trainers.update');
-        Route::delete('/trainers/{id}', function ($id) {
-            // Delete trainer
-        })->name('trainers.destroy');
-
-        // Payments Management
+        
+        // Course Management Routes
+        Route::get('/courses', [CourseController::class, 'adminIndex'])->name('courses');
+        Route::post('/courses', [CourseController::class, 'adminStore'])->name('courses.store');
+        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+        Route::put('/courses/{course}', [CourseController::class, 'adminUpdate'])->name('courses.update');
+        Route::delete('/courses/{course}', [CourseController::class, 'adminDestroy'])->name('courses.destroy');
+        
+        Route::get('/trainees', [TraineeController::class, 'adminIndex'])->name('trainees');
+        Route::post('/trainees', [TraineeController::class, 'adminStore'])->name('trainees.store');
+        Route::put('/trainees/{trainee}', [TraineeController::class, 'adminUpdate'])->name('trainees.update');
+        Route::delete('/trainees/{trainee}', [TraineeController::class, 'adminDestroy'])->name('trainees.destroy');
+        Route::patch('/trainees/{trainee}/status', [TraineeController::class, 'updateStatus'])->name('trainees.status');
+        
+        Route::get('/trainers', [TrainerController::class, 'adminIndex'])->name('trainers');
+        Route::post('/trainers', [TrainerController::class, 'adminStore'])->name('trainers.store');
+        Route::get('/trainers/{trainer}/edit', [TrainerController::class, 'edit'])->name('trainers.edit');
+        Route::put('/trainers/{trainer}', [TrainerController::class, 'adminUpdate'])->name('trainers.update');
+        Route::delete('/trainers/{trainer}', [TrainerController::class, 'adminDestroy'])->name('trainers.destroy');
+        
         Route::get('/payments', function () {
             return Inertia::render('Admin/Payments');
         })->name('payments');
-        Route::post('/payments', function () {
-            // Store new payment
+        Route::post('/payments', function () {            
         })->name('payments.store');
-        Route::put('/payments/{id}', function ($id) {
-            // Update payment
+        Route::put('/payments/{id}', function ($id) {            
         })->name('payments.update');
-        Route::delete('/payments/{id}', function ($id) {
-            // Delete payment
+        Route::delete('/payments/{id}', function ($id) {            
         })->name('payments.destroy');
-        Route::patch('/payments/{id}/status', function ($id) {
-            // Update payment status
+        Route::patch('/payments/{id}/status', function ($id) {            
         })->name('payments.status');
-
-        // Training Results Management
+        
         Route::get('/trainings', function () {
             return Inertia::render('Admin/TrainingResults');
         })->name('trainings');
-        Route::post('/trainings', function () {
-            // Store new training result
+        Route::post('/trainings', function () {            
         })->name('trainings.store');
-        Route::put('/trainings/{id}', function ($id) {
-            // Update training result
+        Route::put('/trainings/{id}', function ($id) {            
         })->name('trainings.update');
-        Route::delete('/trainings/{id}', function ($id) {
-            // Delete training result
+        Route::delete('/trainings/{id}', function ($id) {            
         })->name('trainings.destroy');
-
-        // Assessment Management
+        
         Route::get('/assessments', function () {
             return Inertia::render('Admin/AssestmentResults');
         })->name('assessments');
-        Route::post('/assessments', function () {
-            // Store new assessment
+        Route::post('/assessments', function () {            
         })->name('assessments.store');
-        Route::put('/assessments/{id}', function ($id) {
-            // Update assessment
+        Route::put('/assessments/{id}', function ($id) {            
         })->name('assessments.update');
-        Route::delete('/assessments/{id}', function ($id) {
-            // Delete assessment
+        Route::delete('/assessments/{id}', function ($id) {            
         })->name('assessments.destroy');
-
-        // Employment & Referrals Management
+        
         Route::get('/employments', function () {
             return Inertia::render('Admin/EmploymentsReferrals');
         })->name('employments');
-        Route::post('/employments', function () {
-            // Store new employment record
+        Route::post('/employments', function () {            
         })->name('employments.store');
-        Route::put('/employments/{id}', function ($id) {
-            // Update employment record
+        Route::put('/employments/{id}', function ($id) {            
         })->name('employments.update');
-        Route::delete('/employments/{id}', function ($id) {
-            // Delete employment record
+        Route::delete('/employments/{id}', function ($id) {            
         })->name('employments.destroy');
-
-        // Reports & Analytics
+        
         Route::get('/reports', function () {
             return Inertia::render('Admin/Reports');
         })->name('reports');
-        Route::post('/reports/generate', function () {
-            // Generate report
+        Route::post('/reports/generate', function () {            
         })->name('reports.generate');
-        Route::post('/reports/export', function () {
-            // Export report
+        Route::post('/reports/export', function () {            
         })->name('reports.export');
-
-        // User Management
+        
         Route::get('/users', function () {
             return Inertia::render('Admin/Users');
         })->name('users');
-        Route::post('/users', function () {
-            // Store new user
+        Route::post('/users', function () {            
         })->name('users.store');
-        Route::put('/users/{id}', function ($id) {
-            // Update user
+        Route::put('/users/{id}', function ($id) {            
         })->name('users.update');
-        Route::delete('/users/{id}', function ($id) {
-            // Delete user
+        Route::delete('/users/{id}', function ($id) {            
         })->name('users.destroy');
-        Route::patch('/users/{id}/status', function ($id) {
-            // Update user status
+        Route::patch('/users/{id}/status', function ($id) {            
         })->name('users.status');
-
-        // Additional Admin Routes
-        Route::get('/analytics', function () {
-            // Analytics dashboard
+        
+        Route::get('/analytics', function () {            
         })->name('analytics');
-        Route::get('/settings', function () {
-            // System settings
+        Route::get('/settings', function () {            
         })->name('settings');
-        Route::post('/backup', function () {
-            // Create system backup
+        Route::post('/backup', function () {            
         })->name('backup');
     });
-
-
-
-
-    // Officer routes with role-based access control
+    
     Route::prefix('officer')->name('officer.')->middleware('role:officer')->group(function () {
         Route::get('/dashboard', function () {
             return Inertia::render('Officer/Dashboard');
         })->name('dashboard');
         
-        Route::get('/programs', function () {
-            return Inertia::render('Officer/Courses');
-        })->name('programs');
+        // Courses Management - Officers can create, update, delete courses
+        Route::get('/courses', [CourseController::class, 'index'])->name('courses');
+        Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+        Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
+        Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
         
-        Route::get('/trainees', function () {
-            return Inertia::render('Officer/Trainees');
-        })->name('trainees');
+        // Trainees Management - Officers can manage trainees
+        Route::get('/trainees', [TraineeController::class, 'index'])->name('trainees');
+        Route::post('/trainees', [TraineeController::class, 'store'])->name('trainees.store');
+        Route::get('/trainees/{trainee}/edit', [TraineeController::class, 'edit'])->name('trainees.edit');
+        Route::put('/trainees/{trainee}', [TraineeController::class, 'update'])->name('trainees.update');
+        Route::delete('/trainees/{trainee}', [TraineeController::class, 'destroy'])->name('trainees.destroy');
         
-        Route::get('/trainers', function () {
-            return Inertia::render('Officer/Trainers');
-        })->name('trainers');
+        // Trainers Management - Officers can manage trainers
+        Route::get('/trainers', [TrainerController::class, 'index'])->name('trainers');
+        Route::post('/trainers', [TrainerController::class, 'store'])->name('trainers.store');
+        Route::get('/trainers/{trainer}/edit', [TrainerController::class, 'edit'])->name('trainers.edit');
+        Route::put('/trainers/{trainer}', [TrainerController::class, 'update'])->name('trainers.update');
+        Route::delete('/trainers/{trainer}', [TrainerController::class, 'destroy'])->name('trainers.destroy');
 
-        // Officer can manage training schedules and results
+        
+        Route::get('/assessments', function () {
+            return Inertia::render('Officer/Assessments');
+        })->name('assessments');
+        
         Route::get('/schedules', function () {
             return Inertia::render('Officer/Schedules');
         })->name('schedules');
@@ -207,7 +162,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return Inertia::render('Officer/Results');
         })->name('results');
     });
-    // Cashier routes with role-based access control
+    
     Route::prefix('cashier')->name('cashier.')->middleware('role:cashier')->group(function () {
         Route::get('/dashboard', function () {
             return Inertia::render('Cashier/Dashboard');
@@ -220,20 +175,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/receipts', function () {
             return Inertia::render('Cashier/Receipts');
         })->name('receipts');
-
-        // Cashier specific payment operations
-        Route::post('/payments/process', function () {
-            // Process payment
+        
+        Route::post('/payments/process', function () {            
         })->name('payments.process');
         
-        Route::get('/reports/financial', function () {
-            // Financial reports for cashier
+        Route::get('/reports/financial', function () {            
         })->name('reports.financial');
     });
-
 });
 
-// Profile management routes
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

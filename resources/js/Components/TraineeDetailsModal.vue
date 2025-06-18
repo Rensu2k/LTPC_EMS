@@ -62,6 +62,17 @@
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700"
+                                >Batch</label
+                            >
+                            <span
+                                class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
+                            >
+                                Batch {{ trainee.batch || 1 }}
+                            </span>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700"
                                 >Status</label
                             >
                             <span

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import Modal from "@/Components/Modal.vue";
 import InputLabel from "@/Components/InputLabel.vue";
@@ -44,9 +44,6 @@ const form = useForm({
     assessment_date: "",
     assessment_fee: 0,
     payment_status: "pending",
-    payment_method: "",
-    payment_reference: "",
-    payment_notes: "",
 });
 
 const submit = () => {
@@ -86,10 +83,63 @@ watch(
         }
     }
 );
+
+// Computed property to get selected trainee
+const selectedTrainee = computed(() => {
+    return props.trainees.find((trainee) => trainee.id == form.trainee_id);
+});
+
+// Computed property to check if selected trainee is a scholar
+const isScholar = computed(() => {
+    return (
+        selectedTrainee.value &&
+        selectedTrainee.value.scholarship_package &&
+        selectedTrainee.value.scholarship_package.trim() !== ""
+    );
+});
+
+// Watch for trainee selection changes and automatically set fee to 0 for scholars
+watch(
+    () => form.trainee_id,
+    (newTraineeId) => {
+        if (newTraineeId && form.applicant_type === "enrolled_trainee") {
+            const trainee = props.trainees.find((t) => t.id == newTraineeId);
+            if (
+                trainee &&
+                trainee.scholarship_package &&
+                trainee.scholarship_package.trim() !== ""
+            ) {
+                form.assessment_fee = 0;
+            }
+        }
+    }
+);
+
+// Watch for applicant type changes to reset fee when switching from external to trainee
+watch(
+    () => form.applicant_type,
+    (newType) => {
+        if (newType === "enrolled_trainee" && form.trainee_id) {
+            const trainee = props.trainees.find((t) => t.id == form.trainee_id);
+            if (
+                trainee &&
+                trainee.scholarship_package &&
+                trainee.scholarship_package.trim() !== ""
+            ) {
+                form.assessment_fee = 0;
+            }
+        }
+    }
+);
 </script>
 
 <template>
-    <Modal :show="show" @close="close" custom-width="80vw">
+    <Modal
+        :show="show"
+        @close="close"
+        custom-width="80vw"
+        :close-on-click-outside="false"
+    >
         <div class="p-6">
             <div class="flex items-center gap-3 mb-6">
                 <div class="p-2 bg-blue-100 rounded-lg">
@@ -432,118 +482,84 @@ watch(
                         Assessment Payment Information
                     </h3>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Assessment Fee -->
-                        <div>
-                            <InputLabel
-                                for="assessment_fee"
-                                value="Assessment Fee (₱) *"
-                            />
-                            <TextInput
-                                id="assessment_fee"
-                                v-model="form.assessment_fee"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="mt-1 block w-full"
-                                placeholder="0.00"
-                                required
-                            />
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.assessment_fee"
-                            />
-                        </div>
+                    <!-- Assessment Fee -->
+                    <div>
+                        <InputLabel
+                            for="assessment_fee"
+                            value="Assessment Fee (₱) *"
+                        />
 
-                        <!-- Payment Status -->
-                        <div>
-                            <InputLabel
-                                for="payment_status"
-                                value="Payment Status *"
-                            />
-                            <select
-                                id="payment_status"
-                                v-model="form.payment_status"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            >
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                                <option value="refunded">Refunded</option>
-                            </select>
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_status"
-                            />
-                        </div>
-
-                        <!-- Payment Method (shown if paid) -->
-                        <div v-if="form.payment_status === 'paid'">
-                            <InputLabel
-                                for="payment_method"
-                                value="Payment Method *"
-                            />
-                            <select
-                                id="payment_method"
-                                v-model="form.payment_method"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            >
-                                <option value="">Select payment method</option>
-                                <option value="cash">Cash</option>
-                                <option value="bank_transfer">
-                                    Bank Transfer
-                                </option>
-                                <option value="gcash">GCash</option>
-                                <option value="paymaya">PayMaya</option>
-                                <option value="check">Check</option>
-                            </select>
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_method"
-                            />
-                        </div>
-
-                        <!-- Payment Reference (shown if paid) -->
-                        <div v-if="form.payment_status === 'paid'">
-                            <InputLabel
-                                for="payment_reference"
-                                value="Payment Reference/Receipt #"
-                            />
-                            <TextInput
-                                id="payment_reference"
-                                v-model="form.payment_reference"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="e.g., Receipt #12345"
-                            />
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_reference"
-                            />
-                        </div>
-
-                        <!-- Payment Notes -->
+                        <!-- Scholar Notice -->
                         <div
-                            class="md:col-span-2"
-                            v-if="form.payment_status !== 'pending'"
+                            v-if="
+                                isScholar &&
+                                form.applicant_type === 'enrolled_trainee'
+                            "
+                            class="mb-2 p-3 bg-green-100 border border-green-300 rounded-md"
                         >
-                            <InputLabel
-                                for="payment_notes"
-                                value="Payment Notes"
-                            />
-                            <textarea
-                                id="payment_notes"
-                                v-model="form.payment_notes"
-                                rows="2"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                placeholder="Additional payment information..."
-                            ></textarea>
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_notes"
-                            />
+                            <div class="flex items-center gap-2">
+                                <svg
+                                    class="w-5 h-5 text-green-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    ></path>
+                                </svg>
+                                <span
+                                    class="text-sm font-medium text-green-800"
+                                >
+                                    Scholar Fee Exemption
+                                </span>
+                            </div>
+                            <p class="text-sm text-green-700 mt-1">
+                                This trainee is a scholar with
+                                {{ selectedTrainee.scholarship_package }}
+                                scholarship package. Assessment fee is
+                                automatically exempted (₱0.00).
+                            </p>
                         </div>
+
+                        <TextInput
+                            id="assessment_fee"
+                            v-model="form.assessment_fee"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="mt-1 block w-full"
+                            :class="{
+                                'bg-gray-100 cursor-not-allowed':
+                                    isScholar &&
+                                    form.applicant_type === 'enrolled_trainee',
+                            }"
+                            placeholder="0.00"
+                            :readonly="
+                                isScholar &&
+                                form.applicant_type === 'enrolled_trainee'
+                            "
+                            required
+                        />
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.assessment_fee"
+                        />
+
+                        <!-- General fee note for non-scholars -->
+                        <p
+                            v-if="
+                                !isScholar ||
+                                form.applicant_type !== 'enrolled_trainee'
+                            "
+                            class="text-sm text-gray-500 mt-1"
+                        >
+                            Set to 0 for free assessments. Scholar trainees are
+                            automatically exempted from fees.
+                        </p>
                     </div>
                 </div>
 

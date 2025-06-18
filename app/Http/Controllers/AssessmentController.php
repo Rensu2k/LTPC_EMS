@@ -49,7 +49,7 @@ class AssessmentController extends Controller
             });
 
         $courses = Course::where('status', 'active')->get(['id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name']); // Only completed trainees
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/Assessments', [
@@ -101,6 +101,11 @@ class AssessmentController extends Controller
                     'trainee_id' => 'Only completed trainees can take assessments.'
                 ]);
             }
+            
+            // Check if trainee is a scholar and automatically exempt from fee
+            if ($trainee && !empty($trainee->scholarship_package)) {
+                $validated['assessment_fee'] = 0;
+            }
         }
 
         // Set payment date if payment is made
@@ -127,7 +132,7 @@ class AssessmentController extends Controller
     public function edit(Assessment $assessment)
     {
         $courses = Course::where('status', 'active')->get(['id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name']); // Only completed trainees
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/EditAssessment', [
@@ -172,6 +177,11 @@ class AssessmentController extends Controller
                 return redirect()->back()->withErrors([
                     'trainee_id' => 'Only completed trainees can take assessments.'
                 ]);
+            }
+            
+            // Check if trainee is a scholar and automatically exempt from fee
+            if ($trainee && !empty($trainee->scholarship_package)) {
+                $validated['assessment_fee'] = 0;
             }
         }
 

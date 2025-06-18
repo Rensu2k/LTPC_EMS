@@ -266,7 +266,7 @@ const filteredTrainees = computed(() => {
                     >
                     <select
                         v-model="selectedCourse"
-                        class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        class="border border-gray-300 rounded-lg px-5 py-2 focus:ring-4 focus:ring-blue-500 focus:border-blue-500 w-64"
                     >
                         <option value="All Courses">All Courses</option>
                         <option
@@ -302,6 +302,11 @@ const filteredTrainees = computed(() => {
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Trainer
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    Batch
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -354,6 +359,13 @@ const filteredTrainees = computed(() => {
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
                                 >
                                     {{ trainee.trainer }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
+                                    >
+                                        Batch {{ trainee.batch || 1 }}
+                                    </span>
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"

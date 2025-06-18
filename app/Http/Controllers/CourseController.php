@@ -10,7 +10,7 @@ use Inertia\Inertia;
 class CourseController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource for officers.
      */
     public function index()
     {
@@ -24,6 +24,7 @@ class CourseController extends Controller
                 'assigned_trainers' => $course->assigned_trainers,
                 'enrollments' => $course->enrollment_count,
                 'max_enrollments' => $course->max_enrollments,
+                'enrollment_fee' => $course->enrollment_fee,
                 'start_date' => $course->start_date,
                 'end_date' => $course->end_date,
                 'created_at' => $course->created_at,
@@ -45,6 +46,30 @@ class CourseController extends Controller
     }
 
     /**
+     * Display a listing of the resource for admin.
+     */
+    public function adminIndex()
+    {
+        $courses = Course::latest()->get()->map(function ($course) {
+            return [
+                'id' => $course->id,
+                'name' => $course->name,
+                'description' => $course->description,
+                'duration' => $course->duration,
+                'prerequisites' => $course->prerequisites,
+                'max_students' => $course->max_enrollments,
+                'enrollment_fee' => $course->enrollment_fee,
+                'status' => $course->status,
+                'created_at' => $course->created_at,
+            ];
+        });
+
+        return Inertia::render('Admin/Courses', [
+            'courses' => $courses
+        ]);
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()
@@ -53,7 +78,7 @@ class CourseController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created resource in storage (Officer).
      */
     public function store(Request $request)
     {
@@ -61,16 +86,46 @@ class CourseController extends Controller
             'name' => 'required|string|max:255|unique:courses,name',
             'description' => 'nullable|string',
             'duration' => 'required|string|max:255',
-            'assigned_trainers' => 'nullable|array',
-            'assigned_trainers.*' => 'exists:trainers,id',
             'max_enrollments' => 'nullable|integer|min:1|max:100',
+            'enrollment_fee' => 'nullable|numeric|min:0',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
         $course = Course::create($validated);
 
-        return redirect()->back()->with('success', 'Course created successfully!');
+        return redirect()->back()->with('success', 'Course created successfully! Click the edit button to assign trainers to this course.');
+    }
+
+    /**
+     * Store a newly created resource in storage (Admin).
+     */
+    public function adminStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:courses,name',
+            'description' => 'nullable|string',
+            'duration' => 'required|string|max:255',
+            'prerequisites' => 'nullable|string',
+            'max_students' => 'nullable|integer|min:1|max:100',
+            'enrollment_fee' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:active,inactive',
+        ]);
+
+        // Map admin fields to database fields
+        $courseData = [
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'duration' => $validated['duration'],
+            'prerequisites' => $validated['prerequisites'] ?? null,
+            'max_enrollments' => $validated['max_students'] ?? null,
+            'enrollment_fee' => $validated['enrollment_fee'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+        ];
+
+        $course = Course::create($courseData);
+
+        return redirect()->back()->with('success', 'Course created successfully! Click the edit button to assign trainers to this course.');
     }
 
     /**
@@ -86,13 +141,20 @@ class CourseController extends Controller
      */
     public function edit(Course $course)
     {
-        $trainers = Trainer::where('status', 'active')->get()->map(function ($trainer) {
-            return [
-                'id' => $trainer->id,
-                'name' => $trainer->full_name,
-                'expertise' => $trainer->expertise,
-            ];
-        });
+        // Filter trainers to show only those whose expertise matches the course name
+        $trainers = Trainer::where('status', 'active')
+            ->where(function ($query) use ($course) {
+                $query->whereRaw('LOWER(expertise) LIKE ?', ['%' . strtolower($course->name) . '%'])
+                      ->orWhereRaw('LOWER(?) LIKE CONCAT("%", LOWER(expertise), "%")', [$course->name]);
+            })
+            ->get()
+            ->map(function ($trainer) {
+                return [
+                    'id' => $trainer->id,
+                    'name' => $trainer->full_name,
+                    'expertise' => $trainer->expertise,
+                ];
+            });
 
         return Inertia::render('Officer/EditCourse', [
             'course' => $course,
@@ -101,7 +163,7 @@ class CourseController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified resource in storage (Officer).
      */
     public function update(Request $request, Course $course)
     {
@@ -113,6 +175,7 @@ class CourseController extends Controller
             'assigned_trainers.*' => 'exists:trainers,id',
             'status' => 'nullable|in:active,inactive',
             'max_enrollments' => 'nullable|integer|min:1|max:100',
+            'enrollment_fee' => 'nullable|numeric|min:0',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
@@ -123,9 +186,56 @@ class CourseController extends Controller
     }
 
     /**
+     * Update the specified resource in storage (Admin).
+     */
+    public function adminUpdate(Request $request, Course $course)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:courses,name,' . $course->id,
+            'description' => 'nullable|string',
+            'duration' => 'required|string|max:255',
+            'prerequisites' => 'nullable|string',
+            'max_students' => 'nullable|integer|min:1|max:100',
+            'enrollment_fee' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:active,inactive',
+        ]);
+
+        // Map admin fields to database fields
+        $courseData = [
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'duration' => $validated['duration'],
+            'prerequisites' => $validated['prerequisites'] ?? null,
+            'max_enrollments' => $validated['max_students'] ?? null,
+            'enrollment_fee' => $validated['enrollment_fee'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+        ];
+
+        $course->update($courseData);
+
+        return redirect()->back()->with('success', 'Course updated successfully!');
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Course $course)
+    {
+        // Check if course has enrolled trainees
+        $enrollmentCount = $course->enrollment_count;
+        if ($enrollmentCount > 0) {
+            return redirect()->back()->with('error', 'Cannot delete course with active enrollments. Please transfer or complete all trainees first.');
+        }
+
+        $course->delete();
+
+        return redirect()->back()->with('success', 'Course deleted successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage (Admin).
+     */
+    public function adminDestroy(Course $course)
     {
         // Check if course has enrolled trainees
         $enrollmentCount = $course->enrollment_count;

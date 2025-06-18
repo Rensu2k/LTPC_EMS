@@ -467,9 +467,7 @@ const exportResults = () => {
                                             <div
                                                 class="text-sm font-medium text-gray-900 group-hover:text-green-600 transition-colors duration-200"
                                             >
-                                                {{
-                                                    result.trainee?.first_name
-                                                }}
+                                                {{ result.trainee?.first_name }}
                                                 {{ result.trainee?.last_name }}
                                             </div>
                                             <div
@@ -588,7 +586,12 @@ const exportResults = () => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="lg">
+        <Modal
+            :show="showModal"
+            @close="showModal = false"
+            max-width="lg"
+            :close-on-click-outside="false"
+        >
             <div
                 class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
             >

@@ -633,7 +633,12 @@ const exportEmploymentReport = () => {
         </div>
 
         <!-- Create/Edit Modal -->
-        <Modal :show="showModal" @close="showModal = false" max-width="lg">
+        <Modal
+            :show="showModal"
+            @close="showModal = false"
+            max-width="lg"
+            :close-on-click-outside="false"
+        >
             <div
                 class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
             >

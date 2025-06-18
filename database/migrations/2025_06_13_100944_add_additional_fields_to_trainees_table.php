@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trainees', function (Blueprint $table) {
-            //
+            $table->integer('batch')->default(1)->after('course_qualification');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('trainees', function (Blueprint $table) {
-            //
+            $table->dropColumn('batch');
         });
     }
 };

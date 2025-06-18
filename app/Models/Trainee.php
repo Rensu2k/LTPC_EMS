@@ -41,6 +41,7 @@ class Trainee extends Model
         'disability_type',
         'disability_causes',
         'course_qualification',
+        'batch',
         'scholarship_package',
         'requirements',
         'status',

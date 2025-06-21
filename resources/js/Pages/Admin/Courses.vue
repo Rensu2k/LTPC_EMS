@@ -287,7 +287,7 @@ const getStatusColor = (status) => {
                             <tr
                                 v-for="course in filteredCourses"
                                 :key="course.course_id"
-                                class="hover:bg-green-50 transition-colors duration-150"
+                                 class="hover:bg-gray-50 transition-colors duration-200 group"
                             >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div>

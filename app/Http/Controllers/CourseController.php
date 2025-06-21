@@ -16,7 +16,7 @@ class CourseController extends Controller
     {
         $courses = Course::latest()->get()->map(function ($course) {
             return [
-                'id' => $course->id,
+                'course_id' => $course->course_id,
                 'name' => $course->name,
                 'description' => $course->description,
                 'duration' => $course->duration,
@@ -52,7 +52,7 @@ class CourseController extends Controller
     {
         $courses = Course::latest()->get()->map(function ($course) {
             return [
-                'id' => $course->id,
+                'course_id' => $course->course_id,
                 'name' => $course->name,
                 'description' => $course->description,
                 'duration' => $course->duration,
@@ -103,6 +103,7 @@ class CourseController extends Controller
     public function adminStore(Request $request)
     {
         $validated = $request->validate([
+            'course_id' => 'nullable|string|max:50|unique:courses,course_id',
             'name' => 'required|string|max:255|unique:courses,name',
             'description' => 'nullable|string',
             'duration' => 'required|string|max:255',
@@ -112,8 +113,14 @@ class CourseController extends Controller
             'status' => 'nullable|in:active,inactive',
         ]);
 
+        // Generate course_id if not provided
+        if (empty($validated['course_id'])) {
+            $validated['course_id'] = 'COURSE-' . strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $validated['name']), 0, 8)) . '-' . time();
+        }
+
         // Map admin fields to database fields
         $courseData = [
+            'course_id' => $validated['course_id'],
             'name' => $validated['name'],
             'description' => $validated['description'],
             'duration' => $validated['duration'],
@@ -168,7 +175,7 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:courses,name,' . $course->id,
+            'name' => 'required|string|max:255|unique:courses,name,' . $course->course_id,
             'description' => 'nullable|string',
             'duration' => 'required|string|max:255',
             'assigned_trainers' => 'nullable|array',
@@ -191,7 +198,8 @@ class CourseController extends Controller
     public function adminUpdate(Request $request, Course $course)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:courses,name,' . $course->id,
+            'course_id' => 'nullable|string|max:50|unique:courses,course_id,' . $course->course_id,
+            'name' => 'required|string|max:255|unique:courses,name,' . $course->course_id,
             'description' => 'nullable|string',
             'duration' => 'required|string|max:255',
             'prerequisites' => 'nullable|string',
@@ -202,6 +210,7 @@ class CourseController extends Controller
 
         // Map admin fields to database fields
         $courseData = [
+            'course_id' => $validated['course_id'] ?? $course->course_id,
             'name' => $validated['name'],
             'description' => $validated['description'],
             'duration' => $validated['duration'],

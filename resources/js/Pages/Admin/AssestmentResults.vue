@@ -213,7 +213,7 @@ const exportAssessmentResults = () => {
                     >
                         <div>
                             <h3
-                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
+                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Assessment Results Monitoring
                             </h3>
@@ -260,8 +260,8 @@ const exportAssessmentResults = () => {
                                 <option value="">All Courses</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    :key="course.course_id"
+                                    :value="course.course_id"
                                 >
                                     {{ course.name }}
                                 </option>
@@ -668,8 +668,8 @@ const exportAssessmentResults = () => {
                                 <option value="">Select Course</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    :key="course.course_id"
+                                    :value="course.course_id"
                                 >
                                     {{ course.name }}
                                 </option>

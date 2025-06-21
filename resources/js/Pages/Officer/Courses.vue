@@ -274,13 +274,13 @@ const formatCurrency = (amount) => {
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
                                 v-for="course in filteredCourses"
-                                :key="course.id"
+                                :key="course.course_id"
                                 class="hover:bg-gray-50"
                             >
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                                 >
-                                    C{{ String(course.id).padStart(3, "0") }}
+                                    C{{ String(course.course_id).padStart(3, "0") }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"

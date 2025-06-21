@@ -26,7 +26,7 @@ const days = [
 // Initialize form with existing trainer data
 const form = useForm({
     full_name: props.trainer?.full_name || "",
-    expertise: props.trainer?.expertise || "",
+    program: props.trainer?.program || "",
     email: props.trainer?.email || "",
     phone: props.trainer?.phone || "",
     biography: props.trainer?.biography || "",
@@ -122,20 +122,20 @@ const goBack = () => {
                                     />
                                 </div>
 
-                                <!-- Expertise -->
+                                <!-- Program -->
                                 <div>
                                     <InputLabel
-                                        for="expertise"
-                                        value="Expertise"
+                                        for="program"
+                                        value="Program"
                                     />
                                     <select
-                                        id="expertise"
-                                        v-model="form.expertise"
+                                        id="program"
+                                        v-model="form.program"
                                         class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                         required
                                     >
                                         <option value="">
-                                            Select area of expertise...
+                                            Select area of program...
                                         </option>
                                         <option
                                             v-for="course in courses"
@@ -151,7 +151,7 @@ const goBack = () => {
                                         </option>
                                     </select>
                                     <InputError
-                                        :message="form.errors.expertise"
+                                        :message="form.errors.program"
                                         class="mt-2"
                                     />
                                 </div>

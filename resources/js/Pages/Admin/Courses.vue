@@ -36,6 +36,7 @@ const deletingCourse = ref(null);
 const searchQuery = ref("");
 
 const form = useForm({
+    course_id: "",
     name: "",
     description: "",
     duration: "",
@@ -67,6 +68,7 @@ const openCreateModal = () => {
 const openEditModal = (course) => {
     if (!isOfficer.value && !isAdmin.value) return;
     editingCourse.value = course;
+    form.course_id = course.course_id;
     form.name = course.name;
     form.description = course.description;
     form.duration = course.duration;
@@ -85,7 +87,7 @@ const openDeleteModal = (course) => {
 const submitForm = () => {
     if (!isOfficer.value && !isAdmin.value) return;
     if (editingCourse.value) {
-        form.put(`${apiEndpoint.value}/${editingCourse.value.id}`, {
+        form.put(`${apiEndpoint.value}/${editingCourse.value.course_id}`, {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
@@ -103,7 +105,7 @@ const submitForm = () => {
 
 const deleteCourse = () => {
     if (!isOfficer.value && !isAdmin.value) return;
-    router.delete(`${apiEndpoint.value}/${deletingCourse.value.id}`, {
+    router.delete(`${apiEndpoint.value}/${deletingCourse.value.course_id}`, {
         onSuccess: () => {
             showDeleteModal.value = false;
             deletingCourse.value = null;
@@ -152,7 +154,7 @@ const getStatusColor = (status) => {
                     >
                         <div>
                             <h3
-                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
+                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Course Progress Monitoring
                             </h3>
@@ -246,6 +248,11 @@ const getStatusColor = (status) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
+                                    Course ID
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
                                     Course
                                 </th>
                                 <th
@@ -279,9 +286,18 @@ const getStatusColor = (status) => {
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
                                 v-for="course in filteredCourses"
-                                :key="course.id"
+                                :key="course.course_id"
                                 class="hover:bg-green-50 transition-colors duration-150"
                             >
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>
+                                        <div
+                                            class="text-sm font-medium text-gray-900"
+                                        >
+                                            {{ course.course_id }}
+                                        </div>
+                                    </div>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div>
                                         <div
@@ -381,6 +397,18 @@ const getStatusColor = (status) => {
 
                 <form @submit.prevent="submitForm" class="mt-6 space-y-6">
                     <div>
+                        <InputLabel for="course_id" value="Course ID" />
+                        <TextInput
+                            id="course_id"
+                            v-model="form.course_id"
+                            type="text"
+                            class="mt-1 block w-full"
+                            placeholder="Auto-generated if left blank"
+                        />
+                        <InputError :message="form.errors.course_id" class="mt-2" />
+                    </div>
+
+                    <div>
                         <InputLabel for="name" value="Course Name" />
                         <TextInput
                             id="name"
@@ -399,7 +427,7 @@ const getStatusColor = (status) => {
                             id="description"
                             v-model="form.description"
                             rows="3"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500 transition-all duration-300"
+                            class="mt-1 block w-full"
                             placeholder="Enter course description"
                         ></textarea>
                         <InputError
@@ -441,21 +469,6 @@ const getStatusColor = (status) => {
                                 class="mt-2"
                             />
                         </div>
-                    </div>
-
-                    <div>
-                        <InputLabel for="prerequisites" value="Prerequisites" />
-                        <textarea
-                            id="prerequisites"
-                            v-model="form.prerequisites"
-                            rows="2"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500"
-                            placeholder="Enter course prerequisites"
-                        ></textarea>
-                        <InputError
-                            :message="form.errors.prerequisites"
-                            class="mt-2"
-                        />
                     </div>
 
                     <div>

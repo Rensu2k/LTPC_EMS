@@ -213,88 +213,60 @@
                             course
                         </p>
                         <p class="text-xs text-blue-600 mb-4">
-                            Only showing trainers whose expertise matches "{{
+                            Only showing trainers whose program matches "{{
                                 form.name
                             }}"
                         </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Available trainers:
+                            <span class="font-medium text-green-600">
+                                {{
+                                    filteredTrainers.length
+                                }}
+                            </span>
+                        </p>
+                    </div>
 
-                        <div v-if="trainers.length > 0" class="space-y-3">
-                            <div
-                                v-for="trainer in trainers"
-                                :key="trainer.id"
-                                class="flex items-center p-4 border rounded-lg hover:bg-gray-50"
-                            >
-                                <input
-                                    :id="`trainer-${trainer.id}`"
-                                    v-model="form.assigned_trainers"
-                                    :value="trainer.id"
-                                    type="checkbox"
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-4"
-                                />
-                                <label
-                                    :for="`trainer-${trainer.id}`"
-                                    class="flex-1 cursor-pointer"
-                                >
-                                    <div class="flex items-center">
-                                        <div
-                                            class="bg-indigo-100 rounded-full p-2 mr-4"
-                                        >
-                                            <span
-                                                class="text-indigo-700 font-semibold text-sm"
-                                            >
-                                                {{
-                                                    getTrainerInitials(
-                                                        trainer.name
-                                                    )
-                                                }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p
-                                                class="font-medium text-gray-900"
-                                            >
-                                                {{ trainer.name }}
-                                            </p>
-                                            <p class="text-sm text-gray-500">
-                                                {{
-                                                    trainer.expertise ||
-                                                    "General Training"
-                                                }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </label>
+                    <div class="space-y-2 max-h-40 overflow-y-auto">
+                        <div
+                            v-for="trainer in filteredTrainers"
+                            :key="trainer.id"
+                            class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                        >
+                            <div class="flex items-center space-x-3">
+                                <div class="h-8 w-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-semibold">
+                                    {{
+                                        trainer.full_name
+                                            ?.split(" ")
+                                            .map((n) => n[0])
+                                            .join("") || ""
+                                    }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">
+                                        {{ trainer.full_name }}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        {{
+                                            trainer.program ||
+                                                "General Training"
+                                        }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div v-else class="text-center py-6 border rounded-lg">
-                            <svg
-                                class="mx-auto h-12 w-12 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                                />
-                            </svg>
-                            <p class="mt-2 text-sm text-gray-500">
-                                No trainers available with matching expertise
-                            </p>
-                            <p class="text-xs text-gray-400">
-                                Only trainers whose expertise matches "{{
-                                    form.name
-                                }}" are shown. Add trainers with relevant
-                                expertise or check existing trainer
-                                specializations.
-                            </p>
-                        </div>
-                        <InputError
-                            :message="form.errors.assigned_trainers"
-                            class="mt-2"
-                        />
+                    </div>
+
+                    <div v-if="filteredTrainers.length === 0" class="text-center py-4">
+                        <p class="text-sm text-gray-500">
+                            No trainers available with matching program
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            Only trainers whose program matches "{{
+                                form.name
+                            }}" are shown. Add a new trainer with matching
+                            program or check existing trainer
+                        </p>
                     </div>
 
                     <!-- Form Actions -->

@@ -186,7 +186,7 @@ const getActivityTypeLabel = (type) => {
             <!-- Monitoring Overview -->
             <div class="mb-8 animate-fade-in">
                 <h3
-                    class="text-lg font-semibold text-gray-800 mb-4 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-gradient-to-r after:from-indigo-600 after:to-purple-600 after:rounded"
+                    class="text-lg font-semibold text-gray-800 mb-4 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-gradient-to-r after:rounded"
                 >
                     System Monitoring Overview
                 </h3>
@@ -236,7 +236,7 @@ const getActivityTypeLabel = (type) => {
                     >
                         <div class="p-6 border-b border-gray-200">
                             <h3
-                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-500 after:to-emerald-500 after:rounded"
+                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Program Capacity Monitoring
                             </h3>
@@ -310,7 +310,7 @@ const getActivityTypeLabel = (type) => {
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h3
-                                        class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-24 after:h-0.5 after:bg-gradient-to-r after:from-blue-500 after:to-indigo-500 after:rounded"
+                                        class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-24 after:h-0.5 after:bg-gradient-to-r afte:rounded"
                                     >
                                         Recent Officer & Cashier Activities
                                     </h3>
@@ -434,7 +434,7 @@ const getActivityTypeLabel = (type) => {
                     >
                         <div class="p-6 border-b border-gray-200">
                             <h3
-                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:from-green-500 after:to-blue-500 after:rounded"
+                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Trainee Status
                             </h3>
@@ -479,7 +479,7 @@ const getActivityTypeLabel = (type) => {
                     >
                         <div class="p-6 border-b border-gray-200">
                             <h3
-                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-yellow-500 after:to-orange-500 after:rounded"
+                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Payment Monitoring
                             </h3>

@@ -12,7 +12,7 @@ class TraineeController extends Controller
     public function index()
     {
         $trainees = Trainee::latest()->get();
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/Trainees', [
             'trainees' => $trainees,
@@ -102,7 +102,7 @@ class TraineeController extends Controller
 
     public function edit(Trainee $trainee)
     {
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/EditTrainee', [
             'trainee' => $trainee,
@@ -210,7 +210,7 @@ class TraineeController extends Controller
     public function adminIndex()
     {
         $trainees = Trainee::latest()->get();
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Admin/Trainees', [
             'trainees' => $trainees,

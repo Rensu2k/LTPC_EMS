@@ -276,8 +276,8 @@ const cancel = () => {
                                     <option value="">Select a course</option>
                                     <option
                                         v-for="course in courses"
-                                        :key="course.id"
-                                        :value="course.id"
+                                        :key="course.course_id"
+                                        :value="course.course_id"
                                     >
                                         {{ course.name }}
                                     </option>

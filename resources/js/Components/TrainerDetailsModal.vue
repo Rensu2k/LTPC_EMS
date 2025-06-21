@@ -134,11 +134,11 @@ const unavailableSchedule = computed(() => {
                                 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-blue-700 font-medium"
-                                    >Expertise:</span
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Program:</span
                                 >
-                                <span class="text-gray-900">{{
-                                    trainer?.expertise || "N/A"
+                                <span class="text-sm text-gray-900">{{
+                                    trainer?.program || "N/A"
                                 }}</span>
                             </div>
                         </div>

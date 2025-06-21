@@ -18,7 +18,7 @@ class TrainerController extends Controller
             return [
                 'id' => $trainer->id,
                 'full_name' => $trainer->full_name,
-                'expertise' => $trainer->expertise,
+                'program' => $trainer->program,
                 'email' => $trainer->email,
                 'phone' => $trainer->phone,
                 'biography' => $trainer->biography,
@@ -33,7 +33,7 @@ class TrainerController extends Controller
             ];
         });
         
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/Trainers', [
             'trainers' => $trainers,
@@ -56,7 +56,7 @@ class TrainerController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'expertise' => 'required|string|max:255',
+            'program' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email',
             'phone' => 'required|string|max:255',
             'biography' => 'nullable|string',
@@ -88,7 +88,7 @@ class TrainerController extends Controller
         $trainerData = [
             'id' => $trainer->id,
             'full_name' => $trainer->full_name,
-            'expertise' => $trainer->expertise,
+            'program' => $trainer->program,
             'email' => $trainer->email,
             'phone' => $trainer->phone,
             'biography' => $trainer->biography,
@@ -102,7 +102,7 @@ class TrainerController extends Controller
             'updated_at' => $trainer->updated_at,
         ];
         
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/EditTrainer', [
             'trainer' => $trainerData,
@@ -117,7 +117,7 @@ class TrainerController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'expertise' => 'required|string|max:255',
+            'program' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email,' . $trainer->id,
             'phone' => 'required|string|max:255',
             'biography' => 'nullable|string',
@@ -153,7 +153,7 @@ class TrainerController extends Controller
             return [
                 'id' => $trainer->id,
                 'full_name' => $trainer->full_name,
-                'expertise' => $trainer->expertise,
+                'program' => $trainer->program,
                 'email' => $trainer->email,
                 'phone' => $trainer->phone,
                 'biography' => $trainer->biography,
@@ -168,7 +168,7 @@ class TrainerController extends Controller
             ];
         });
         
-        $courses = Course::where('status', 'active')->get(['id', 'name', 'description', 'duration']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Admin/Trainers', [
             'trainers' => $trainers,
@@ -180,7 +180,7 @@ class TrainerController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'expertise' => 'required|string|max:255',
+            'program' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email',
             'phone' => 'required|string|max:255',
             'biography' => 'nullable|string',
@@ -200,7 +200,7 @@ class TrainerController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'expertise' => 'required|string|max:255',
+            'program' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email,' . $trainer->id,
             'phone' => 'required|string|max:255',
             'biography' => 'nullable|string',

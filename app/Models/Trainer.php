@@ -8,7 +8,7 @@ class Trainer extends Model
 {
     protected $fillable = [
         'full_name',
-        'expertise',
+        'program',
         'email',
         'phone',
         'biography',
@@ -19,6 +19,24 @@ class Trainer extends Model
     protected $casts = [
         'availability_schedule' => 'array',
     ];
+
+    /**
+     * Get the trainer's name (alias for full_name to match frontend)
+     */
+    public function getNameAttribute()
+    {
+        return $this->full_name;
+    }
+
+    /**
+     * Get the trainer's avatar initials
+     */
+    public function getAvatarAttribute()
+    {
+        return $this->full_name
+            ? implode('', array_map(fn($n) => $n[0], explode(' ', $this->full_name)))
+            : '';
+    }
 
     /**
      * Get courses assigned to this trainer

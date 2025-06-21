@@ -1117,7 +1117,7 @@
                                 <option value="">Select a course...</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
+                                    :key="course.course_id"
                                     :value="course.name"
                                 >
                                     {{ course.name

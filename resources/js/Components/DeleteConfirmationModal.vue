@@ -153,7 +153,7 @@ const getItemId = () => {
 
 const getItemDetails = () => {
     if (props.itemType === "trainer") {
-        return props.item?.expertise;
+        return props.item?.program;
     } else if (props.itemType === "course") {
         return `${props.item?.duration} • ${
             props.item?.enrollments || 0

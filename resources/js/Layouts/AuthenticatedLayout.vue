@@ -14,7 +14,7 @@ const pageTitle = computed(() => {
 
     // Admin routes
     if (currentRoute === "admin.dashboard") return "Admin Dashboard";
-    if (currentRoute === "admin.courses") return "Manage Courses";
+    if (currentRoute === "admin.courses") return "Manage Programs";
     if (currentRoute === "admin.trainees") return "Manage Trainees";
     if (currentRoute === "admin.trainers") return "Manage Trainers";
     if (currentRoute === "admin.payments") return "Manage Payments";
@@ -149,7 +149,7 @@ function logout() {
                                         ? 'font-semibold text-lg text-white'
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
-                                >Courses</span
+                                >Programs</span
                             >
                         </span>
                     </NavLink>

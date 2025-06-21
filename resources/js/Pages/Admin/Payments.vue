@@ -174,7 +174,7 @@ const exportPaymentReport = () => {
                     >
                         <div>
                             <h3
-                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
+                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Payment Status Monitoring
                             </h3>
@@ -229,6 +229,11 @@ const exportPaymentReport = () => {
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    Payment ID
+                                </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
@@ -492,8 +497,8 @@ const exportPaymentReport = () => {
                                 <option value="">Select Course</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    :key="course.course_id"
+                                    :value="course.course_id"
                                 >
                                     {{ course.name }}
                                 </option>

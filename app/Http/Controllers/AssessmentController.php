@@ -48,7 +48,7 @@ class AssessmentController extends Controller
                 ];
             });
 
-        $courses = Course::where('status', 'active')->get(['id', 'name']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name']);
         $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
@@ -77,7 +77,7 @@ class AssessmentController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => 'required|in:practical,theoretical,both',
-            'course_id' => 'required|exists:courses,id',
+            'course_id' => 'required|exists:courses,course_id',
             'trainer_id' => 'required|exists:trainers,id',
             'max_score' => 'required|integer|min:1',
             'assessment_date' => 'required|date',
@@ -131,7 +131,7 @@ class AssessmentController extends Controller
      */
     public function edit(Assessment $assessment)
     {
-        $courses = Course::where('status', 'active')->get(['id', 'name']);
+        $courses = Course::where('status', 'active')->get(['course_id', 'name']);
         $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
@@ -155,7 +155,7 @@ class AssessmentController extends Controller
             'status' => 'required|in:pending,completed,graded',
             'score' => 'nullable|integer|min:0',
             'max_score' => 'required|integer|min:1',
-            'course_id' => 'required|exists:courses,id',
+            'course_id' => 'required|exists:courses,course_id',
             'trainer_id' => 'required|exists:trainers,id',
             'assessment_date' => 'required|date',
             'applicant_type' => 'required|in:enrolled_trainee,external_applicant',

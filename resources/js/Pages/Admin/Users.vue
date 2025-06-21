@@ -132,7 +132,7 @@ const getRoleColor = (role) => {
                     >
                         <div>
                             <h3
-                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
+                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 System Users
                             </h3>
@@ -422,7 +422,7 @@ const getRoleColor = (role) => {
                         <select
                             id="role"
                             v-model="form.role"
-                            class="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm"
+                            class="mt-1 block w-full"
                             required
                         >
                             <option value="cashier">Cashier</option>

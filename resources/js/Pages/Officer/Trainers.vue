@@ -23,7 +23,7 @@ const trainersList = ref(
     props.trainers?.map((trainer) => ({
         id: trainer.id,
         name: trainer.full_name,
-        expertise: trainer.expertise,
+        program: trainer.program,
         email: trainer.email,
         phone: trainer.phone,
         activeCourses: trainer.active_courses_count || 0,
@@ -108,7 +108,7 @@ const filteredTrainers = ref(
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise
+            trainer.program
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -124,7 +124,7 @@ const updateFilter = () => {
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise
+            trainer.program
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -221,7 +221,7 @@ const updateFilter = () => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Expertise
+                                    Program
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -273,7 +273,7 @@ const updateFilter = () => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ trainer.expertise }}
+                                    {{ trainer.program }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"

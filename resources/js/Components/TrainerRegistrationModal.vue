@@ -30,7 +30,7 @@ const days = [
 
 const form = useForm({
     full_name: "",
-    expertise: "",
+    program: "",
     email: "",
     phone: "",
     biography: "",
@@ -131,10 +131,10 @@ watch(
 
                 <!-- Expertise -->
                 <div>
-                    <InputLabel for="expertise" value="Expertise" />
+                    <InputLabel for="program" value="Program" />
                     <select
-                        id="expertise"
-                        v-model="form.expertise"
+                        id="program"
+                        v-model="form.program"
                         class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                         required
                     >
@@ -150,7 +150,7 @@ watch(
                             }}
                         </option>
                     </select>
-                    <InputError :message="form.errors.expertise" class="mt-2" />
+                    <InputError :message="form.errors.program" class="mt-2" />
                 </div>
 
                 <!-- Email -->

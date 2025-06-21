@@ -172,7 +172,7 @@ const getEnrollmentTypeColor = (type) => {
                     >
                         <div>
                             <h3
-                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded"
+                                class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Enrollment Monitoring
                             </h3>
@@ -184,7 +184,7 @@ const getEnrollmentTypeColor = (type) => {
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                ➕ Add New Trainee
+                                 Add New Trainee
                             </SecondaryButton>
                             <SecondaryButton
                                 @click="exportEnrollments"
@@ -224,8 +224,8 @@ const getEnrollmentTypeColor = (type) => {
                                 <option value="">All Programs</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    :key="course.course_id"
+                                    :value="course.course_id"
                                 >
                                     {{ course.name }}
                                 </option>
@@ -281,12 +281,17 @@ const getEnrollmentTypeColor = (type) => {
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
-                            <tr>
+                            <tr><th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    ULI Number
+                                </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Trainee
                                 </th>
+                                
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
@@ -366,6 +371,11 @@ const getEnrollmentTypeColor = (type) => {
                                                 ID: {{ trainee.id }}
                                             </div>
                                         </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                        {{ trainee.uli_number }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -602,8 +612,8 @@ const getEnrollmentTypeColor = (type) => {
                                 <option value="">Select Program</option>
                                 <option
                                     v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    :key="course.course_id"
+                                    :value="course.course_id"
                                 >
                                     {{ course.name }}
                                 </option>

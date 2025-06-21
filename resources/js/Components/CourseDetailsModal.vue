@@ -57,9 +57,7 @@
                                     }}
                                 </span>
                                 <span class="text-sm text-gray-500">
-                                    Course ID: C{{
-                                        String(course.id).padStart(3, "0")
-                                    }}
+                                    Course ID: {{ course.course_id }}
                                 </span>
                             </div>
                         </div>
@@ -196,7 +194,7 @@
                                 </p>
                                 <p class="text-sm text-gray-500">
                                     {{
-                                        trainer.expertise || "General Training"
+                                        trainer.program || "General Training"
                                     }}
                                 </p>
                             </div>

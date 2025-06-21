@@ -23,7 +23,7 @@ const trainersList = ref(
     props.trainers?.map((trainer) => ({
         id: trainer.id,
         name: trainer.full_name,
-        expertise: trainer.expertise,
+        program: trainer.program,
         email: trainer.email,
         phone: trainer.phone,
         activeCourses: trainer.active_courses_count || 0,
@@ -108,7 +108,7 @@ const filteredTrainers = ref(
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise
+            trainer.program
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -124,7 +124,7 @@ const updateFilter = () => {
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise
+            trainer.program
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -146,7 +146,7 @@ const updateFilter = () => {
                     <div class="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-green-500 to-emerald-500"></div>
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h3 class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:from-green-600 after:to-emerald-600 after:rounded">
+                            <h3 class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded">
                                 Trainers Management
                             </h3>
                         </div>
@@ -188,9 +188,9 @@ const updateFilter = () => {
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-green-50 sticky top-0 z-10 border-b">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Expertise</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Trainer ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Trainer</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Program</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Contact</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Training Stats</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
@@ -212,7 +212,7 @@ const updateFilter = () => {
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-900">{{ trainer.expertise }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-900">{{ trainer.program }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">
                                     <div class="space-y-1">
                                         <div class="flex items-center gap-1">

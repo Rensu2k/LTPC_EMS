@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router, useForm } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
@@ -10,27 +10,48 @@ import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const props = defineProps({
     assessment: Object,
-    courses: Array,
+    programs: Array,
     trainees: Array,
     trainers: Array,
 });
 
 const form = useForm({
-    title: props.assessment.title,
+    title: props.assessment.title || "",
     description: props.assessment.description || "",
-    type: props.assessment.type,
-    status: props.assessment.status,
-    score: props.assessment.score || "",
-    max_score: props.assessment.max_score,
-    course_id: props.assessment.course_id,
-    trainee_id: props.assessment.trainee_id,
-    trainer_id: props.assessment.trainer_id,
-    assessment_date: props.assessment.assessment_date.split("T")[0], // Format date for input
+    type: props.assessment.type || "",
+    status: props.assessment.status || "",
+    score: props.assessment.score ? String(props.assessment.score) : "",
+    max_score: props.assessment.max_score
+        ? String(props.assessment.max_score)
+        : "",
+    passing_score: props.assessment.passing_score
+        ? String(props.assessment.passing_score)
+        : "75",
+    program_id: props.assessment.program_id || "",
+    trainee_id: props.assessment.trainee_id || "",
+    trainer_id: props.assessment.trainer_id || "",
+    assessment_date: props.assessment.assessment_date
+        ? props.assessment.assessment_date.split("T")[0]
+        : "", // Format date for input
+    // Required fields for backend validation
+    applicant_type: props.assessment.applicant_type || "enrolled_trainee",
+    external_applicant_name: props.assessment.external_applicant_name || "",
+    external_applicant_email: props.assessment.external_applicant_email || "",
+    external_applicant_phone: props.assessment.external_applicant_phone || "",
+    assessment_fee: props.assessment.assessment_fee
+        ? String(props.assessment.assessment_fee)
+        : "0",
+    payment_status: props.assessment.payment_status || "pending",
+    payment_method: props.assessment.payment_method || "",
+    payment_reference: props.assessment.payment_reference || "",
+    payment_notes: props.assessment.payment_notes || "",
 });
 
 const percentage = computed(() => {
-    if (form.score && form.max_score && form.score > 0 && form.max_score > 0) {
-        return Math.round((form.score / form.max_score) * 100);
+    const score = parseFloat(form.score);
+    const maxScore = parseFloat(form.max_score);
+    if (score && maxScore && score > 0 && maxScore > 0) {
+        return Math.round((score / maxScore) * 100);
     }
     return null;
 });
@@ -46,10 +67,85 @@ const grade = computed(() => {
     return "F";
 });
 
+const passFailStatus = computed(() => {
+    const score = parseFloat(form.score);
+    const passingScore = parseFloat(form.passing_score);
+
+    if (score && passingScore && score >= 0 && passingScore > 0) {
+        return score >= passingScore ? "pass" : "fail";
+    }
+    return null;
+});
+
+// Watch for changes to numeric fields and ensure they remain strings
+watch(
+    () => form.score,
+    (newValue) => {
+        if (typeof newValue === "number") {
+            form.score = String(newValue);
+        }
+    }
+);
+
+watch(
+    () => form.max_score,
+    (newValue) => {
+        if (typeof newValue === "number") {
+            form.max_score = String(newValue);
+        }
+    }
+);
+
+watch(
+    () => form.assessment_fee,
+    (newValue) => {
+        if (typeof newValue === "number") {
+            form.assessment_fee = String(newValue);
+        }
+    }
+);
+
+watch(
+    () => form.passing_score,
+    (newValue) => {
+        if (typeof newValue === "number") {
+            form.passing_score = String(newValue);
+        }
+    }
+);
+
+// Auto-update status when score or passing score changes
+watch([() => form.score, () => form.passing_score], () => {
+    if (form.score && form.passing_score) {
+        const score = parseFloat(form.score);
+        const passingScore = parseFloat(form.passing_score);
+
+        if (score >= 0 && passingScore > 0) {
+            form.status = score >= passingScore ? "pass" : "fail";
+        }
+    }
+});
+
 const submit = () => {
+    // Convert numeric fields for backend
+    form.transform((data) => ({
+        ...data,
+        score: data.score ? parseFloat(data.score) : null,
+        max_score: data.max_score ? parseFloat(data.max_score) : null,
+        passing_score: data.passing_score
+            ? parseFloat(data.passing_score)
+            : null,
+        assessment_fee: data.assessment_fee
+            ? parseFloat(data.assessment_fee)
+            : 0,
+    }));
+
     form.put(route("officer.assessments.update", props.assessment.id), {
         onSuccess: () => {
             router.visit(route("officer.assessments"));
+        },
+        onError: (errors) => {
+            console.log("Assessment update errors:", errors);
         },
     });
 };
@@ -194,6 +290,8 @@ const cancel = () => {
                                     <option value="pending">Pending</option>
                                     <option value="completed">Completed</option>
                                     <option value="graded">Graded</option>
+                                    <option value="pass">Pass</option>
+                                    <option value="fail">Fail</option>
                                 </select>
                                 <InputError
                                     class="mt-2"
@@ -239,6 +337,30 @@ const cancel = () => {
                                     :message="form.errors.max_score"
                                 />
                             </div>
+
+                            <!-- Passing Score -->
+                            <div>
+                                <InputLabel
+                                    for="passing_score"
+                                    value="Passing Score *"
+                                />
+                                <TextInput
+                                    id="passing_score"
+                                    v-model="form.passing_score"
+                                    type="number"
+                                    class="mt-1 block w-full"
+                                    min="1"
+                                    :max="form.max_score"
+                                    required
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="form.errors.passing_score"
+                                />
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Minimum score required to pass
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -264,35 +386,38 @@ const cancel = () => {
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <!-- Course Selection -->
+                            <!-- Program Selection -->
                             <div>
-                                <InputLabel for="course_id" value="Course *" />
+                                <InputLabel
+                                    for="program_id"
+                                    value="Program *"
+                                />
                                 <select
-                                    id="course_id"
-                                    v-model="form.course_id"
+                                    id="program_id"
+                                    v-model="form.program_id"
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     required
                                 >
-                                    <option value="">Select a course</option>
+                                    <option value="">Select a program</option>
                                     <option
-                                        v-for="course in courses"
-                                        :key="course.course_id"
-                                        :value="course.course_id"
+                                        v-for="program in programs"
+                                        :key="program.program_id"
+                                        :value="program.program_id"
                                     >
-                                        {{ course.name }}
+                                        {{ program.name }}
                                     </option>
                                 </select>
                                 <InputError
                                     class="mt-2"
-                                    :message="form.errors.course_id"
+                                    :message="form.errors.program_id"
                                 />
                             </div>
 
-                            <!-- Trainee Selection -->
+                            <!-- Applicant Selection -->
                             <div>
                                 <InputLabel
                                     for="trainee_id"
-                                    value="Trainee *"
+                                    value="Applicant *"
                                 />
                                 <select
                                     id="trainee_id"
@@ -300,7 +425,9 @@ const cancel = () => {
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     required
                                 >
-                                    <option value="">Select a trainee</option>
+                                    <option value="">
+                                        Select an applicant
+                                    </option>
                                     <option
                                         v-for="trainee in trainees"
                                         :key="trainee.id"
@@ -390,7 +517,7 @@ const cancel = () => {
 
                             <!-- Grade Display -->
                             <div v-if="percentage !== null">
-                                <InputLabel value="Calculated Grade" />
+                                <InputLabel value="Assessment Results" />
                                 <div
                                     class="mt-1 p-3 bg-white rounded-lg border"
                                 >
@@ -426,6 +553,29 @@ const cancel = () => {
                                             {{ grade }}
                                         </span>
                                     </div>
+                                    <div
+                                        v-if="passFailStatus !== null"
+                                        class="flex items-center justify-between mt-2 pt-2 border-t"
+                                    >
+                                        <span class="text-sm text-gray-600"
+                                            >Result:</span
+                                        >
+                                        <span
+                                            class="text-lg font-bold uppercase tracking-wide"
+                                            :class="{
+                                                'text-green-600 bg-green-100 px-2 py-1 rounded':
+                                                    passFailStatus === 'pass',
+                                                'text-red-600 bg-red-100 px-2 py-1 rounded':
+                                                    passFailStatus === 'fail',
+                                            }"
+                                        >
+                                            {{ passFailStatus }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">
+                                        Passing score:
+                                        {{ form.passing_score }} points
+                                    </p>
                                 </div>
                             </div>
                         </div>

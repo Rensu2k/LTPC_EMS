@@ -1,13 +1,14 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import CourseRegistrationModal from "@/Components/CourseRegistrationModal.vue";
-import CourseDetailsModal from "@/Components/CourseDetailsModal.vue";
+import ProgramRegistrationModal from "@/Components/ProgramRegistrationModal.vue";
+import ProgramDetailsModal from "@/Components/ProgramDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import TrainerAssignmentModal from "@/Components/TrainerAssignmentModal.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const props = defineProps({
-    courses: Array,
+    programs: Array,
     trainers: Array,
 });
 
@@ -15,27 +16,30 @@ const searchQuery = ref("");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
-const selectedCourse = ref(null);
+const showAssignmentModal = ref(false);
+const selectedProgram = ref(null);
 const processing = ref(false);
 
-// Process courses data to match the expected format
-const coursesList = ref(
-    props.courses?.map((course) => ({
-        id: course.id,
-        name: course.name,
-        description: course.description,
-        duration: course.duration,
-        enrollment_fee: course.enrollment_fee || 0,
-        status: course.status,
-        enrollments: course.enrollments || 0,
-        max_enrollments: course.max_enrollments,
-        assigned_trainers: course.assigned_trainers || [],
-        start_date: course.start_date,
-        end_date: course.end_date,
+// Process programs data to match the expected format
+const programsList = ref(
+    props.programs?.map((program) => ({
+        id: program.program_id,
+        program_id: program.program_id,
+        name: program.name,
+        description: program.description,
+        duration: program.duration,
+        enrollment_fee: program.enrollment_fee || 0,
+        status: program.status,
+        enrollments: program.enrollments || 0,
+        max_enrollments: program.max_enrollments || 25,
+        assigned_trainers: program.assigned_trainers || [],
+        start_date: program.start_date,
+        end_date: program.end_date,
+        prerequisites: program.prerequisites,
     })) || []
 );
 
-const addNewCourse = () => {
+const addNewProgram = () => {
     showRegistrationModal.value = true;
 };
 
@@ -43,46 +47,61 @@ const closeRegistrationModal = () => {
     showRegistrationModal.value = false;
 };
 
-const onCourseSubmitted = () => {
-    // Refresh the page to show the new course
+const onProgramSubmitted = () => {
+    // Refresh the page to show the new program
     window.location.reload();
 };
 
-const viewCourse = (course) => {
-    selectedCourse.value = course;
+const viewProgram = (program) => {
+    selectedProgram.value = program;
     showDetailsModal.value = true;
 };
 
-const editCourse = (course) => {
-    router.visit(route("officer.courses.edit", course.id));
+const editProgram = (program) => {
+    router.visit(route("officer.programs.edit", program.id));
 };
 
-const deleteCourse = (course) => {
-    selectedCourse.value = course;
+const deleteProgram = (program) => {
+    selectedProgram.value = program;
     showDeleteModal.value = true;
 };
 
 const closeDetailsModal = () => {
     showDetailsModal.value = false;
-    selectedCourse.value = null;
+    selectedProgram.value = null;
 };
 
 const closeDeleteModal = () => {
     showDeleteModal.value = false;
-    selectedCourse.value = null;
+    selectedProgram.value = null;
 };
 
-const handleEditFromDetails = (course) => {
+const assignTrainers = (program) => {
+    selectedProgram.value = program;
+    showAssignmentModal.value = true;
+};
+
+const closeAssignmentModal = () => {
+    showAssignmentModal.value = false;
+    selectedProgram.value = null;
+};
+
+const onTrainersAssigned = () => {
+    // Refresh the page to show updated trainers
+    window.location.reload();
+};
+
+const handleEditFromDetails = (program) => {
     closeDetailsModal();
-    editCourse(course);
+    editProgram(program);
 };
 
 const confirmDelete = () => {
-    if (!selectedCourse.value) return;
+    if (!selectedProgram.value) return;
 
     processing.value = true;
 
-    router.delete(route("officer.courses.destroy", selectedCourse.value.id), {
+    router.delete(route("officer.programs.destroy", selectedProgram.value.id), {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
@@ -91,14 +110,14 @@ const confirmDelete = () => {
         },
         onError: () => {
             processing.value = false;
-            alert("Failed to delete course. Please try again.");
+            alert("Failed to delete program. Please try again.");
         },
     });
 };
 
 const getAssignedTrainers = (assignedTrainerIds) => {
     if (!assignedTrainerIds || assignedTrainerIds.length === 0) {
-        return "No trainers assigned";
+        return "";
     }
 
     const assignedTrainers = props.trainers.filter((trainer) =>
@@ -106,7 +125,7 @@ const getAssignedTrainers = (assignedTrainerIds) => {
     );
 
     if (assignedTrainers.length === 0) {
-        return "No trainers assigned";
+        return "";
     }
 
     if (assignedTrainers.length === 1) {
@@ -116,53 +135,61 @@ const getAssignedTrainers = (assignedTrainerIds) => {
     return `${assignedTrainers[0].name} +${assignedTrainers.length - 1} more`;
 };
 
-const filteredCourses = ref(
-    coursesList.value.filter(
-        (course) =>
-            course.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            course.description
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    )
-);
+// Computed property for filtered programs
+const filteredPrograms = computed(() => {
+    if (!searchQuery.value) {
+        return programsList.value;
+    }
 
-// Update filtered courses when search query changes
-const updateFilter = () => {
-    filteredCourses.value = coursesList.value.filter(
-        (course) =>
-            course.name
+    return programsList.value.filter(
+        (program) =>
+            program.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            course.description
+            program.description
+                .toLowerCase()
+                .includes(searchQuery.value.toLowerCase()) ||
+            getAssignedTrainers(program.assigned_trainers)
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase())
     );
-};
+});
 
 const formatCurrency = (amount) => {
-    if (!amount) return "Free";
+    if (!amount || amount === 0) return "Free";
     return new Intl.NumberFormat("en-PH", {
         style: "currency",
         currency: "PHP",
     }).format(amount);
 };
+
+const getStatusColor = (status) => {
+    switch (status) {
+        case "active":
+            return "bg-green-100 text-green-800";
+        case "inactive":
+            return "bg-gray-100 text-gray-800";
+        case "completed":
+            return "bg-blue-100 text-blue-800";
+        default:
+            return "bg-gray-100 text-gray-800";
+    }
+};
 </script>
 
 <template>
-    <Head title="Courses" />
+    <Head title="Programs" />
 
     <AuthenticatedLayout>
         <div class="p-8">
             <!-- Header Section -->
             <div class="flex justify-between items-center mb-8 animate-fade-in">
                 <h1 class="text-3xl font-bold text-gray-900">
-                    Courses Management
+                    Programs Management
                 </h1>
-                <div>
+                <div class="flex gap-3">
                     <button
-                        @click="addNewCourse"
+                        @click="addNewProgram"
                         class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                     >
                         <svg
@@ -178,25 +205,24 @@ const formatCurrency = (amount) => {
                                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                             />
                         </svg>
-                        Add New Course
+                        Add New Program
                     </button>
                 </div>
             </div>
 
-            <!-- Search Section -->
+            <!-- Filters and Search Section -->
             <div
                 class="bg-white rounded-lg shadow-sm border p-6 mb-6 animate-fade-in"
             >
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Courses ({{ filteredCourses.length }})
+                        All Programs ({{ filteredPrograms.length }})
                     </h2>
                     <div class="relative">
                         <input
                             v-model="searchQuery"
-                            @input="updateFilter"
                             type="text"
-                            placeholder="Search courses..."
+                            placeholder="Search programs..."
                             class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-80"
                         />
                         <svg
@@ -216,7 +242,7 @@ const formatCurrency = (amount) => {
                 </div>
             </div>
 
-            <!-- Courses Table -->
+            <!-- Programs Table -->
             <div
                 class="bg-white rounded-lg shadow-sm border overflow-hidden animate-fade-in"
             >
@@ -227,27 +253,7 @@ const formatCurrency = (amount) => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    ID
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
                                     Name
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Description
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Duration
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Price
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -257,12 +263,22 @@ const formatCurrency = (amount) => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Status
+                                    Duration
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    Enrollment Fee
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Enrollments
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    Status
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -273,91 +289,104 @@ const formatCurrency = (amount) => {
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
-                                v-for="course in filteredCourses"
-                                :key="course.course_id"
+                                v-for="program in filteredPrograms"
+                                :key="program.id"
                                 class="hover:bg-gray-50"
                             >
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                                >
-                                    C{{ String(course.course_id).padStart(3, "0") }}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>
+                                        <div
+                                            class="text-sm font-medium text-gray-900"
+                                        >
+                                            {{ program.name }}
+                                        </div>
+                                        <div
+                                            class="text-sm text-gray-500 max-w-xs truncate"
+                                        >
+                                            {{
+                                                program.description ||
+                                                "No description"
+                                            }}
+                                        </div>
+                                    </div>
                                 </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                                >
-                                    {{ course.name }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 text-sm text-gray-500 max-w-xs"
-                                >
-                                    <div
-                                        class="truncate"
-                                        :title="course.description"
-                                    >
-                                        {{
-                                            course.description ||
-                                            "No description"
-                                        }}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                        <div
+                                            v-if="
+                                                program.assigned_trainers &&
+                                                program.assigned_trainers
+                                                    .length > 0
+                                            "
+                                        >
+                                            {{
+                                                getAssignedTrainers(
+                                                    program.assigned_trainers
+                                                )
+                                            }}
+                                        </div>
+                                        <button
+                                            v-else
+                                            @click="assignTrainers(program)"
+                                            class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+                                            title="Assign Trainers"
+                                        >
+                                            Assign
+                                        </button>
                                     </div>
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ course.duration }}
+                                    {{ program.duration }}
                                 </td>
                                 <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ formatCurrency(course.enrollment_fee) }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                                >
-                                    {{
-                                        getAssignedTrainers(
-                                            course.assigned_trainers
-                                        )
-                                    }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
                                     <span
                                         :class="{
-                                            'bg-green-100 text-green-800':
-                                                course.status === 'active',
-                                            'bg-gray-100 text-gray-800':
-                                                course.status === 'inactive',
+                                            'text-green-600 font-medium':
+                                                program.enrollment_fee === 0,
+                                            'text-gray-900':
+                                                program.enrollment_fee > 0,
                                         }"
-                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
                                         {{
-                                            course.status
-                                                ?.charAt(0)
-                                                .toUpperCase() +
-                                                course.status?.slice(1) ||
-                                            "Active"
+                                            formatCurrency(
+                                                program.enrollment_fee
+                                            )
                                         }}
                                     </span>
                                 </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center"
-                                >
-                                    <div class="flex flex-col items-center">
-                                        <span class="font-semibold">{{
-                                            course.enrollments
-                                        }}</span>
-                                        <span class="text-xs text-gray-500"
-                                            >/
-                                            {{ course.max_enrollments }}</span
-                                        >
-                                    </div>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        class="text-sm font-medium text-gray-900"
+                                    >
+                                        {{ program.enrollments || 0 }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        :class="getStatusColor(program.status)"
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                    >
+                                        {{
+                                            program.status
+                                                ? program.status
+                                                      .charAt(0)
+                                                      .toUpperCase() +
+                                                  program.status.slice(1)
+                                                : "Active"
+                                        }}
+                                    </span>
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                 >
                                     <div class="flex items-center gap-2">
                                         <button
-                                            @click="viewCourse(course)"
-                                            class="text-green-600 hover:text-green-900 p-1 rounded"
+                                            @click="viewProgram(program)"
+                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
                                             title="View Details"
                                         >
                                             <svg
@@ -381,9 +410,9 @@ const formatCurrency = (amount) => {
                                             </svg>
                                         </button>
                                         <button
-                                            @click="editCourse(course)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
-                                            title="Edit"
+                                            @click="editProgram(program)"
+                                            class="text-yellow-600 hover:text-yellow-900 p-1 rounded"
+                                            title="Edit Program"
                                         >
                                             <svg
                                                 class="h-5 w-5"
@@ -400,10 +429,9 @@ const formatCurrency = (amount) => {
                                             </svg>
                                         </button>
                                         <button
-                                            @click="deleteCourse(course)"
+                                            @click="deleteProgram(program)"
                                             class="text-red-600 hover:text-red-900 p-1 rounded"
-                                            title="Delete"
-                                            :disabled="processing"
+                                            title="Delete Program"
                                         >
                                             <svg
                                                 class="h-5 w-5"
@@ -428,7 +456,7 @@ const formatCurrency = (amount) => {
 
                 <!-- Empty State -->
                 <div
-                    v-if="filteredCourses.length === 0"
+                    v-if="filteredPrograms.length === 0"
                     class="text-center py-12"
                 >
                     <svg
@@ -441,22 +469,22 @@ const formatCurrency = (amount) => {
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
-                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                            d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
                         />
                     </svg>
                     <h3 class="mt-2 text-sm font-medium text-gray-900">
-                        No courses found
+                        No programs found
                     </h3>
                     <p class="mt-1 text-sm text-gray-500">
                         {{
                             searchQuery
                                 ? "Try adjusting your search terms."
-                                : "Get started by creating a new course."
+                                : "Get started by creating a new program."
                         }}
                     </p>
                     <div class="mt-6" v-if="!searchQuery">
                         <button
-                            @click="addNewCourse"
+                            @click="addNewProgram"
                             class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                         >
                             <svg
@@ -472,38 +500,60 @@ const formatCurrency = (amount) => {
                                     d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                 />
                             </svg>
-                            Add New Course
+                            Add Program
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Course Registration Modal -->
-        <CourseRegistrationModal
+        <!-- Modals -->
+        <ProgramRegistrationModal
             :show="showRegistrationModal"
             @close="closeRegistrationModal"
-            @submitted="onCourseSubmitted"
+            @submitted="onProgramSubmitted"
         />
 
-        <!-- Course Details Modal -->
-        <CourseDetailsModal
+        <ProgramDetailsModal
             :show="showDetailsModal"
-            :course="selectedCourse"
+            :program="selectedProgram"
             :trainers="trainers"
             @close="closeDetailsModal"
             @edit="handleEditFromDetails"
         />
 
-        <!-- Delete Confirmation Modal -->
         <DeleteConfirmationModal
             :show="showDeleteModal"
-            :item="selectedCourse"
-            item-type="course"
-            title="Delete Course"
-            :message="`Are you sure you want to permanently delete this course? This action cannot be undone.`"
+            title="Delete Program"
+            :message="`Are you sure you want to delete the program '${selectedProgram?.name}'? This action cannot be undone.`"
             @close="closeDeleteModal"
             @confirm="confirmDelete"
+            :processing="processing"
+        />
+
+        <TrainerAssignmentModal
+            :show="showAssignmentModal"
+            :program="selectedProgram"
+            :trainers="trainers"
+            @close="closeAssignmentModal"
+            @assigned="onTrainersAssigned"
         />
     </AuthenticatedLayout>
 </template>
+
+<style scoped>
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>

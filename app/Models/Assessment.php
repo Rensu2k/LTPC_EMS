@@ -13,7 +13,8 @@ class Assessment extends Model
         'status',
         'score',
         'max_score',
-        'course_id',
+        'passing_score',
+        'program_id',
         'trainee_id',
         'trainer_id',
         'assessment_date',
@@ -34,15 +35,16 @@ class Assessment extends Model
         'payment_date' => 'datetime',
         'score' => 'integer',
         'max_score' => 'integer',
+        'passing_score' => 'integer',
         'assessment_fee' => 'decimal:2',
     ];
 
     /**
-     * Get the course associated with the assessment
+     * Get the program associated with the assessment
      */
-    public function course()
+    public function program()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(\App\Models\Program::class, 'program_id', 'program_id');
     }
 
     /**
@@ -85,6 +87,50 @@ class Assessment extends Model
         if ($percentage >= 70) return 'C';
         if ($percentage >= 60) return 'D';
         return 'F';
+    }
+
+    /**
+     * Get the pass/fail status based on passing score
+     */
+    public function getPassFailStatusAttribute()
+    {
+        if ($this->score === null || $this->passing_score === null) {
+            return null;
+        }
+        
+        return $this->score >= $this->passing_score ? 'pass' : 'fail';
+    }
+
+    /**
+     * Check if the assessment is passed
+     */
+    public function isPassed()
+    {
+        return $this->pass_fail_status === 'pass';
+    }
+
+    /**
+     * Check if the assessment is failed
+     */
+    public function isFailed()
+    {
+        return $this->pass_fail_status === 'fail';
+    }
+
+    /**
+     * Check if the assessment is graded (has pass/fail status)
+     */
+    public function isGraded()
+    {
+        return in_array($this->status, ['pass', 'fail']);
+    }
+
+    /**
+     * Check if the assessment is editable
+     */
+    public function isEditable()
+    {
+        return !$this->isGraded();
     }
 
     /**

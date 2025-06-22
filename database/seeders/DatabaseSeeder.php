@@ -15,26 +15,32 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::create([
-            'name' => 'Admin',
-            'username' => 'admin',
-            'email' => 'admin@example.com',
-            'password' => bcrypt('admin123'),
-            'role' => 'admin',
-        ]);
-        User::create([
-            'name' => 'LTPC Officer',
-            'username' => 'LTPC1',
-            'email' => 'ltpc1@example.com',
-            'password' => bcrypt('LTPC1'),
-            'role' => 'officer',
-        ]);
-        User::create([
-            'name' => 'Cashier',
-            'username' => 'cashier1',
-            'email' => 'cashier1@example.com',
-            'password' => bcrypt('cashier1'),
-            'role' => 'cashier',
-        ]);
+        User::firstOrCreate(
+            ['username' => 'admin'],
+            [
+                'name' => 'Admin',
+                'email' => 'admin@example.com',
+                'password' => bcrypt('admin123'),
+                'role' => 'admin',
+            ]
+        );
+        User::firstOrCreate(
+            ['username' => 'LTPC1'],
+            [
+                'name' => 'LTPC Officer',
+                'email' => 'ltpc1@example.com',
+                'password' => bcrypt('LTPC1'),
+                'role' => 'officer',
+            ]
+        );
+        User::firstOrCreate(
+            ['username' => 'cashier1'],
+            [
+                'name' => 'Cashier',
+                'email' => 'cashier1@example.com',
+                'password' => bcrypt('cashier1'),
+                'role' => 'cashier',
+            ]
+        );
     }
 }

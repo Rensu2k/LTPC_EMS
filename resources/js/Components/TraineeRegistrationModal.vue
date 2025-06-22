@@ -1097,39 +1097,39 @@
                     </div>
                 </div>
 
-                <!-- Course/Qualification -->
+                <!-- Program/Qualification -->
                 <div class="border-t pt-6">
                     <h3 class="text-lg font-semibold mb-4">
-                        Course Information
+                        Program Information
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <InputLabel
-                                for="course_qualification"
-                                value="Name of Course/Qualification *"
+                                for="program_qualification"
+                                value="Name of Program/Qualification *"
                             />
                             <select
-                                id="course_qualification"
-                                v-model="form.course_qualification"
+                                id="program_qualification"
+                                v-model="form.program_qualification"
                                 class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                 required
                             >
-                                <option value="">Select a course...</option>
+                                <option value="">Select a program...</option>
                                 <option
-                                    v-for="course in courses"
-                                    :key="course.course_id"
-                                    :value="course.name"
+                                    v-for="program in programs"
+                                    :key="program.program_id"
+                                    :value="program.name"
                                 >
-                                    {{ course.name
+                                    {{ program.name
                                     }}{{
-                                        course.duration
-                                            ? ` (${course.duration})`
+                                        program.duration
+                                            ? ` (${program.duration})`
                                             : ""
                                     }}
                                 </option>
                             </select>
                             <InputError
-                                :message="form.errors.course_qualification"
+                                :message="form.errors.program_qualification"
                                 class="mt-2"
                             />
                         </div>
@@ -1248,7 +1248,7 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    courses: {
+    programs: {
         type: Array,
         default: () => [],
     },
@@ -1290,7 +1290,7 @@ const form = useForm({
     classification_others: "",
     disability_type: [],
     disability_causes: [],
-    course_qualification: "",
+    program_qualification: "",
     scholarship_package: "",
     requirements: [],
 });

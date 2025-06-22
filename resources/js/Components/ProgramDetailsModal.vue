@@ -2,7 +2,9 @@
     <Modal :show="show" @close="closeModal" custom-width="80vw">
         <div class="p-6">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Course Details</h2>
+                <h2 class="text-2xl font-bold text-gray-900">
+                    Program Details
+                </h2>
                 <button
                     @click="closeModal"
                     class="text-gray-400 hover:text-gray-600"
@@ -23,8 +25,8 @@
                 </button>
             </div>
 
-            <div v-if="course" class="space-y-6">
-                <!-- Course Header -->
+            <div v-if="program" class="space-y-6">
+                <!-- Program Header -->
                 <div
                     class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6"
                 >
@@ -33,11 +35,11 @@
                             <h3
                                 class="text-xl font-semibold text-gray-900 mb-2"
                             >
-                                {{ course.name }}
+                                {{ program.name }}
                             </h3>
                             <p class="text-gray-600 mb-4">
                                 {{
-                                    course.description ||
+                                    program.description ||
                                     "No description available"
                                 }}
                             </p>
@@ -46,23 +48,25 @@
                                     class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
                                     :class="{
                                         'bg-green-100 text-green-800':
-                                            course.status === 'active',
+                                            program.status === 'active',
                                         'bg-gray-100 text-gray-800':
-                                            course.status === 'inactive',
+                                            program.status === 'inactive',
                                     }"
                                 >
                                     {{
-                                        course.status?.charAt(0).toUpperCase() +
-                                            course.status?.slice(1) || "Active"
+                                        program.status
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                            program.status?.slice(1) || "Active"
                                     }}
                                 </span>
                                 <span class="text-sm text-gray-500">
-                                    Course ID: {{ course.course_id }}
+                                    Program ID: {{ program.id }}
                                 </span>
                             </div>
                         </div>
                         <button
-                            @click="editCourse"
+                            @click="editProgram"
                             class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
                             <svg
@@ -78,12 +82,12 @@
                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                 />
                             </svg>
-                            Edit Course
+                            Edit Program
                         </button>
                     </div>
                 </div>
 
-                <!-- Course Information Grid -->
+                <!-- Program Information Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Duration -->
                     <div class="bg-white border rounded-lg p-4">
@@ -106,7 +110,7 @@
                             <div>
                                 <p class="text-sm text-gray-500">Duration</p>
                                 <p class="text-lg font-semibold text-gray-900">
-                                    {{ course.duration }}
+                                    {{ program.duration }}
                                 </p>
                             </div>
                         </div>
@@ -133,8 +137,8 @@
                             <div>
                                 <p class="text-sm text-gray-500">Enrollments</p>
                                 <p class="text-lg font-semibold text-gray-900">
-                                    {{ course.enrollments || 0 }} /
-                                    {{ course.max_enrollments || "Unlimited" }}
+                                    {{ program.enrollments || 0 }} /
+                                    {{ program.max_enrollments || "Unlimited" }}
                                 </p>
                             </div>
                         </div>
@@ -194,112 +198,116 @@
                                 </p>
                                 <p class="text-sm text-gray-500">
                                     {{
-                                        trainer.program || "General Training"
+                                        trainer.expertise_string ||
+                                        "General Training"
                                     }}
                                 </p>
                             </div>
-                            <div class="flex items-center">
-                                <span
-                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                                >
-                                    Active
-                                </span>
-                            </div>
                         </div>
                     </div>
-                    <div v-else class="text-center py-6">
-                        <svg
-                            class="mx-auto h-12 w-12 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                            />
-                        </svg>
-                        <p class="mt-2 text-sm text-gray-500">
-                            No trainers assigned to this course
+                    <div v-else class="text-center py-8">
+                        <div class="text-gray-400 mb-2">
+                            <svg
+                                class="mx-auto h-12 w-12"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="1"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                />
+                            </svg>
+                        </div>
+                        <p class="text-gray-500">
+                            No trainers assigned to this program yet.
                         </p>
-                        <button
-                            @click="editCourse"
-                            class="mt-2 text-sm text-blue-600 hover:text-blue-700"
-                        >
-                            Assign trainers
-                        </button>
                     </div>
                 </div>
 
-                <!-- Course Schedule (if available) -->
+                <!-- Program Statistics -->
+                <div class="bg-white border rounded-lg p-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                        Enrollment Progress
+                    </h4>
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>Progress</span>
+                            <span
+                                >{{
+                                    Math.round(
+                                        (program.enrollments /
+                                            program.max_enrollments) *
+                                            100
+                                    )
+                                }}%</span
+                            >
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div
+                                class="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                                :style="{
+                                    width:
+                                        Math.min(
+                                            (program.enrollments /
+                                                program.max_enrollments) *
+                                                100,
+                                            100
+                                        ) + '%',
+                                }"
+                            ></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-blue-600">
+                                {{ program.enrollments }}
+                            </div>
+                            <div class="text-sm text-gray-500">Enrolled</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-gray-600">
+                                {{
+                                    program.max_enrollments -
+                                    program.enrollments
+                                }}
+                            </div>
+                            <div class="text-sm text-gray-500">Available</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-green-600">
+                                {{ formatCurrency(program.enrollment_fee) }}
+                            </div>
+                            <div class="text-sm text-gray-500">Fee</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Program Dates -->
                 <div
-                    v-if="course.start_date || course.end_date"
+                    v-if="program.start_date || program.end_date"
                     class="bg-white border rounded-lg p-6"
                 >
                     <h4 class="text-lg font-semibold text-gray-900 mb-4">
-                        Course Schedule
+                        Program Schedule
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div v-if="course.start_date">
+                        <div v-if="program.start_date">
                             <p class="text-sm text-gray-500">Start Date</p>
-                            <p class="text-lg font-medium text-gray-900">
-                                {{ formatDate(course.start_date) }}
+                            <p class="text-lg font-semibold text-gray-900">
+                                {{ formatDate(program.start_date) }}
                             </p>
                         </div>
-                        <div v-if="course.end_date">
+                        <div v-if="program.end_date">
                             <p class="text-sm text-gray-500">End Date</p>
-                            <p class="text-lg font-medium text-gray-900">
-                                {{ formatDate(course.end_date) }}
+                            <p class="text-lg font-semibold text-gray-900">
+                                {{ formatDate(program.end_date) }}
                             </p>
                         </div>
                     </div>
                 </div>
-
-                <!-- Additional Information -->
-                <div class="bg-white border rounded-lg p-6">
-                    <h4 class="text-lg font-semibold text-gray-900 mb-4">
-                        Additional Information
-                    </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p class="text-gray-500">Created</p>
-                            <p class="font-medium text-gray-900">
-                                {{ formatDate(course.created_at) }}
-                            </p>
-                        </div>
-                        <div v-if="course.updated_at">
-                            <p class="text-gray-500">Last Updated</p>
-                            <p class="font-medium text-gray-900">
-                                {{ formatDate(course.updated_at) }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- No Course Selected -->
-            <div v-else class="text-center py-12">
-                <svg
-                    class="mx-auto h-12 w-12 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                </svg>
-                <p class="mt-2 text-sm text-gray-500">No course selected</p>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-3 pt-6 border-t">
-                <SecondaryButton @click="closeModal"> Close </SecondaryButton>
             </div>
         </div>
     </Modal>
@@ -308,36 +316,35 @@
 <script setup>
 import { computed } from "vue";
 import Modal from "@/Components/Modal.vue";
-import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const props = defineProps({
-    show: {
-        type: Boolean,
-        default: false,
-    },
-    course: {
-        type: Object,
-        default: null,
-    },
-    trainers: {
-        type: Array,
-        default: () => [],
-    },
+    show: Boolean,
+    program: Object,
+    trainers: Array,
 });
 
 const emit = defineEmits(["close", "edit"]);
 
+const closeModal = () => {
+    emit("close");
+};
+
+const editProgram = () => {
+    emit("edit", props.program);
+};
+
 const assignedTrainers = computed(() => {
-    if (!props.course?.assigned_trainers || !props.trainers) {
+    if (!props.program?.assigned_trainers || !props.trainers) {
         return [];
     }
 
     return props.trainers.filter((trainer) =>
-        props.course.assigned_trainers.includes(trainer.id)
+        props.program.assigned_trainers.includes(trainer.id)
     );
 });
 
 const getTrainerInitials = (name) => {
+    if (!name) return "";
     return name
         .split(" ")
         .map((n) => n[0])
@@ -345,20 +352,20 @@ const getTrainerInitials = (name) => {
         .toUpperCase();
 };
 
+const formatCurrency = (amount) => {
+    if (!amount || amount === 0) return "Free";
+    return new Intl.NumberFormat("en-PH", {
+        style: "currency",
+        currency: "PHP",
+    }).format(amount);
+};
+
 const formatDate = (date) => {
-    if (!date) return "N/A";
+    if (!date) return "Not set";
     return new Date(date).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
     });
-};
-
-const closeModal = () => {
-    emit("close");
-};
-
-const editCourse = () => {
-    emit("edit", props.course);
 };
 </script>

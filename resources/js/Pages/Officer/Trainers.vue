@@ -8,7 +8,7 @@ import { ref } from "vue";
 
 const props = defineProps({
     trainers: Array,
-    courses: Array,
+    programs: Array,
 });
 
 const searchQuery = ref("");
@@ -23,10 +23,11 @@ const trainersList = ref(
     props.trainers?.map((trainer) => ({
         id: trainer.id,
         name: trainer.full_name,
-        program: trainer.program,
+        expertise: trainer.expertise,
+        expertise_string: trainer.expertise_string,
         email: trainer.email,
         phone: trainer.phone,
-        activeCourses: trainer.active_courses_count || 0,
+        activePrograms: trainer.active_programs_count || 0,
         totalTrainees: trainer.total_trainees_count || 0,
         activeTrainees: trainer.active_trainees_count || 0,
         completedTrainees: trainer.completed_trainees_count || 0,
@@ -108,7 +109,7 @@ const filteredTrainers = ref(
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.program
+            trainer.expertise_string
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -124,7 +125,7 @@ const updateFilter = () => {
             trainer.name
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
-            trainer.program
+            trainer.expertise_string
                 .toLowerCase()
                 .includes(searchQuery.value.toLowerCase()) ||
             trainer.email
@@ -221,7 +222,7 @@ const updateFilter = () => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Program
+                                    Expertise
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -273,7 +274,7 @@ const updateFilter = () => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ trainer.program }}
+                                    {{ trainer.expertise_string }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
@@ -323,12 +324,12 @@ const updateFilter = () => {
                                     <div class="space-y-1">
                                         <div class="flex items-center gap-1">
                                             <span class="text-xs text-gray-500"
-                                                >Courses:</span
+                                                >Programs:</span
                                             >
                                             <span
                                                 class="font-semibold text-blue-600"
                                                 >{{
-                                                    trainer.activeCourses
+                                                    trainer.activePrograms
                                                 }}</span
                                             >
                                         </div>
@@ -495,7 +496,7 @@ const updateFilter = () => {
         <!-- Trainer Registration Modal -->
         <TrainerRegistrationModal
             :show="showRegistrationModal"
-            :courses="courses"
+            :programs="programs"
             @close="closeRegistrationModal"
             @submitted="onTrainerSubmitted"
         />

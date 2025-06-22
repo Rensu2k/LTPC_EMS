@@ -8,7 +8,7 @@ class Trainer extends Model
 {
     protected $fillable = [
         'full_name',
-        'program',
+        'expertise',
         'email',
         'phone',
         'biography',
@@ -18,6 +18,7 @@ class Trainer extends Model
 
     protected $casts = [
         'availability_schedule' => 'array',
+        'expertise' => 'array',
     ];
 
     /**
@@ -39,62 +40,127 @@ class Trainer extends Model
     }
 
     /**
-     * Get courses assigned to this trainer
+     * Get the trainer's expertise as a formatted string
      */
-    public function getAssignedCoursesAttribute()
+    public function getExpertiseStringAttribute()
     {
-        return \App\Models\Course::whereJsonContains('assigned_trainers', $this->id)
+        if (!$this->expertise || empty($this->expertise)) {
+            return 'No expertise specified';
+        }
+        
+        return implode(', ', $this->expertise);
+    }
+
+    /**
+     * Check if trainer has specific expertise
+     */
+    public function hasExpertise($expertiseName)
+    {
+        if (!$this->expertise || empty($this->expertise)) {
+            return false;
+        }
+        
+        return in_array($expertiseName, $this->expertise);
+    }
+
+    /**
+     * Add expertise to trainer
+     */
+    public function addExpertise($expertiseName)
+    {
+        $currentExpertise = $this->expertise ?? [];
+        
+        // Ensure it's an array
+        if (!is_array($currentExpertise)) {
+            $currentExpertise = [];
+        }
+        
+        if (!in_array($expertiseName, $currentExpertise)) {
+            $currentExpertise[] = $expertiseName;
+            $this->expertise = $currentExpertise;
+            $this->save();
+        }
+        
+        return $this;
+    }
+
+    /**
+     * Remove expertise from trainer
+     */
+    public function removeExpertise($expertiseName)
+    {
+        $currentExpertise = $this->expertise ?? [];
+        
+        // Ensure it's an array
+        if (!is_array($currentExpertise)) {
+            $currentExpertise = [];
+        }
+        
+        $currentExpertise = array_filter($currentExpertise, fn($e) => $e !== $expertiseName);
+        
+        $this->expertise = array_values($currentExpertise);
+        $this->save();
+        
+        return $this;
+    }
+
+    /**
+     * Get programs assigned to this trainer
+     */
+    public function getAssignedProgramsAttribute()
+    {
+        return \App\Models\Program::whereJsonContains('assigned_trainers', $this->id)
             ->where('status', 'active')
             ->get();
     }
 
     /**
-     * Get count of active courses assigned to this trainer
+     * Get count of active programs assigned to this trainer
      */
-    public function getActiveCoursesCountAttribute()
+    public function getActiveProgramsCountAttribute()
     {
-        return \App\Models\Course::whereJsonContains('assigned_trainers', $this->id)
+        return \App\Models\Program::whereJsonContains('assigned_trainers', $this->id)
             ->where('status', 'active')
             ->count();
     }
 
     /**
-     * Get total trainees for courses assigned to this trainer
+     * Get total trainees for programs assigned to this trainer
      */
     public function getTotalTraineesCountAttribute()
     {
-        $assignedCourses = \App\Models\Course::whereJsonContains('assigned_trainers', $this->id)
+        $assignedPrograms = \App\Models\Program::whereJsonContains('assigned_trainers', $this->id)
             ->where('status', 'active')
             ->pluck('name');
 
-        return \App\Models\Trainee::whereIn('course_qualification', $assignedCourses)
+        return \App\Models\Trainee::whereIn('program_qualification', $assignedPrograms)
             ->count();
     }
 
     /**
-     * Get active trainees for courses assigned to this trainer
+     * Get active trainees for programs assigned to this trainer
      */
     public function getActiveTraineesCountAttribute()
     {
-        $assignedCourses = \App\Models\Course::whereJsonContains('assigned_trainers', $this->id)
+        $assignedPrograms = \App\Models\Program::whereJsonContains('assigned_trainers', $this->id)
             ->where('status', 'active')
             ->pluck('name');
 
-        return \App\Models\Trainee::whereIn('course_qualification', $assignedCourses)
+        return \App\Models\Trainee::whereIn('program_qualification', $assignedPrograms)
             ->where('status', 'active')
             ->count();
     }
 
     /**
-     * Get completed trainees for courses assigned to this trainer
+     * Get completed trainees for programs assigned to this trainer
      */
     public function getCompletedTraineesCountAttribute()
     {
-        $assignedCourses = \App\Models\Course::whereJsonContains('assigned_trainers', $this->id)
+        $assignedPrograms = \App\Models\Program::whereJsonContains('assigned_trainers', $this->id)
             ->where('status', 'active')
             ->pluck('name');
 
-        return \App\Models\Trainee::whereIn('course_qualification', $assignedCourses)
+        return \App\Models\Trainee::whereIn('program_qualification', $assignedPrograms)
             ->where('status', 'completed')
             ->count();
     }

@@ -180,10 +180,10 @@ const editAssessment = () => {
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <span class="text-sm font-medium text-gray-500"
-                                >Course:</span
+                                >Program:</span
                             >
                             <span class="text-sm text-gray-900 font-semibold">
-                                {{ assessment.course_name || "N/A" }}
+                                {{ assessment.program_name || "N/A" }}
                             </span>
                         </div>
                         <div class="flex justify-between items-center">
@@ -239,10 +239,10 @@ const editAssessment = () => {
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <span class="text-sm font-medium text-gray-500"
-                                >Trainee:</span
+                                >Applicant:</span
                             >
                             <span class="text-sm text-gray-900 font-semibold">
-                                {{ assessment.trainee_name || "N/A" }}
+                                {{ assessment.applicant_name || "N/A" }}
                             </span>
                         </div>
                         <div class="flex justify-between items-center">

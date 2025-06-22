@@ -1,33 +1,33 @@
 <template>
-    <Head title="Edit Course" />
+    <Head title="Edit Program" />
 
     <AuthenticatedLayout>
         <div class="p-8">
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">
-                        Edit Course
+                        Edit Program
                     </h1>
                     <p class="text-gray-600 mt-2">
-                        Update course information and settings
+                        Update program information and settings
                     </p>
                 </div>
                 <SecondaryButton @click="goBack">
-                    Back to Courses
+                    Back to Programs
                 </SecondaryButton>
             </div>
 
             <div class="bg-white rounded-lg shadow-sm border p-6">
                 <form @submit.prevent="submitForm">
-                    <!-- Course Basic Information -->
+                    <!-- Program Basic Information -->
                     <div class="border-b pb-6 mb-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                            Course Information
+                            Program Information
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <InputLabel for="name" value="Course Name *" />
+                                <InputLabel for="name" value="Program Name *" />
                                 <TextInput
                                     id="name"
                                     v-model="form.name"
@@ -64,7 +64,7 @@
                                 v-model="form.description"
                                 rows="3"
                                 class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                placeholder="Brief description of the course..."
+                                placeholder="Brief description of the program..."
                             ></textarea>
                             <InputError
                                 :message="form.errors.description"
@@ -72,7 +72,7 @@
                             />
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <InputLabel for="status" value="Status" />
                                 <select
@@ -85,25 +85,6 @@
                                 </select>
                                 <InputError
                                     :message="form.errors.status"
-                                    class="mt-2"
-                                />
-                            </div>
-                            <div>
-                                <InputLabel
-                                    for="max_enrollments"
-                                    value="Max Enrollments"
-                                />
-                                <TextInput
-                                    id="max_enrollments"
-                                    v-model.number="form.max_enrollments"
-                                    type="number"
-                                    class="mt-1 block w-full"
-                                    min="1"
-                                    max="100"
-                                    placeholder="e.g., 30"
-                                />
-                                <InputError
-                                    :message="form.errors.max_enrollments"
                                     class="mt-2"
                                 />
                             </div>
@@ -129,10 +110,10 @@
                         </div>
                     </div>
 
-                    <!-- Course Schedule -->
+                    <!-- Program Schedule -->
                     <div class="border-b pb-6 mb-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                            Course Schedule (Optional)
+                            Program Schedule (Optional)
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -196,90 +177,109 @@
                                         Trainer Assignment
                                     </h4>
                                     <p class="text-sm text-blue-700 mt-1">
-                                        Trainers can only be assigned to courses
-                                        after the course has been created. This
-                                        helps ensure proper course setup and
-                                        trainer matching.
+                                        Trainers can only be assigned to
+                                        programs after the program has been
+                                        created. This allows for better
+                                        management of trainer schedules and
+                                        program organization.
                                     </p>
                                 </div>
                             </div>
                         </div>
 
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                            Assign Trainers
+                            Assigned Trainers
                         </h3>
-                        <p class="text-sm text-gray-600 mb-2">
-                            Select trainers who will be responsible for this
-                            course
-                        </p>
-                        <p class="text-xs text-blue-600 mb-4">
-                            Only showing trainers whose program matches "{{
-                                form.name
-                            }}"
-                        </p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Available trainers:
-                            <span class="font-medium text-green-600">
-                                {{
-                                    filteredTrainers.length
-                                }}
-                            </span>
-                        </p>
-                    </div>
 
-                    <div class="space-y-2 max-h-40 overflow-y-auto">
+                        <div class="mb-4">
+                            <InputLabel
+                                for="assigned_trainers"
+                                value="Select Trainers"
+                            />
+                            <select
+                                id="assigned_trainers"
+                                multiple
+                                v-model="form.assigned_trainers"
+                                class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                size="6"
+                            >
+                                <option
+                                    v-for="trainer in trainers"
+                                    :key="trainer.id"
+                                    :value="trainer.id"
+                                >
+                                    {{ trainer.name }} -
+                                    {{ trainer.expertise_string }}
+                                </option>
+                            </select>
+                            <p class="text-sm text-gray-500 mt-1">
+                                Hold Ctrl (or Cmd on Mac) to select multiple
+                                trainers. Only trainers with relevant expertise
+                                are shown.
+                            </p>
+                            <InputError
+                                :message="form.errors.assigned_trainers"
+                                class="mt-2"
+                            />
+                        </div>
+
+                        <!-- Currently Assigned Trainers Display -->
                         <div
-                            v-for="trainer in filteredTrainers"
-                            :key="trainer.id"
-                            class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                            v-if="
+                                form.assigned_trainers &&
+                                form.assigned_trainers.length > 0
+                            "
+                            class="bg-gray-50 rounded-lg p-4"
                         >
-                            <div class="flex items-center space-x-3">
-                                <div class="h-8 w-8 rounded-full bg-green-600 flex items-center justify-center text-white text-xs font-semibold">
+                            <h4 class="text-sm font-medium text-gray-900 mb-2">
+                                Currently Assigned Trainers:
+                            </h4>
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    v-for="trainerId in form.assigned_trainers"
+                                    :key="trainerId"
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                                >
                                     {{
-                                        trainer.full_name
-                                            ?.split(" ")
-                                            .map((n) => n[0])
-                                            .join("") || ""
+                                        getTrainerName(trainerId) ||
+                                        "Unknown Trainer"
                                     }}
-                                </div>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900">
-                                        {{ trainer.full_name }}
-                                    </p>
-                                    <p class="text-xs text-gray-500">
-                                        {{
-                                            trainer.program ||
-                                                "General Training"
-                                        }}
-                                    </p>
-                                </div>
+                                    <button
+                                        type="button"
+                                        @click="removeTrainer(trainerId)"
+                                        class="ml-2 text-blue-600 hover:text-blue-800"
+                                    >
+                                        <svg
+                                            class="h-4 w-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            />
+                                        </svg>
+                                    </button>
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="filteredTrainers.length === 0" class="text-center py-4">
-                        <p class="text-sm text-gray-500">
-                            No trainers available with matching program
-                        </p>
-                        <p class="text-xs text-gray-400 mt-1">
-                            Only trainers whose program matches "{{
-                                form.name
-                            }}" are shown. Add a new trainer with matching
-                            program or check existing trainer
-                        </p>
-                    </div>
-
                     <!-- Form Actions -->
-                    <div class="flex justify-end gap-4 pt-6 border-t">
-                        <SecondaryButton @click="goBack" type="button">
+                    <div class="flex items-center justify-end gap-3">
+                        <SecondaryButton type="button" @click="goBack">
                             Cancel
                         </SecondaryButton>
                         <PrimaryButton
                             type="submit"
                             :disabled="form.processing"
+                            class="bg-blue-600 hover:bg-blue-700"
                         >
                             <span v-if="form.processing">Updating...</span>
-                            <span v-else>Update Course</span>
+                            <span v-else>Update Program</span>
                         </PrimaryButton>
                     </div>
                 </form>
@@ -289,9 +289,9 @@
 </template>
 
 <script setup>
-import { useForm, router } from "@inertiajs/vue3";
+import { computed } from "vue";
+import { Head, useForm, router } from "@inertiajs/vue3";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head } from "@inertiajs/vue3";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
@@ -299,39 +299,41 @@ import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const props = defineProps({
-    course: Object,
+    program: Object,
     trainers: Array,
 });
 
 const form = useForm({
-    name: props.course?.name || "",
-    description: props.course?.description || "",
-    duration: props.course?.duration || "",
-    status: props.course?.status || "active",
-    max_enrollments: props.course?.max_enrollments || null,
-    enrollment_fee: props.course?.enrollment_fee || null,
-    start_date: props.course?.start_date || "",
-    end_date: props.course?.end_date || "",
-    assigned_trainers: props.course?.assigned_trainers || [],
+    name: props.program?.name || "",
+    description: props.program?.description || "",
+    duration: props.program?.duration || "",
+    status: props.program?.status || "active",
+    enrollment_fee: props.program?.enrollment_fee || 0,
+    start_date: props.program?.start_date || "",
+    end_date: props.program?.end_date || "",
+    assigned_trainers: props.program?.assigned_trainers || [],
 });
 
-const getTrainerInitials = (name) => {
-    return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase();
+const goBack = () => {
+    router.visit(route("officer.programs"));
 };
 
 const submitForm = () => {
-    form.put(route("officer.courses.update", props.course.id), {
+    form.put(route("officer.programs.update", props.program.program_id), {
         onSuccess: () => {
-            router.visit(route("officer.courses"));
+            router.visit(route("officer.programs"));
         },
     });
 };
 
-const goBack = () => {
-    router.visit(route("officer.courses"));
+const getTrainerName = (trainerId) => {
+    const trainer = props.trainers.find((t) => t.id === trainerId);
+    return trainer ? trainer.name : null;
+};
+
+const removeTrainer = (trainerId) => {
+    form.assigned_trainers = form.assigned_trainers.filter(
+        (id) => id !== trainerId
+    );
 };
 </script>

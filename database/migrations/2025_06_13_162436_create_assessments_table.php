@@ -20,9 +20,17 @@ return new class extends Migration
             $table->enum('status', ['pending', 'completed', 'graded'])->default('pending');
             $table->integer('score')->nullable();
             $table->integer('max_score');
-            $table->foreignId('course_id')->constrained()->onDelete('cascade');
-            $table->foreignId('trainee_id')->constrained()->onDelete('cascade');
-            $table->foreignId('trainer_id')->constrained()->onDelete('cascade');
+            
+            // Fix foreign key constraints to match actual table structures
+            $table->string('course_id', 50); // Match courses.course_id
+            $table->unsignedBigInteger('trainee_id'); // Match trainees.id
+            $table->unsignedBigInteger('trainer_id'); // Match trainers.id
+            
+            // Add foreign key constraints with correct references
+            $table->foreign('course_id')->references('course_id')->on('courses')->onDelete('cascade');
+            $table->foreign('trainee_id')->references('id')->on('trainees')->onDelete('cascade');
+            $table->foreign('trainer_id')->references('id')->on('trainers')->onDelete('cascade');
+            
             $table->date('assessment_date');
             $table->timestamps();
         });

@@ -8,7 +8,7 @@ import { ref, computed } from "vue";
 
 const props = defineProps({
     assessments: Array,
-    courses: Array,
+    programs: Array,
     trainees: Array,
     trainers: Array,
 });
@@ -32,7 +32,7 @@ const assessmentsList = ref(
         status: assessment.status,
         score: assessment.score,
         max_score: assessment.max_score,
-        course_name: assessment.course_name,
+        program_name: assessment.program_name,
         applicant_name: assessment.applicant_name,
         applicant_type: assessment.applicant_type,
         trainer_name: assessment.trainer_name,
@@ -66,6 +66,11 @@ function getGrade(percentage) {
     return "F";
 }
 
+// Check if assessment is graded (has pass/fail status)
+function isGraded(assessment) {
+    return ["pass", "fail"].includes(assessment.status);
+}
+
 const addAssessment = () => {
     showRegistrationModal.value = true;
 };
@@ -87,10 +92,22 @@ const viewAssessment = (assessment) => {
 };
 
 const editAssessment = (assessment) => {
+    if (isGraded(assessment)) {
+        alert(
+            "Cannot edit finalized assessments. This assessment has already been graded."
+        );
+        return;
+    }
     router.visit(`/officer/assessments/${assessment.id}/edit`);
 };
 
 const deleteAssessment = (assessment) => {
+    if (isGraded(assessment)) {
+        alert(
+            "Cannot delete finalized assessments. This assessment has already been graded."
+        );
+        return;
+    }
     selectedAssessment.value = assessment;
     showDeleteModal.value = true;
 };
@@ -153,7 +170,7 @@ const filteredAssessments = computed(() => {
                 assessment.applicant_name
                     .toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                assessment.course_name
+                assessment.program_name
                     .toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
                 assessment.trainer_name
@@ -280,6 +297,8 @@ const exportData = () => {
                             <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
                             <option value="graded">Graded</option>
+                            <option value="pass">Pass</option>
+                            <option value="fail">Fail</option>
                         </select>
                     </div>
                 </div>
@@ -306,7 +325,7 @@ const exportData = () => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Course
+                                    Program
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -379,7 +398,7 @@ const exportData = () => {
                                             {{
                                                 assessment.applicant_type ===
                                                 "enrolled_trainee"
-                                                    ? "Enrolled Trainee"
+                                                    ? "Enrolled Applicant"
                                                     : "External Applicant"
                                             }}
                                         </div>
@@ -388,7 +407,7 @@ const exportData = () => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ assessment.course_name }}
+                                    {{ assessment.program_name }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
@@ -438,8 +457,12 @@ const exportData = () => {
                                             'bg-blue-100 text-blue-800':
                                                 assessment.status ===
                                                 'completed',
-                                            'bg-green-100 text-green-800':
+                                            'bg-indigo-100 text-indigo-800':
                                                 assessment.status === 'graded',
+                                            'bg-green-100 text-green-800':
+                                                assessment.status === 'pass',
+                                            'bg-red-100 text-red-800':
+                                                assessment.status === 'fail',
                                         }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
@@ -449,6 +472,13 @@ const exportData = () => {
                                                 .toUpperCase() +
                                             assessment.status.slice(1)
                                         }}
+                                    </span>
+                                    <span
+                                        v-if="isGraded(assessment)"
+                                        class="ml-2 text-xs text-gray-500"
+                                        title="Assessment is finalized"
+                                    >
+                                        🔒
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -524,8 +554,19 @@ const exportData = () => {
                                         </button>
                                         <button
                                             @click="editAssessment(assessment)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
-                                            title="Edit"
+                                            :class="{
+                                                'text-blue-600 hover:text-blue-900 cursor-pointer':
+                                                    !isGraded(assessment),
+                                                'text-gray-400 cursor-not-allowed':
+                                                    isGraded(assessment),
+                                            }"
+                                            :disabled="isGraded(assessment)"
+                                            :title="
+                                                isGraded(assessment)
+                                                    ? 'Cannot edit finalized assessment'
+                                                    : 'Edit'
+                                            "
+                                            class="p-1 rounded"
                                         >
                                             <svg
                                                 class="h-5 w-5"
@@ -545,8 +586,19 @@ const exportData = () => {
                                             @click="
                                                 deleteAssessment(assessment)
                                             "
-                                            class="text-red-600 hover:text-red-900 p-1 rounded"
-                                            title="Delete"
+                                            :class="{
+                                                'text-red-600 hover:text-red-900 cursor-pointer':
+                                                    !isGraded(assessment),
+                                                'text-gray-400 cursor-not-allowed':
+                                                    isGraded(assessment),
+                                            }"
+                                            :disabled="isGraded(assessment)"
+                                            :title="
+                                                isGraded(assessment)
+                                                    ? 'Cannot delete finalized assessment'
+                                                    : 'Delete'
+                                            "
+                                            class="p-1 rounded"
                                         >
                                             <svg
                                                 class="h-5 w-5"
@@ -625,7 +677,7 @@ const exportData = () => {
         <!-- Assessment Registration Modal -->
         <AssessmentRegistrationModal
             :show="showRegistrationModal"
-            :courses="courses"
+            :programs="programs"
             :trainees="trainees"
             :trainers="trainers"
             @close="closeRegistrationModal"

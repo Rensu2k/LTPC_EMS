@@ -13,7 +13,7 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    courses: {
+    programs: {
         type: Array,
         default: () => [],
     },
@@ -33,17 +33,20 @@ const form = useForm({
     title: "",
     description: "",
     type: "theoretical",
-    course_id: "",
+    program_id: "",
     applicant_type: "enrolled_trainee",
     trainee_id: "",
     external_applicant_name: "",
     external_applicant_email: "",
     external_applicant_phone: "",
     trainer_id: "",
-    max_score: 100,
+    max_score: "100",
+    passing_score: "75",
     assessment_date: "",
-    assessment_fee: 0,
+    assessment_fee: "0",
     payment_status: "pending",
+    payment_method: "",
+    payment_reference: "",
 });
 
 const submit = () => {
@@ -109,7 +112,15 @@ watch(
                 trainee.scholarship_package &&
                 trainee.scholarship_package.trim() !== ""
             ) {
-                form.assessment_fee = 0;
+                form.assessment_fee = "0";
+                form.payment_status = "paid";
+                form.payment_method = "scholarship_exemption";
+                form.payment_reference = `SCHOLAR-${trainee.scholarship_package.toUpperCase()}-${Date.now()}`;
+            } else {
+                // Reset to default for non-scholars
+                form.payment_status = "pending";
+                form.payment_method = "";
+                form.payment_reference = "";
             }
         }
     }
@@ -126,8 +137,20 @@ watch(
                 trainee.scholarship_package &&
                 trainee.scholarship_package.trim() !== ""
             ) {
-                form.assessment_fee = 0;
+                form.assessment_fee = "0";
+                form.payment_status = "paid";
+                form.payment_method = "scholarship_exemption";
+                form.payment_reference = `SCHOLAR-${trainee.scholarship_package.toUpperCase()}-${Date.now()}`;
+            } else {
+                form.payment_status = "pending";
+                form.payment_method = "";
+                form.payment_reference = "";
             }
+        } else {
+            // External applicant - reset to default
+            form.payment_status = "pending";
+            form.payment_method = "";
+            form.payment_reference = "";
         }
     }
 );
@@ -161,8 +184,8 @@ watch(
                     <h2 class="text-xl font-semibold text-gray-900">
                         Create New Assessment
                     </h2>
-                    <p class="text-sm text-gray-600 mt-1">
-                        Create a new assessment for trainees
+                    <p class="text-gray-600 mb-6">
+                        Create a new assessment for applicants
                     </p>
                 </div>
             </div>
@@ -234,6 +257,30 @@ watch(
                         />
                     </div>
 
+                    <!-- Passing Score -->
+                    <div>
+                        <InputLabel
+                            for="passing_score"
+                            value="Passing Score *"
+                        />
+                        <TextInput
+                            id="passing_score"
+                            v-model="form.passing_score"
+                            type="number"
+                            class="mt-1 block w-full"
+                            min="1"
+                            :max="form.max_score"
+                            required
+                        />
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.passing_score"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Minimum score required to pass the assessment
+                        </p>
+                    </div>
+
                     <!-- Applicant Type -->
                     <div class="md:col-span-2">
                         <InputLabel
@@ -249,8 +296,8 @@ watch(
                                     class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
                                 />
                                 <span class="ml-2 text-sm text-gray-700"
-                                    >Enrolled Trainee (Completed Status
-                                    Required)</span
+                                    >Enrolled Applicant (Completed Status
+                                    Only)</span
                                 >
                             </label>
                             <label class="flex items-center">
@@ -271,27 +318,33 @@ watch(
                         />
                     </div>
 
-                    <!-- Course Selection -->
+                    <!-- Program Selection -->
                     <div>
-                        <InputLabel for="course_id" value="Course *" />
+                        <InputLabel for="program_id" value="Program *" />
                         <select
-                            id="course_id"
-                            v-model="form.course_id"
+                            id="program_id"
+                            v-model="form.program_id"
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             required
                         >
-                            <option value="">Select a course</option>
+                            <option value="">Select a program</option>
                             <option
-                                v-for="course in courses"
-                                :key="course.course_id"
-                                :value="course.course_id"
+                                v-if="!programs || programs.length === 0"
+                                disabled
                             >
-                                {{ course.name }}
+                                No active programs available
+                            </option>
+                            <option
+                                v-for="program in programs"
+                                :key="program.program_id"
+                                :value="program.program_id"
+                            >
+                                {{ program.name }}
                             </option>
                         </select>
                         <InputError
                             class="mt-2"
-                            :message="form.errors.course_id"
+                            :message="form.errors.program_id"
                         />
                     </div>
 
@@ -299,23 +352,34 @@ watch(
                     <div v-if="form.applicant_type === 'enrolled_trainee'">
                         <InputLabel
                             for="trainee_id"
-                            value="Trainee (Completed Status) *"
+                            value="Applicant (Completed Status) *"
                         />
                         <select
                             id="trainee_id"
                             v-model="form.trainee_id"
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            :required="
-                                form.applicant_type === 'enrolled_trainee'
-                            "
+                            :class="{
+                                'border-red-500':
+                                    form.applicant_type ===
+                                        'enrolled_trainee' &&
+                                    form.errors.trainee_id,
+                            }"
                         >
-                            <option value="">Select a completed trainee</option>
+                            <option value="">Select an applicant</option>
+                            <option
+                                v-if="!trainees || trainees.length === 0"
+                                value=""
+                                disabled
+                            >
+                                No eligible applicants available
+                            </option>
                             <option
                                 v-for="trainee in trainees"
                                 :key="trainee.id"
                                 :value="trainee.id"
                             >
-                                {{ trainee.first_name }} {{ trainee.last_name }}
+                                {{ trainee.first_name }}
+                                {{ trainee.last_name }} ({{ trainee.status }})
                             </option>
                         </select>
                         <InputError
@@ -323,8 +387,8 @@ watch(
                             :message="form.errors.trainee_id"
                         />
                         <p class="text-xs text-gray-500 mt-1">
-                            Only trainees with "completed" status can take
-                            assessments
+                            Only applicants with "completed" status can take
+                            assessments.
                         </p>
                     </div>
 
@@ -428,6 +492,12 @@ watch(
                         >
                             <option value="">Select a trainer</option>
                             <option
+                                v-if="!trainers || trainers.length === 0"
+                                disabled
+                            >
+                                No active trainers available
+                            </option>
+                            <option
                                 v-for="trainer in trainers"
                                 :key="trainer.id"
                                 :value="trainer.id"
@@ -495,34 +565,27 @@ watch(
                                 isScholar &&
                                 form.applicant_type === 'enrolled_trainee'
                             "
-                            class="mb-2 p-3 bg-green-100 border border-green-300 rounded-md"
+                            class="p-4 bg-blue-50 border border-blue-200 rounded-md"
                         >
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center">
                                 <svg
-                                    class="w-5 h-5 text-green-600"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                                    class="h-5 w-5 text-blue-400 mr-2"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
                                 >
                                     <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    ></path>
+                                        fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clip-rule="evenodd"
+                                    />
                                 </svg>
-                                <span
-                                    class="text-sm font-medium text-green-800"
-                                >
-                                    Scholar Fee Exemption
-                                </span>
+                                <p class="text-sm text-blue-700">
+                                    This applicant is a scholar with
+                                    {{ selectedTrainee.scholarship_package }}
+                                    package. Assessment fee is automatically set
+                                    to ₱0.
+                                </p>
                             </div>
-                            <p class="text-sm text-green-700 mt-1">
-                                This trainee is a scholar with
-                                {{ selectedTrainee.scholarship_package }}
-                                scholarship package. Assessment fee is
-                                automatically exempted (₱0.00).
-                            </p>
                         </div>
 
                         <TextInput
@@ -533,13 +596,11 @@ watch(
                             min="0"
                             class="mt-1 block w-full"
                             :class="{
-                                'bg-gray-100 cursor-not-allowed':
-                                    isScholar &&
+                                'bg-gray-100':
                                     form.applicant_type === 'enrolled_trainee',
                             }"
                             placeholder="0.00"
                             :readonly="
-                                isScholar &&
                                 form.applicant_type === 'enrolled_trainee'
                             "
                             required
@@ -551,14 +612,11 @@ watch(
 
                         <!-- General fee note for non-scholars -->
                         <p
-                            v-if="
-                                !isScholar ||
-                                form.applicant_type !== 'enrolled_trainee'
-                            "
-                            class="text-sm text-gray-500 mt-1"
+                            v-if="form.applicant_type !== 'enrolled_trainee'"
+                            class="text-xs text-gray-500 mt-1"
                         >
-                            Set to 0 for free assessments. Scholar trainees are
-                            automatically exempted from fees.
+                            Set to 0 for free assessments. Scholar applicants
+                            are automatically exempted.
                         </p>
                     </div>
                 </div>

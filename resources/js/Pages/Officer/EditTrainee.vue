@@ -477,28 +477,28 @@
                         </div>
                     </div>
 
-                    <!-- Course and Scholarship -->
+                    <!-- Program and Scholarship -->
                     <div class="border-t pt-6">
-                        <h3 class="text-lg font-semibold mb-4">Course and Scholarship Information</h3>
+                        <h3 class="text-lg font-semibold mb-4">Program and Scholarship Information</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <InputLabel for="course_qualification" value="Course *" />
+                                <InputLabel for="program_qualification" value="Program *" />
                                 <select
-                                    id="course_qualification"
-                                    v-model="form.course_qualification"
+                                    id="program_qualification"
+                                    v-model="form.program_qualification"
                                     class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                     required
                                 >
-                                    <option value="">Select a course...</option>
+                                    <option value="">Select a program...</option>
                                     <option
-                                        v-for="course in courses"
-                                        :key="course.id"
-                                        :value="course.name"
+                                        v-for="program in programs"
+                                        :key="program.id"
+                                        :value="program.name"
                                     >
-                                        {{ course.name }}{{ course.duration ? ` (${course.duration})` : "" }}
+                                        {{ program.name }}{{ program.duration ? ` (${program.duration})` : "" }}
                                     </option>
                                 </select>
-                                <InputError :message="form.errors.course_qualification" class="mt-2" />
+                                <InputError :message="form.errors.program_qualification" class="mt-2" />
                             </div>
                             <div>
                                 <InputLabel for="scholarship_package" value="Scholarship Package (TWSP, PESFA, STEP, others)" />
@@ -629,7 +629,7 @@ import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const props = defineProps({
     trainee: Object,
-    courses: Array,
+    programs: Array,
 });
 
 // Format date for input field
@@ -673,7 +673,7 @@ const form = useForm({
     classification_others: props.trainee?.classification_others || "",
     disability_type: props.trainee?.disability_type || [],
     disability_causes: props.trainee?.disability_causes || [],
-    course_qualification: props.trainee?.course_qualification || "",
+    program_qualification: props.trainee?.program_qualification || "",
     scholarship_package: props.trainee?.scholarship_package || "",
     requirements: props.trainee?.requirements || [],
     status: props.trainee?.status || "active",

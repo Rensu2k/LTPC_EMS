@@ -327,10 +327,10 @@ const unavailableSchedule = computed(() => {
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div class="text-center">
                                 <div class="text-2xl font-bold text-blue-900">
-                                    {{ trainer?.active_courses_count || 0 }}
+                                    {{ trainer?.active_programs_count || 0 }}
                                 </div>
                                 <div class="text-sm text-blue-700">
-                                    Active Courses
+                                    Active Programs
                                 </div>
                             </div>
                             <div class="text-center">

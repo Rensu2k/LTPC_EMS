@@ -53,10 +53,10 @@
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700"
-                                >Course</label
+                                >Program</label
                             >
                             <p class="mt-1 text-sm text-gray-900">
-                                {{ trainee.course_qualification }}
+                                {{ trainee.program_qualification }}
                             </p>
                         </div>
                         <div>
@@ -151,6 +151,25 @@
             <!-- Actions -->
             <div class="flex justify-end gap-4 pt-6 border-t mt-6">
                 <SecondaryButton @click="closeModal"> Close </SecondaryButton>
+                <button
+                    @click="viewEnrollmentHistory"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                    <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                    </svg>
+                    Enrollment History
+                </button>
                 <PrimaryButton @click="editTrainee">
                     Edit Trainee
                 </PrimaryButton>
@@ -160,6 +179,7 @@
 </template>
 
 <script setup>
+import { router } from "@inertiajs/vue3";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
@@ -183,5 +203,13 @@ const closeModal = () => {
 
 const editTrainee = () => {
     emit("edit", props.trainee);
+};
+
+const viewEnrollmentHistory = () => {
+    if (props.trainee) {
+        router.visit(
+            route("officer.trainees.enrollment-history", props.trainee.id)
+        );
+    }
 };
 </script>

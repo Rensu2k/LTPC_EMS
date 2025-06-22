@@ -4,19 +4,35 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Trainee;
-use App\Models\Course;
+use App\Models\Program;
 use Inertia\Inertia;
 
 class TraineeController extends Controller
 {
     public function index()
     {
-        $trainees = Trainee::latest()->get();
-        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
+        $trainees = Trainee::latest()->get()->map(function ($trainee) {
+            // Get the program for this trainee to find assigned trainers
+            $program = Program::where('name', $trainee->program_qualification)->first();
+            $assignedTrainerNames = [];
+            
+            if ($program && $program->assigned_trainers) {
+                // Get trainer names from the assigned trainer IDs
+                $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
+            }
+            
+            // Add trainer information to the trainee data
+            $trainee->assigned_trainers = $assignedTrainerNames;
+            
+            return $trainee;
+        });
+        
+        $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/Trainees', [
             'trainees' => $trainees,
-            'courses' => $courses
+            'programs' => $programs
         ]);
     }
 
@@ -27,7 +43,7 @@ class TraineeController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'extension' => 'nullable|string|max:10',
-            'course_qualification' => 'required|string|max:255',
+            'program_qualification' => 'required|string|max:255',
             'uli_number' => 'nullable|string|max:255',
             'entry_date' => 'nullable|date',
             'street_number' => 'nullable|string|max:255',
@@ -80,12 +96,12 @@ class TraineeController extends Controller
             return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // Auto-assign batch based on course enrollment
-        $course = Course::where('name', $validated['course_qualification'])->first();
-        if ($course) {
-            $validated['batch'] = $course->getNextBatch();
+        // Auto-assign batch based on program enrollment
+        $program = Program::where('name', $validated['program_qualification'])->first();
+        if ($program) {
+            $validated['batch'] = $program->getNextAvailableBatch();
         } else {
-            $validated['batch'] = 1; // Default to batch 1 if course not found
+            $validated['batch'] = 1; // Default to batch 1 if program not found
         }
 
         $trainee = Trainee::create($validated);
@@ -102,11 +118,11 @@ class TraineeController extends Controller
 
     public function edit(Trainee $trainee)
     {
-        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
+        $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Officer/EditTrainee', [
             'trainee' => $trainee,
-            'courses' => $courses
+            'programs' => $programs
         ]);
     }
 
@@ -117,7 +133,7 @@ class TraineeController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'extension' => 'nullable|string|max:10',
-            'course_qualification' => 'required|string|max:255',
+            'program_qualification' => 'required|string|max:255',
             'uli_number' => 'nullable|string|max:255',
             'entry_date' => 'nullable|date',
             'street_number' => 'nullable|string|max:255',
@@ -176,13 +192,13 @@ class TraineeController extends Controller
             return redirect()->back()->with('warning', 'Trainee has been suspended due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // If course qualification changed, reassign batch
-        if ($validated['course_qualification'] !== $trainee->course_qualification) {
-            $course = Course::where('name', $validated['course_qualification'])->first();
-            if ($course) {
-                $validated['batch'] = $course->getNextBatch();
+        // If program qualification changed, reassign batch
+        if ($validated['program_qualification'] !== $trainee->program_qualification) {
+            $program = Program::where('name', $validated['program_qualification'])->first();
+            if ($program) {
+                $validated['batch'] = $program->getNextAvailableBatch();
             } else {
-                $validated['batch'] = 1; // Default to batch 1 if course not found
+                $validated['batch'] = 1; // Default to batch 1 if program not found
             }
         }
 
@@ -201,7 +217,7 @@ class TraineeController extends Controller
 
         $trainee->delete();
 
-        return redirect()->back()->with('success', 'Trainee archived successfully!');
+        return redirect()->back()->with('success', 'Trainee deleted successfully!');
     }
 
     /**
@@ -209,12 +225,28 @@ class TraineeController extends Controller
      */
     public function adminIndex()
     {
-        $trainees = Trainee::latest()->get();
-        $courses = Course::where('status', 'active')->get(['course_id', 'name', 'description', 'duration']);
+        $trainees = Trainee::latest()->get()->map(function ($trainee) {
+            // Get the program for this trainee to find assigned trainers
+            $program = Program::where('name', $trainee->program_qualification)->first();
+            $assignedTrainerNames = [];
+            
+            if ($program && $program->assigned_trainers) {
+                // Get trainer names from the assigned trainer IDs
+                $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
+            }
+            
+            // Add trainer information to the trainee data
+            $trainee->assigned_trainers = $assignedTrainerNames;
+            
+            return $trainee;
+        });
+        
+        $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Admin/Trainees', [
             'trainees' => $trainees,
-            'courses' => $courses
+            'programs' => $programs
         ]);
     }
 
@@ -225,13 +257,38 @@ class TraineeController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'extension' => 'nullable|string|max:10',
-            'course_qualification' => 'required|string|max:255',
+            'program_qualification' => 'required|string|max:255',
             'uli_number' => 'nullable|string|max:255',
             'entry_date' => 'nullable|date',
+            'street_number' => 'nullable|string|max:255',
+            'barangay' => 'nullable|string|max:255',
+            'district' => 'nullable|string|max:255',
+            'city_municipality' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'region' => 'nullable|string|max:255',
             'email_facebook' => 'nullable|string|max:255',
             'contact_number' => 'nullable|string|max:255',
             'nationality' => 'nullable|string|max:255',
+            'sex' => 'nullable|in:male,female',
+            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
+            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
+            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
+            'birth_month' => 'nullable|string|max:2',
+            'birth_day' => 'nullable|integer|min:1|max:31',
+            'birth_year' => 'nullable|integer|min:1900|max:2010',
+            'age' => 'nullable|integer|min:0|max:120',
+            'birthplace_city' => 'nullable|string|max:255',
+            'birthplace_province' => 'nullable|string|max:255',
+            'birthplace_region' => 'nullable|string|max:255',
+            'education' => 'nullable|array',
+            'parent_guardian_name' => 'nullable|string|max:255',
+            'parent_guardian_address' => 'nullable|string|max:255',
+            'classification' => 'nullable|array',
+            'classification_others' => 'nullable|string|max:255',
+            'disability_type' => 'nullable|array',
+            'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
+            'requirements' => 'nullable|array',
             'status' => 'nullable|in:active,completed,dropped,suspended',
         ]);
 
@@ -253,12 +310,12 @@ class TraineeController extends Controller
             return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // Auto-assign batch based on course enrollment
-        $course = Course::where('name', $validated['course_qualification'])->first();
-        if ($course) {
-            $validated['batch'] = $course->getNextBatch();
+        // Auto-assign batch based on program enrollment
+        $program = Program::where('name', $validated['program_qualification'])->first();
+        if ($program) {
+            $validated['batch'] = $program->getNextBatch();
         } else {
-            $validated['batch'] = 1; // Default to batch 1 if course not found
+            $validated['batch'] = 1; // Default to batch 1 if program not found
         }
 
         $trainee = Trainee::create($validated);
@@ -274,7 +331,7 @@ class TraineeController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'extension' => 'nullable|string|max:10',
-            'course_qualification' => 'required|string|max:255',
+            'program_qualification' => 'required|string|max:255',
             'uli_number' => 'nullable|string|max:255',
             'entry_date' => 'nullable|date',
             'street_number' => 'nullable|string|max:255',
@@ -333,13 +390,13 @@ class TraineeController extends Controller
             return redirect()->back()->with('warning', 'Trainee has been suspended due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // If course qualification changed, reassign batch
-        if ($validated['course_qualification'] !== $trainee->course_qualification) {
-            $course = Course::where('name', $validated['course_qualification'])->first();
-            if ($course) {
-                $validated['batch'] = $course->getNextBatch();
+        // If program qualification changed, reassign batch
+        if ($validated['program_qualification'] !== $trainee->program_qualification) {
+            $program = Program::where('name', $validated['program_qualification'])->first();
+            if ($program) {
+                $validated['batch'] = $program->getNextBatch();
             } else {
-                $validated['batch'] = 1; // Default to batch 1 if course not found
+                $validated['batch'] = 1; // Default to batch 1 if program not found
             }
         }
 
@@ -362,7 +419,33 @@ class TraineeController extends Controller
             'status' => 'required|in:active,completed,dropped,suspended'
         ]);
 
+        // Store the old status to check for changes
+        $oldStatus = $trainee->status;
+        
         $trainee->update($validated);
+
+        // Update enrollment status in the new enrollment system if trainee has enrollments
+        $activeEnrollments = $trainee->enrollments()->where('status', 'active')->get();
+        if ($activeEnrollments->count() > 0) {
+            foreach ($activeEnrollments as $enrollment) {
+                $enrollmentData = ['status' => $validated['status']];
+                
+                // Set completion date if status is completed
+                if ($validated['status'] === 'completed') {
+                    $enrollmentData['completion_date'] = now()->toDateString();
+                }
+                
+                $enrollment->update($enrollmentData);
+            }
+        }
+
+        // Check if auto-enrollment occurred
+        if ($oldStatus !== 'active' && $validated['status'] === 'active' && $trainee->payment_status === 'paid') {
+            $program = \App\Models\Program::where('name', $trainee->program_qualification)->first();
+            if ($program && $trainee->isEnrolledInProgram($program->program_id)) {
+                return redirect()->back()->with('success', 'Trainee status updated and automatically enrolled in program!');
+            }
+        }
 
         return redirect()->back()->with('success', 'Trainee status updated successfully!');
     }

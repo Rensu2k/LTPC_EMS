@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Assessment;
-use App\Models\Course;
+use App\Models\Program;
 use App\Models\Trainee;
 use App\Models\Trainer;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+
 
 class AssessmentController extends Controller
 {
@@ -16,7 +19,7 @@ class AssessmentController extends Controller
      */
     public function index()
     {
-        $assessments = Assessment::with(['course', 'trainee', 'trainer'])
+        $assessments = Assessment::with(['program', 'trainee', 'trainer'])
             ->latest()
             ->get()
             ->map(function ($assessment) {
@@ -28,7 +31,7 @@ class AssessmentController extends Controller
                     'status' => $assessment->status,
                     'score' => $assessment->score,
                     'max_score' => $assessment->max_score,
-                    'course_name' => $assessment->course->name ?? 'N/A',
+                    'program_name' => $assessment->program->name ?? 'N/A',
                     'applicant_name' => $assessment->applicant_name,
                     'applicant_type' => $assessment->applicant_type,
                     'trainer_name' => $assessment->trainer->full_name ?? 'N/A',
@@ -48,13 +51,13 @@ class AssessmentController extends Controller
                 ];
             });
 
-        $courses = Course::where('status', 'active')->get(['course_id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
+        $programs = Program::where('status', 'active')->get(['program_id', 'name']);
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status']);
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/Assessments', [
             'assessments' => $assessments,
-            'courses' => $courses,
+            'programs' => $programs,
             'trainees' => $trainees,
             'trainers' => $trainers
         ]);
@@ -71,15 +74,16 @@ class AssessmentController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
+        public function store(Request $request)
+    {        
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => 'required|in:practical,theoretical,both',
-            'course_id' => 'required|exists:courses,course_id',
+            'program_id' => 'required|exists:programs,program_id',
             'trainer_id' => 'required|exists:trainers,id',
             'max_score' => 'required|integer|min:1',
+            'passing_score' => 'required|integer|min:1|lte:max_score',
             'assessment_date' => 'required|date',
             'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
             'trainee_id' => 'nullable|exists:trainees,id|required_if:applicant_type,enrolled_trainee',
@@ -105,12 +109,25 @@ class AssessmentController extends Controller
             // Check if trainee is a scholar and automatically exempt from fee
             if ($trainee && !empty($trainee->scholarship_package)) {
                 $validated['assessment_fee'] = 0;
+                $validated['payment_status'] = 'paid';
+                $validated['payment_method'] = 'scholarship_exemption';
+                $validated['payment_notes'] = 'Payment exempted due to ' . $trainee->scholarship_package . ' scholarship package';
             }
         }
 
         // Set payment date if payment is made
         if ($validated['payment_status'] === 'paid') {
             $validated['payment_date'] = now();
+        }
+
+        // Clean up null values that shouldn't be null for external applicant fields
+        if ($validated['applicant_type'] === 'external_applicant') {
+            // Keep external applicant fields
+        } else {
+            // Remove external applicant fields when not needed
+            unset($validated['external_applicant_name']);
+            unset($validated['external_applicant_email']);
+            unset($validated['external_applicant_phone']);
         }
 
         $assessment = Assessment::create($validated);
@@ -131,13 +148,18 @@ class AssessmentController extends Controller
      */
     public function edit(Assessment $assessment)
     {
-        $courses = Course::where('status', 'active')->get(['course_id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package']); // Only completed trainees
+        // Prevent editing graded assessments
+        if ($assessment->isGraded()) {
+            return redirect()->route('officer.assessments')->with('error', 'Cannot edit graded assessments. This assessment has already been finalized.');
+        }
+
+        $programs = Program::where('status', 'active')->get(['program_id', 'name']);
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status']);
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/EditAssessment', [
             'assessment' => $assessment,
-            'courses' => $courses,
+            'programs' => $programs,
             'trainees' => $trainees,
             'trainers' => $trainers
         ]);
@@ -148,14 +170,22 @@ class AssessmentController extends Controller
      */
     public function update(Request $request, Assessment $assessment)
     {
+        // Prevent updating graded assessments
+        if ($assessment->isGraded()) {
+            return redirect()->back()->withErrors([
+                'assessment' => 'Cannot update graded assessments. This assessment has already been finalized.'
+            ]);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'type' => 'required|in:practical,theoretical,both',
-            'status' => 'required|in:pending,completed,graded',
+            'status' => 'required|in:pending,completed,graded,pass,fail',
             'score' => 'nullable|integer|min:0',
             'max_score' => 'required|integer|min:1',
-            'course_id' => 'required|exists:courses,course_id',
+            'passing_score' => 'required|integer|min:1|lte:max_score',
+            'program_id' => 'required|exists:programs,program_id',
             'trainer_id' => 'required|exists:trainers,id',
             'assessment_date' => 'required|date',
             'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
@@ -182,6 +212,9 @@ class AssessmentController extends Controller
             // Check if trainee is a scholar and automatically exempt from fee
             if ($trainee && !empty($trainee->scholarship_package)) {
                 $validated['assessment_fee'] = 0;
+                $validated['payment_status'] = 'paid';
+                $validated['payment_method'] = 'scholarship_exemption';
+                $validated['payment_notes'] = 'Payment exempted due to ' . $trainee->scholarship_package . ' scholarship package';
             }
         }
 
@@ -190,6 +223,11 @@ class AssessmentController extends Controller
             $validated['payment_date'] = now();
         } elseif ($validated['payment_status'] !== 'paid') {
             $validated['payment_date'] = null;
+        }
+
+        // Auto-determine pass/fail status if score is provided
+        if (isset($validated['score']) && $validated['score'] !== null && isset($validated['passing_score'])) {
+            $validated['status'] = $validated['score'] >= $validated['passing_score'] ? 'pass' : 'fail';
         }
 
         $assessment->update($validated);
@@ -202,6 +240,11 @@ class AssessmentController extends Controller
      */
     public function destroy(Assessment $assessment)
     {
+        // Prevent deleting graded assessments
+        if ($assessment->isGraded()) {
+            return redirect()->back()->with('error', 'Cannot delete graded assessments. This assessment has already been finalized.');
+        }
+
         $assessment->delete();
 
         return redirect()->back()->with('success', 'Assessment deleted successfully!');

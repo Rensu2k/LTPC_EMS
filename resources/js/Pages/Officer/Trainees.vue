@@ -8,17 +8,30 @@ import { ref, computed } from "vue";
 
 const props = defineProps({
     trainees: Array,
-    courses: Array,
+    programs: Array,
 });
 
 // Sample data - replace with real data from backend
 const searchQuery = ref("");
-const selectedCourse = ref("All Courses");
+const selectedProgram = ref("All Programs");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedTrainee = ref(null);
 const processing = ref(false);
+
+// Helper function to format trainer names
+const getTrainerNames = (assignedTrainers) => {
+    if (!assignedTrainers || assignedTrainers.length === 0) {
+        return "No trainers assigned";
+    }
+
+    if (assignedTrainers.length === 1) {
+        return assignedTrainers[0];
+    }
+
+    return `${assignedTrainers[0]} +${assignedTrainers.length - 1} more`;
+};
 
 // Process trainees data to match the expected format
 const traineesList = ref(
@@ -26,7 +39,7 @@ const traineesList = ref(
         id: trainee.id, // Keep original ID for key purposes
         uli_number: trainee.uli_number || "Not assigned",
         name: `${trainee.first_name} ${trainee.last_name}`,
-        trainer: "Not assigned",
+        trainer: getTrainerNames(trainee.assigned_trainers),
         enrollmentDate: trainee.entry_date
             ? new Date(trainee.entry_date).toLocaleDateString()
             : new Date().toLocaleDateString(),
@@ -40,7 +53,7 @@ const traineesList = ref(
         avatar: `${trainee.first_name?.charAt(0) || ""}${
             trainee.last_name?.charAt(0) || ""
         }`,
-        course: trainee.course_qualification,
+        program: trainee.program_qualification,
     })) || []
 );
 
@@ -78,6 +91,16 @@ const editTrainee = (trainee) => {
     router.visit(`/officer/trainees/${trainee.id}/edit`);
 };
 
+const viewEnrollmentHistory = (trainee) => {
+    // Find the actual trainee data from props
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    if (actualTrainee) {
+        router.visit(
+            route("officer.trainees.enrollment-history", actualTrainee.id)
+        );
+    }
+};
+
 const deleteTrainee = (trainee) => {
     // Double check if trainee can be deleted
     if (!canDeleteTrainee(trainee)) {
@@ -111,6 +134,8 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
+            // Refresh to show updated list
+            window.location.reload();
         },
         onError: () => {
             processing.value = false;
@@ -150,10 +175,10 @@ const getTraineeActualStatus = (trainee) => {
 const filteredTrainees = computed(() => {
     let filtered = traineesList.value;
 
-    // Filter by course
-    if (selectedCourse.value !== "All Courses") {
+    // Filter by program
+    if (selectedProgram.value !== "All Programs") {
         filtered = filtered.filter(
-            (trainee) => trainee.course === selectedCourse.value
+            (trainee) => trainee.program === selectedProgram.value
         );
     }
 
@@ -167,7 +192,7 @@ const filteredTrainees = computed(() => {
                 trainee.uli_number
                     .toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                trainee.course
+                trainee.program
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase())
         );
@@ -262,19 +287,19 @@ const filteredTrainees = computed(() => {
 
                 <div class="flex items-center gap-4">
                     <span class="text-sm font-medium text-gray-700"
-                        >Filter by Course:</span
+                        >Filter by Program:</span
                     >
                     <select
-                        v-model="selectedCourse"
+                        v-model="selectedProgram"
                         class="border border-gray-300 rounded-lg px-5 py-2 focus:ring-4 focus:ring-blue-500 focus:border-blue-500 w-64"
                     >
-                        <option value="All Courses">All Courses</option>
+                        <option value="All Programs">All Programs</option>
                         <option
-                            v-for="course in courses"
-                            :key="course.id"
-                            :value="course.name"
+                            v-for="program in programs"
+                            :key="program.id"
+                            :value="program.name"
                         >
-                            {{ course.name }}
+                            {{ program.name }}
                         </option>
                     </select>
                 </div>
@@ -440,6 +465,27 @@ const filteredTrainees = computed(() => {
                                             </svg>
                                         </button>
                                         <button
+                                            @click="
+                                                viewEnrollmentHistory(trainee)
+                                            "
+                                            class="text-green-600 hover:text-green-900 p-1 rounded"
+                                            title="Enrollment History"
+                                        >
+                                            <svg
+                                                class="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
                                             @click="editTrainee(trainee)"
                                             class="text-yellow-600 hover:text-yellow-900 p-1 rounded"
                                             title="Edit"
@@ -461,8 +507,8 @@ const filteredTrainees = computed(() => {
                                         <button
                                             v-if="canDeleteTrainee(trainee)"
                                             @click="deleteTrainee(trainee)"
-                                            class="text-orange-600 hover:text-orange-900 p-1 rounded"
-                                            title="Archive"
+                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            title="Delete"
                                         >
                                             <svg
                                                 class="h-5 w-5"
@@ -474,7 +520,7 @@ const filteredTrainees = computed(() => {
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
-                                                    d="M5 8l4 4 4-4m5-4v18l-5-4-5 4V4z"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                                 />
                                             </svg>
                                         </button>
@@ -495,7 +541,7 @@ const filteredTrainees = computed(() => {
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
-                                                    d="M5 8l4 4 4-4m5-4v18l-5-4-5 4V4z"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                                 />
                                             </svg>
                                         </span>
@@ -505,13 +551,64 @@ const filteredTrainees = computed(() => {
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Empty State -->
+                <div
+                    v-if="filteredTrainees.length === 0"
+                    class="text-center py-12"
+                >
+                    <svg
+                        class="mx-auto h-12 w-12 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                        />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">
+                        No trainees found
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        {{
+                            searchQuery
+                                ? "Try adjusting your search terms."
+                                : "Get started by adding a new trainee."
+                        }}
+                    </p>
+                    <div class="mt-6" v-if="!searchQuery">
+                        <button
+                            @click="registerTrainee"
+                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                        >
+                            <svg
+                                class="-ml-1 mr-2 h-5 w-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                            </svg>
+                            Add Trainee
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Trainee Registration Modal -->
         <TraineeRegistrationModal
             :show="showRegistrationModal"
-            :courses="courses"
+            :programs="programs"
             @close="closeRegistrationModal"
             @submitted="onTraineeSubmitted"
         />

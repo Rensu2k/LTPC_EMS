@@ -105,8 +105,8 @@ import SecondaryButton from "@/Components/SecondaryButton.vue";
 
 const props = defineProps({
     show: Boolean,
-    item: Object, // Can be trainee, trainer, or course
-    itemType: String, // 'trainee', 'trainer', or 'course'
+    item: Object, // Can be trainee, trainer, or program
+    itemType: String, // 'trainee', 'trainer', or 'program'
     title: String,
     message: String,
 });
@@ -131,7 +131,7 @@ const getItemName = () => {
         }`.trim();
     } else if (props.itemType === "trainer") {
         return props.item?.full_name || "";
-    } else if (props.itemType === "course") {
+    } else if (props.itemType === "program") {
         return props.item?.name || "";
     }
     return "this item";
@@ -145,8 +145,8 @@ const getItemId = () => {
         );
     } else if (props.itemType === "trainer") {
         return `TR${String(props.item?.id).padStart(3, "0")}`;
-    } else if (props.itemType === "course") {
-        return `C${String(props.item?.id).padStart(3, "0")}`;
+    } else if (props.itemType === "program") {
+        return `P${String(props.item?.id).padStart(3, "0")}`;
     }
     return `#${props.item?.id}`;
 };
@@ -154,7 +154,7 @@ const getItemId = () => {
 const getItemDetails = () => {
     if (props.itemType === "trainer") {
         return props.item?.program;
-    } else if (props.itemType === "course") {
+    } else if (props.itemType === "program") {
         return `${props.item?.duration} • ${
             props.item?.enrollments || 0
         } enrollments`;
@@ -169,7 +169,7 @@ const canDelete = () => {
     ) {
         return false;
     }
-    if (props.itemType === "course" && props.item?.enrollments > 0) {
+    if (props.itemType === "program" && props.item?.enrollments > 0) {
         return false;
     }
     return true;
@@ -182,8 +182,8 @@ const getWarningMessage = () => {
     ) {
         return `This trainee has a status of "${props.item.status}" and cannot be deleted.`;
     }
-    if (props.itemType === "course" && props.item?.enrollments > 0) {
-        return `This course has ${props.item.enrollments} active enrollment${
+    if (props.itemType === "program" && props.item?.enrollments > 0) {
+        return `This program has ${props.item.enrollments} active enrollment${
             props.item.enrollments === 1 ? "" : "s"
         } and cannot be deleted.`;
     }

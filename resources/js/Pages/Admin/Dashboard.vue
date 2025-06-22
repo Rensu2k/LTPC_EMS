@@ -83,7 +83,7 @@ const quickStats = computed(() => [
         bgColor: "bg-green-50",
         textColor: "text-green-900",
         subColor: "text-green-600",
-        link: "/admin/courses",
+        link: "/admin/programs",
         subtitle: "Max 25 per program",
     },
     {

@@ -18,8 +18,7 @@ const form = useForm({
     name: "",
     description: "",
     duration: "",
-    enrollment_fee: "",
-    max_enrollments: "30",
+    enrollment_fee: 0,
     start_date: "",
     end_date: "",
 });
@@ -35,7 +34,7 @@ const closeModal = () => {
 const submitForm = () => {
     processing.value = true;
 
-    form.post(route("officer.courses.store"), {
+    form.post(route("officer.programs.store"), {
         onSuccess: () => {
             processing.value = false;
             emit("submitted");
@@ -70,7 +69,7 @@ watch(
             <!-- Header -->
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-semibold text-gray-900">
-                    Add New Course
+                    Add New Program
                 </h3>
                 <button
                     @click="closeModal"
@@ -94,18 +93,18 @@ watch(
 
             <div class="border-b pb-4 mb-6">
                 <h3 class="text-lg font-semibold text-gray-900">
-                    Create New Course
+                    Create New Program
                 </h3>
                 <p class="text-sm text-gray-600 mt-2">
-                    Create a new course. You can assign trainers to this course
-                    after it's created by editing the course.
+                    Create a new program. You can assign trainers to this
+                    program after it's created by editing the program.
                 </p>
             </div>
 
             <form @submit.prevent="submitForm" class="space-y-6">
-                <!-- Course Name -->
+                <!-- Program Name -->
                 <div>
-                    <InputLabel for="name" value="Course Name" />
+                    <InputLabel for="name" value="Program Name" />
                     <TextInput
                         id="name"
                         v-model="form.name"
@@ -125,7 +124,7 @@ watch(
                         v-model="form.description"
                         rows="4"
                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        placeholder="Enter course description"
+                        placeholder="Enter program description"
                     ></textarea>
                     <InputError
                         :message="form.errors.description"
@@ -159,7 +158,7 @@ watch(
                         placeholder="0.00"
                     />
                     <p class="text-sm text-gray-500 mt-1">
-                        Leave blank or set to 0 for free courses
+                        Leave blank or set to 0 for free programs
                     </p>
                     <InputError
                         :message="form.errors.enrollment_fee"
@@ -167,28 +166,8 @@ watch(
                     />
                 </div>
 
-                <!-- Course Settings -->
+                <!-- Program Settings -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Max Enrollments -->
-                    <div>
-                        <InputLabel
-                            for="max_enrollments"
-                            value="Max Enrollments"
-                        />
-                        <TextInput
-                            id="max_enrollments"
-                            v-model="form.max_enrollments"
-                            type="number"
-                            class="mt-1 block w-full"
-                            min="1"
-                            max="100"
-                        />
-                        <InputError
-                            :message="form.errors.max_enrollments"
-                            class="mt-2"
-                        />
-                    </div>
-
                     <!-- Start Date -->
                     <div>
                         <InputLabel
@@ -206,19 +185,34 @@ watch(
                             class="mt-2"
                         />
                     </div>
+
+                    <!-- End Date -->
+                    <div>
+                        <InputLabel
+                            for="end_date"
+                            value="End Date (Optional)"
+                        />
+                        <TextInput
+                            id="end_date"
+                            v-model="form.end_date"
+                            type="date"
+                            class="mt-1 block w-full"
+                        />
+                        <InputError
+                            :message="form.errors.end_date"
+                            class="mt-2"
+                        />
+                    </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="flex justify-end gap-3 pt-6 border-t">
+                <!-- Form Actions -->
+                <div class="flex justify-end gap-4 pt-6 border-t">
                     <SecondaryButton @click="closeModal" type="button">
                         Cancel
                     </SecondaryButton>
-                    <PrimaryButton
-                        type="submit"
-                        :disabled="processing"
-                        class="bg-blue-600 hover:bg-blue-700"
-                    >
-                        {{ processing ? "Creating..." : "Create Course" }}
+                    <PrimaryButton type="submit" :disabled="form.processing">
+                        <span v-if="processing">Creating...</span>
+                        <span v-else>Create Program</span>
                     </PrimaryButton>
                 </div>
             </form>

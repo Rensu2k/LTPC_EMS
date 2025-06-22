@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Training extends Model
 {
     protected $fillable = [
-        'course_id',
+        'program_id',
         'trainer_id',
         'start_date',
         'end_date',
@@ -15,9 +15,9 @@ class Training extends Model
         'description',
     ];
 
-    public function course()
+    public function program()
     {
-        return $this->belongsTo(Course::class, 'course_id', 'course_id');
+        return $this->belongsTo(Program::class, 'program_id', 'program_id');
     }
 
     public function trainer()

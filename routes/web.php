@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\CourseController;
+use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\TrainerController;
 use App\Http\Controllers\TraineeController;
+use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\TraineeEnrollmentController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -34,12 +37,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return Inertia::render('Admin/Dashboard');
         })->name('dashboard');
         
-        // Course Management Routes
-        Route::get('/courses', [CourseController::class, 'adminIndex'])->name('courses');
-        Route::post('/courses', [CourseController::class, 'adminStore'])->name('courses.store');
-        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
-        Route::put('/courses/{course}', [CourseController::class, 'adminUpdate'])->name('courses.update');
-        Route::delete('/courses/{course}', [CourseController::class, 'adminDestroy'])->name('courses.destroy');
+            // Program Management Routes
+    Route::get('/programs', [ProgramController::class, 'adminIndex'])->name('programs');
+    Route::post('/programs', [ProgramController::class, 'adminStore'])->name('programs.store');
+    Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
+    Route::put('/programs/{program}', [ProgramController::class, 'adminUpdate'])->name('programs.update');
+    Route::delete('/programs/{program}', [ProgramController::class, 'adminDestroy'])->name('programs.destroy');
         
         Route::get('/trainees', [TraineeController::class, 'adminIndex'])->name('trainees');
         Route::post('/trainees', [TraineeController::class, 'adminStore'])->name('trainees.store');
@@ -124,16 +127,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     
     Route::prefix('officer')->name('officer.')->middleware('role:officer')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Officer/Dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'officer'])->name('dashboard');
         
-        // Courses Management - Officers can create, update, delete courses
-        Route::get('/courses', [CourseController::class, 'index'])->name('courses');
-        Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
-        Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
-        Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
-        Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+            // Programs Management - Officers can create, update, delete programs
+    Route::get('/programs', [ProgramController::class, 'index'])->name('programs');
+    Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
+    Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
+    Route::put('/programs/{program}', [ProgramController::class, 'update'])->name('programs.update');
+    Route::delete('/programs/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
         
         // Trainees Management - Officers can manage trainees
         Route::get('/trainees', [TraineeController::class, 'index'])->name('trainees');
@@ -150,9 +151,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/trainers/{trainer}', [TrainerController::class, 'destroy'])->name('trainers.destroy');
 
         
-        Route::get('/assessments', function () {
-            return Inertia::render('Officer/Assessments');
-        })->name('assessments');
+        // Assessments Management - Officers can manage assessments
+        Route::get('/assessments', [AssessmentController::class, 'index'])->name('assessments');
+        Route::post('/assessments', [AssessmentController::class, 'store'])->name('assessments.store');
+        Route::get('/assessments/{assessment}/edit', [AssessmentController::class, 'edit'])->name('assessments.edit');
+        Route::put('/assessments/{assessment}', [AssessmentController::class, 'update'])->name('assessments.update');
+        Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])->name('assessments.destroy');
+
+        // Trainee Enrollments - Officers can manage multiple program enrollments
+        Route::get('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'create'])->name('trainees.enroll');
+        Route::post('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'store'])->name('trainees.enroll.store');
+        Route::get('/trainees/{trainee}/enrollment-history', [TraineeEnrollmentController::class, 'history'])->name('trainees.enrollment-history');
+        Route::put('/enrollments/{enrollment}/status', [TraineeEnrollmentController::class, 'updateStatus'])->name('enrollments.update-status');
+        Route::put('/enrollments/{enrollment}/payment', [TraineeEnrollmentController::class, 'updatePayment'])->name('enrollments.update-payment');
+        Route::get('/trainees/{trainee}/available-programs', [TraineeEnrollmentController::class, 'getAvailablePrograms'])->name('trainees.available-programs');
         
         Route::get('/schedules', function () {
             return Inertia::render('Officer/Schedules');

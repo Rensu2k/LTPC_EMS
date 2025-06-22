@@ -10,7 +10,7 @@ import InputError from "@/Components/InputError.vue";
 
 const props = defineProps({
     show: Boolean,
-    courses: {
+    programs: {
         type: Array,
         default: () => [],
     },
@@ -30,7 +30,7 @@ const days = [
 
 const form = useForm({
     full_name: "",
-    program: "",
+    expertise: [],
     email: "",
     phone: "",
     biography: "",
@@ -131,26 +131,46 @@ watch(
 
                 <!-- Expertise -->
                 <div>
-                    <InputLabel for="program" value="Program" />
-                    <select
-                        id="program"
-                        v-model="form.program"
-                        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                        required
+                    <InputLabel for="expertise" value="Expertise Areas" />
+                    <div
+                        class="mt-2 space-y-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3"
                     >
-                        <option value="">Select area of expertise...</option>
-                        <option
-                            v-for="course in courses"
-                            :key="course.id"
-                            :value="course.name"
+                        <div
+                            v-if="programs.length === 0"
+                            class="text-gray-500 text-sm"
                         >
-                            {{ course.name
-                            }}{{
-                                course.duration ? ` (${course.duration})` : ""
-                            }}
-                        </option>
-                    </select>
-                    <InputError :message="form.errors.program" class="mt-2" />
+                            No programs available
+                        </div>
+                        <div
+                            v-for="program in programs"
+                            :key="program.program_id"
+                            class="flex items-center"
+                        >
+                            <input
+                                :id="`expertise-${program.program_id}`"
+                                v-model="form.expertise"
+                                :value="program.name"
+                                type="checkbox"
+                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                            <label
+                                :for="`expertise-${program.program_id}`"
+                                class="ml-2 text-sm text-gray-900 cursor-pointer flex-1"
+                            >
+                                {{ program.name }}
+                                <span
+                                    v-if="program.duration"
+                                    class="text-gray-500 text-xs"
+                                >
+                                    ({{ program.duration }})
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Select one or more areas of expertise for this trainer
+                    </p>
+                    <InputError :message="form.errors.expertise" class="mt-2" />
                 </div>
 
                 <!-- Email -->

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, useForm, router, usePage } from "@inertia.js/vue3";
+import { Head, useForm, router, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";

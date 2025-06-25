@@ -75,7 +75,7 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,suspended',
+            'status' => 'nullable|in:active,completed,dropped,pending',
         ]);
 
         // Auto-manage payment status based on scholarship (not user input)
@@ -87,8 +87,12 @@ class TraineeController extends Controller
                 $validated['status'] = 'active';
             }
         } else {
-            // No scholarship - automatically unpaid
+            // No scholarship - automatically unpaid and set to pending
             $validated['payment_status'] = 'unpaid';
+            // If no status is explicitly set, set to pending for non-scholars
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'pending';
+            }
         }
 
         // Enrollment validation: Can only be active if payment is paid
@@ -165,7 +169,7 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,suspended',
+            'status' => 'nullable|in:active,completed,dropped,pending',
         ]);
 
         // Auto-manage payment status based on scholarship (not user input)
@@ -177,8 +181,12 @@ class TraineeController extends Controller
                 $validated['status'] = 'active';
             }
         } else {
-            // No scholarship - automatically unpaid
+            // No scholarship - automatically unpaid and set to pending
             $validated['payment_status'] = 'unpaid';
+            // If no status is explicitly set, set to pending for non-scholars
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'pending';
+            }
         }
 
         // Enrollment validation: Can only be active if payment is paid
@@ -186,10 +194,10 @@ class TraineeController extends Controller
             return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // If payment status becomes unpaid and trainee is active, suspend them
+        // If payment status becomes unpaid and trainee is active, set to pending
         if ($validated['payment_status'] !== 'paid' && $trainee->status === 'active') {
-            $validated['status'] = 'suspended';
-            return redirect()->back()->with('warning', 'Trainee has been suspended due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
+            $validated['status'] = 'pending';
+            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
         }
 
         // If program qualification changed, reassign batch
@@ -210,9 +218,10 @@ class TraineeController extends Controller
 
     public function destroy(Trainee $trainee)
     {
-        // Check if trainee can be deleted (only active trainees)
-        if ($trainee->status !== 'active') {
-            return redirect()->back()->with('error', 'Cannot delete trainee with ' . ucfirst($trainee->status) . ' status. Only active trainees can be deleted.');
+        // Check if trainee can be deleted
+        // Cannot delete if: status is active OR payment status is paid
+        if ($trainee->status === 'active' || $trainee->payment_status === 'paid') {
+            return redirect()->back()->with('error', 'Cannot delete trainee. Trainees with active status or paid payment status cannot be deleted. Current status: ' . ucfirst($trainee->status) . ', Payment: ' . ucfirst($trainee->payment_status));
         }
 
         $trainee->delete();
@@ -289,7 +298,7 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,suspended',
+            'status' => 'nullable|in:active,completed,dropped,pending',
         ]);
 
         // Auto-manage payment status based on scholarship (not user input)
@@ -301,8 +310,12 @@ class TraineeController extends Controller
                 $validated['status'] = 'active';
             }
         } else {
-            // No scholarship - automatically unpaid
+            // No scholarship - automatically unpaid and set to pending
             $validated['payment_status'] = 'unpaid';
+            // If no status is explicitly set, set to pending for non-scholars
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'pending';
+            }
         }
 
         // Enrollment validation: Can only be active if payment is paid
@@ -363,7 +376,7 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,suspended',
+            'status' => 'nullable|in:active,completed,dropped,pending',
         ]);
 
         // Auto-manage payment status based on scholarship (not user input)
@@ -375,8 +388,12 @@ class TraineeController extends Controller
                 $validated['status'] = 'active';
             }
         } else {
-            // No scholarship - automatically unpaid
+            // No scholarship - automatically unpaid and set to pending
             $validated['payment_status'] = 'unpaid';
+            // If no status is explicitly set, set to pending for non-scholars
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'pending';
+            }
         }
 
         // Enrollment validation: Can only be active if payment is paid
@@ -384,10 +401,10 @@ class TraineeController extends Controller
             return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
         }
 
-        // If payment status becomes unpaid and trainee is active, suspend them
+        // If payment status becomes unpaid and trainee is active, set to pending
         if ($validated['payment_status'] !== 'paid' && $trainee->status === 'active') {
-            $validated['status'] = 'suspended';
-            return redirect()->back()->with('warning', 'Trainee has been suspended due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
+            $validated['status'] = 'pending';
+            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
         }
 
         // If program qualification changed, reassign batch
@@ -416,7 +433,7 @@ class TraineeController extends Controller
     public function updateStatus(Request $request, Trainee $trainee)
     {
         $validated = $request->validate([
-            'status' => 'required|in:active,completed,dropped,suspended'
+            'status' => 'required|in:active,completed,dropped,pending'
         ]);
 
         // Store the old status to check for changes

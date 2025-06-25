@@ -1,161 +1,82 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, usePage, router } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 
 // Get URL parameters
 const page = usePage();
 
-// Active tab state
-const activeTab = ref("all");
+// Active tab state - now separates by payment type
+const activeTab = ref("registrations");
 
 // Payment details modal state
 const showPaymentDetails = ref(false);
 const selectedPayment = ref(null);
 
-// Sample payment data - replace with actual data from backend
-const paymentRecords = ref([
-    {
-        id: "P001",
-        trainee: {
-            name: "Juan Dela Cruz",
-            id: "T-2023-0124",
-        },
-        course: "Web Development",
-        amount: 5000.0,
-        receiptNo: "RN-2023-001",
-        date: "5/12/2023",
-        status: "paid",
+// Define props to receive data from backend
+const props = defineProps({
+    enrollmentPayments: {
+        type: Array,
+        default: () => [],
     },
-    {
-        id: "P002",
-        trainee: {
-            name: "Maria Santos",
-            id: "T-2023-0125",
-        },
-        course: "Baking & Pastry Arts",
-        amount: 4500.0,
-        receiptNo: "RN-2023-002",
-        date: "5/15/2023",
-        status: "paid",
+    assessmentPayments: {
+        type: Array,
+        default: () => [],
     },
-    {
-        id: "P003",
-        trainee: {
-            name: "Pedro Reyes",
-            id: "T-2023-0126",
-        },
-        course: "Electrical Installation",
-        amount: 3000.0,
-        receiptNo: "RN-2023-003",
-        date: "5/20/2023",
-        status: "unpaid",
+    summaryStats: {
+        type: Object,
+        default: () => ({
+            totalCollections: { amount: 0, trainees: 0 },
+            thisMonth: { amount: 0, trainees: 0 },
+            outstandingBalance: { amount: 0, trainees: 0 },
+        }),
     },
-    {
-        id: "P004",
-        trainee: {
-            name: "Elena Torres",
-            id: "T-2023-0128",
-        },
-        course: "Culinary Arts",
-        amount: 4000.0,
-        receiptNo: "RN-2023-004",
-        date: "6/15/2023",
-        status: "paid",
-    },
-    {
-        id: "P005",
-        trainee: {
-            name: "Roberto Aquino",
-            id: "T-2023-0127",
-        },
-        course: "Computer Servicing",
-        amount: 2500.0,
-        receiptNo: "RN-2023-005",
-        date: "6/12/2023",
-        status: "unpaid",
-    },
-]);
-
-const searchQuery = ref("");
-
-// Summary data for Payment Summary tab
-const summaryStats = ref({
-    totalCollections: {
-        amount: 245830,
-        trainees: 156,
-    },
-    thisMonth: {
-        amount: 45250,
-        trainees: 23,
-    },
-    outstandingBalance: {
-        amount: 32500,
-        trainees: 15,
+    collectionsByCourse: {
+        type: Array,
+        default: () => [],
     },
 });
 
-const collectionsByCourse = ref([
-    {
-        course: "Web Development",
-        totalTrainees: 24,
-        fullyPaid: 20,
-        partiallyPaid: 3,
-        unpaid: 1,
-        collectionAmount: 115000,
-    },
-    {
-        course: "Culinary Arts",
-        totalTrainees: 18,
-        fullyPaid: 15,
-        partiallyPaid: 2,
-        unpaid: 1,
-        collectionAmount: 72000,
-    },
-    {
-        course: "Dressmaking",
-        totalTrainees: 15,
-        fullyPaid: 10,
-        partiallyPaid: 3,
-        unpaid: 2,
-        collectionAmount: 42500,
-    },
-    {
-        course: "Electrical Installation",
-        totalTrainees: 22,
-        fullyPaid: 16,
-        partiallyPaid: 4,
-        unpaid: 2,
-        collectionAmount: 94000,
-    },
-    {
-        course: "Baking & Pastry Arts",
-        totalTrainees: 20,
-        fullyPaid: 17,
-        partiallyPaid: 2,
-        unpaid: 1,
-        collectionAmount: 83600,
-    },
-]);
+// Convert props to reactive refs and separate registration vs enrollment payments
+const allPayments = ref(props.enrollmentPayments);
+const registrationPayments = computed(() =>
+    allPayments.value.filter((p) => p.type === "registration")
+);
+const enrollmentPayments = computed(() =>
+    allPayments.value.filter((p) => p.type === "enrollment")
+);
+const assessmentPayments = ref(props.assessmentPayments);
+const summaryStats = ref(props.summaryStats);
+const collectionsByCourse = ref(props.collectionsByCourse);
 
-// Computed filtered payments based on active tab and search
-const filteredPayments = computed(() => {
-    let filtered = paymentRecords.value;
+const searchQuery = ref("");
 
-    // Filter by tab
-    if (activeTab.value === "pending") {
-        filtered = filtered.filter((payment) => payment.status === "unpaid");
+// Get current payment data based on active tab
+const currentPayments = computed(() => {
+    if (activeTab.value === "registrations") {
+        return registrationPayments.value;
+    } else if (activeTab.value === "enrollments") {
+        return enrollmentPayments.value;
+    } else if (activeTab.value === "assessments") {
+        return assessmentPayments.value;
     }
+    return [];
+});
+
+// Computed filtered payments based on search
+const filteredPayments = computed(() => {
+    let filtered = currentPayments.value;
 
     // Filter by search query
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter(
             (payment) =>
-                payment.trainee.name.toLowerCase().includes(query) ||
-                payment.course.toLowerCase().includes(query) ||
-                payment.receiptNo.toLowerCase().includes(query) ||
-                payment.trainee.id.toLowerCase().includes(query)
+                (payment.trainee?.name || "").toLowerCase().includes(query) ||
+                (payment.course || "").toLowerCase().includes(query) ||
+                (payment.receiptNo || "").toLowerCase().includes(query) ||
+                (payment.trainee?.id || "").toLowerCase().includes(query) ||
+                (payment.id || "").toLowerCase().includes(query)
         );
     }
 
@@ -185,7 +106,15 @@ const recordPayment = () => {
 };
 
 const viewPayment = (paymentId) => {
-    const payment = paymentRecords.value.find((p) => p.id === paymentId);
+    // Search in all payment arrays
+    let payment = registrationPayments.value.find((p) => p.id === paymentId);
+    if (!payment) {
+        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
+    }
+    if (!payment) {
+        payment = assessmentPayments.value.find((p) => p.id === paymentId);
+    }
+
     if (payment) {
         selectedPayment.value = payment;
         showPaymentDetails.value = true;
@@ -198,23 +127,74 @@ const closePaymentDetails = () => {
 };
 
 const markAsPaid = (paymentId) => {
-    // Find and update the payment status
-    const paymentIndex = paymentRecords.value.findIndex(
-        (p) => p.id === paymentId
-    );
-    if (paymentIndex !== -1) {
-        paymentRecords.value[paymentIndex].status = "paid";
-        // Update the selected payment if it's currently being viewed
-        if (selectedPayment.value && selectedPayment.value.id === paymentId) {
-            selectedPayment.value.status = "paid";
-        }
+    // Search in all payment arrays
+    let payment = registrationPayments.value.find((p) => p.id === paymentId);
+    let paymentArray = "registration";
 
-        // Here you would typically make an API call to update the backend
-        console.log(`Payment ${paymentId} marked as paid`);
-
-        // Show success message (you can implement a toast notification here)
-        alert("Payment successfully marked as paid!");
+    if (!payment) {
+        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
+        paymentArray = "enrollment";
     }
+
+    if (!payment) {
+        payment = assessmentPayments.value.find((p) => p.id === paymentId);
+        paymentArray = "assessment";
+    }
+
+    if (!payment) return;
+
+    // Prepare payment data based on type
+    const paymentData = {
+        payment_method: "cash",
+        payment_reference: `RN-${Date.now()}`,
+        payment_notes: "Payment processed via cashier interface",
+    };
+
+    // Add the appropriate ID based on payment type
+    if (payment.type === "registration") {
+        paymentData.trainee_id = payment.trainee_id;
+    } else if (payment.type === "enrollment") {
+        paymentData.enrollment_id = payment.enrollment_id;
+    } else if (payment.type === "assessment") {
+        paymentData.assessment_id = payment.assessment_id;
+    }
+
+    // Call the backend to process the payment
+    router.post(route("cashier.payments.process"), paymentData, {
+        onSuccess: () => {
+            // Update local state - find and update in the correct array
+            if (paymentArray === "registration") {
+                // Remove from registrations and refresh data
+                router.reload({ only: ["enrollmentPayments"] });
+            } else if (paymentArray === "enrollment") {
+                const paymentIndex = allPayments.value.findIndex(
+                    (p) => p.id === paymentId
+                );
+                if (paymentIndex !== -1) {
+                    allPayments.value[paymentIndex].status = "paid";
+                }
+            } else if (paymentArray === "assessment") {
+                const paymentIndex = assessmentPayments.value.findIndex(
+                    (p) => p.id === paymentId
+                );
+                if (paymentIndex !== -1) {
+                    assessmentPayments.value[paymentIndex].status = "paid";
+                }
+            }
+
+            // Update the selected payment if it's currently being viewed
+            if (
+                selectedPayment.value &&
+                selectedPayment.value.id === paymentId
+            ) {
+                selectedPayment.value.status = "paid";
+            }
+        },
+        onError: (errors) => {
+            console.error("Payment processing failed:", errors);
+            alert("Failed to process payment. Please try again.");
+        },
+    });
 };
 
 // Check for incoming payment ID from dashboard
@@ -227,7 +207,15 @@ onMounted(() => {
 });
 
 const generateReceipt = (paymentId) => {
-    const payment = paymentRecords.value.find((p) => p.id === paymentId);
+    // Search in all payment arrays
+    let payment = registrationPayments.value.find((p) => p.id === paymentId);
+    if (!payment) {
+        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
+    }
+    if (!payment) {
+        payment = assessmentPayments.value.find((p) => p.id === paymentId);
+    }
+
     if (payment && payment.status === "paid") {
         // Generate receipt data
         const receiptData = {
@@ -326,37 +314,104 @@ const generateReceipt = (paymentId) => {
             <div class="mb-6 animate-fade-in">
                 <nav class="flex space-x-8">
                     <button
-                        @click="setActiveTab('all')"
+                        @click="setActiveTab('registrations')"
                         :class="[
                             'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'all'
-                                ? 'border-blue-500 text-blue-600'
+                            activeTab === 'registrations'
+                                ? 'border-orange-500 text-orange-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                         ]"
                     >
-                        All Payments
+                        <svg
+                            class="w-4 h-4 mr-2 inline"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                            ></path>
+                        </svg>
+                        Enrollment Fees - New Trainees ({{
+                            registrationPayments.length
+                        }})
                     </button>
                     <button
-                        @click="setActiveTab('pending')"
+                        @click="setActiveTab('enrollments')"
                         :class="[
                             'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'pending'
+                            activeTab === 'enrollments'
                                 ? 'border-blue-500 text-blue-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                         ]"
                     >
-                        Pending Payments
+                        <svg
+                            class="w-4 h-4 mr-2 inline"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                            ></path>
+                        </svg>
+                        Enrollment Fees - Enrolled Trainees ({{
+                            enrollmentPayments.length
+                        }})
+                    </button>
+                    <button
+                        @click="setActiveTab('assessments')"
+                        :class="[
+                            'py-2 px-1 border-b-2 font-medium text-sm',
+                            activeTab === 'assessments'
+                                ? 'border-purple-500 text-purple-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                        ]"
+                    >
+                        <svg
+                            class="w-4 h-4 mr-2 inline"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                            ></path>
+                        </svg>
+                        Assessment Fees ({{ assessmentPayments.length }})
                     </button>
                     <button
                         @click="setActiveTab('summary')"
                         :class="[
                             'py-2 px-1 border-b-2 font-medium text-sm',
                             activeTab === 'summary'
-                                ? 'border-blue-500 text-blue-600'
+                                ? 'border-green-500 text-green-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                         ]"
                     >
-                        Payment Summary
+                        <svg
+                            class="w-4 h-4 mr-2 inline"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            ></path>
+                        </svg>
+                        Summary & Reports
                     </button>
                 </nav>
             </div>
@@ -446,7 +501,33 @@ const generateReceipt = (paymentId) => {
                             Collections by Course
                         </h2>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div
+                        v-if="collectionsByCourse.length === 0"
+                        class="p-12 text-center"
+                    >
+                        <svg
+                            class="mx-auto h-12 w-12 text-gray-400 mb-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            ></path>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">
+                            No course data available
+                        </h3>
+                        <p class="text-gray-500">
+                            Course collection information will appear here when
+                            data is available.
+                        </p>
+                    </div>
+
+                    <div v-else class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -458,7 +539,7 @@ const generateReceipt = (paymentId) => {
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                     >
-                                        Total Trainees
+                                        Total Payments
                                     </th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -537,9 +618,90 @@ const generateReceipt = (paymentId) => {
                 <!-- Section Header -->
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900">
-                            Payment Records
-                        </h2>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">
+                                <span
+                                    v-if="activeTab === 'registrations'"
+                                    class="flex items-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 mr-2 text-orange-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                                        ></path>
+                                    </svg>
+                                    Enrollment Fees - New Trainees
+                                </span>
+                                <span
+                                    v-else-if="activeTab === 'enrollments'"
+                                    class="flex items-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 mr-2 text-blue-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                        ></path>
+                                    </svg>
+                                    Enrollment Fees - Enrolled Trainees
+                                </span>
+                                <span
+                                    v-else-if="activeTab === 'assessments'"
+                                    class="flex items-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 mr-2 text-purple-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                        ></path>
+                                    </svg>
+                                    Assessment Fees
+                                </span>
+                            </h2>
+                            <p
+                                v-if="activeTab === 'registrations'"
+                                class="text-sm text-orange-600 mt-1"
+                            >
+                                Enrollment fees from newly registered trainees
+                                awaiting payment to officially enroll in
+                                programs.
+                            </p>
+                            <p
+                                v-else-if="activeTab === 'enrollments'"
+                                class="text-sm text-blue-600 mt-1"
+                            >
+                                Enrollment fees from trainees already enrolled
+                                in programs (organized into 25-trainee batches).
+                            </p>
+                            <p
+                                v-else-if="activeTab === 'assessments'"
+                                class="text-sm text-purple-600 mt-1"
+                            >
+                                Assessment fees from internal trainees and
+                                external applicants taking competency
+                                assessments.
+                            </p>
+                        </div>
                         <div class="flex items-center space-x-3">
                             <!-- Search -->
                             <div class="relative">
@@ -740,6 +902,26 @@ const generateReceipt = (paymentId) => {
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                ></path>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            v-if="payment.status === 'unpaid'"
+                                            @click="markAsPaid(payment.id)"
+                                            class="text-blue-600 hover:text-blue-900"
+                                            title="Mark as Paid"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                                                 ></path>
                                             </svg>
                                         </button>

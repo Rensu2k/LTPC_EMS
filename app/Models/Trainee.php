@@ -48,11 +48,16 @@ class Trainee extends Model
         'scholarship_package',
         'requirements',
         'status',
-        'payment_status'
+        'payment_status',
+        'payment_method',
+        'payment_reference',
+        'payment_date',
+        'payment_notes'
     ];
 
     protected $casts = [
         'entry_date' => 'date',
+        'payment_date' => 'datetime',
         'education' => 'array',
         'classification' => 'array',
         'disability_type' => 'array',
@@ -184,7 +189,7 @@ class Trainee extends Model
             'program_id' => $programId,
             'batch' => $batchNumber,
             'enrollment_date' => now()->toDateString(),
-            'status' => $paymentStatus === 'paid' ? 'active' : 'suspended', // Active if paid, suspended if unpaid
+            'status' => $paymentStatus === 'paid' ? 'active' : 'pending', // Active if paid, pending if unpaid
             'payment_status' => $paymentStatus,
             'enrollment_fee' => $enrollmentFee,
             'payment_method' => $paymentMethod,

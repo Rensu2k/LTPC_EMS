@@ -3,6 +3,9 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TraineeRegistrationModal from "@/Components/TraineeRegistrationModal.vue";
 import TraineeDetailsModal from "@/Components/TraineeDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import Modal from "@/Components/Modal.vue";
+import PrimaryButton from "@/Components/PrimaryButton.vue";
+import SecondaryButton from "@/Components/SecondaryButton.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 
@@ -17,8 +20,13 @@ const selectedProgram = ref("All Programs");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
+const showStatusModal = ref(false);
 const selectedTrainee = ref(null);
 const processing = ref(false);
+const statusForm = ref({
+    status: "",
+    processing: false,
+});
 
 // Helper function to format trainer names
 const getTrainerNames = (assignedTrainers) => {
@@ -104,10 +112,12 @@ const viewEnrollmentHistory = (trainee) => {
 const deleteTrainee = (trainee) => {
     // Double check if trainee can be deleted
     if (!canDeleteTrainee(trainee)) {
+        const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+        const status = actualTrainee?.status || trainee.status || "active";
+        const paymentStatus =
+            actualTrainee?.payment_status || trainee.payment_status || "unpaid";
         alert(
-            `Cannot delete trainee with ${getTraineeStatus(
-                trainee
-            )} status. Only active trainees can be deleted.`
+            `Cannot delete trainee. Trainees with active status or paid payment status cannot be deleted. Current status: ${status}, Payment: ${paymentStatus}.`
         );
         return;
     }
@@ -148,14 +158,71 @@ const handleEditFromDetails = (trainee) => {
     editTrainee({ id: trainee.id });
 };
 
+// Status change functionality
+const changeStatus = (trainee) => {
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    selectedTrainee.value = actualTrainee;
+    statusForm.value.status = actualTrainee.status;
+    showStatusModal.value = true;
+};
+
+const closeStatusModal = () => {
+    showStatusModal.value = false;
+    selectedTrainee.value = null;
+    statusForm.value.status = "";
+};
+
+const confirmStatusChange = () => {
+    if (!selectedTrainee.value || !statusForm.value.status) return;
+
+    statusForm.value.processing = true;
+    router.patch(
+        `/officer/trainees/${selectedTrainee.value.id}/status`,
+        {
+            status: statusForm.value.status,
+        },
+        {
+            onSuccess: () => {
+                statusForm.value.processing = false;
+                closeStatusModal();
+                // Refresh to show updated status
+                window.location.reload();
+            },
+            onError: () => {
+                statusForm.value.processing = false;
+            },
+        }
+    );
+};
+
+// Helper function to check if trainee status can be changed
+const canChangeStatus = (trainee) => {
+    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const status = actualTrainee?.status || trainee.status || "active";
+    const paymentStatus =
+        actualTrainee?.payment_status || trainee.payment_status || "unpaid";
+
+    // Officers can change status if:
+    // 1. Trainee is active and paid (can mark as completed or dropped)
+    // 2. Trainee is pending (can activate if paid)
+    return (
+        (status === "active" && paymentStatus === "paid") ||
+        (status === "pending" && paymentStatus === "paid") ||
+        status === "completed" ||
+        status === "dropped"
+    );
+};
+
 // Helper function to check if trainee can be deleted
 const canDeleteTrainee = (trainee) => {
     // Find the actual trainee data from props to get the real status
     const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
+    const paymentStatus =
+        actualTrainee?.payment_status || trainee.payment_status || "unpaid";
 
-    // Only allow deletion for active trainees
-    return status === "active";
+    // Cannot delete if status is active OR payment status is paid
+    return !(status === "active" || paymentStatus === "paid");
 };
 
 // Helper function to get trainee status for display
@@ -326,6 +393,11 @@ const filteredTrainees = computed(() => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
+                                    Program
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
                                     Trainer
                                 </th>
                                 <th
@@ -381,6 +453,11 @@ const filteredTrainees = computed(() => {
                                     </div>
                                 </td>
                                 <td
+                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                >
+                                    {{ trainee.program }}
+                                </td>
+                                <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
                                 >
                                     {{ trainee.trainer }}
@@ -415,7 +492,7 @@ const filteredTrainees = computed(() => {
                                             'bg-yellow-100 text-yellow-800':
                                                 getTraineeActualStatus(
                                                     trainee
-                                                ) === 'suspended',
+                                                ) === 'pending',
                                         }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
@@ -482,6 +559,26 @@ const filteredTrainees = computed(() => {
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
                                                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            v-if="canChangeStatus(trainee)"
+                                            @click="changeStatus(trainee)"
+                                            class="text-purple-600 hover:text-purple-900 p-1 rounded"
+                                            title="Change Status"
+                                        >
+                                            <svg
+                                                class="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                                                 />
                                             </svg>
                                         </button>
@@ -624,11 +721,113 @@ const filteredTrainees = computed(() => {
         <!-- Delete Confirmation Modal -->
         <DeleteConfirmationModal
             :show="showDeleteModal"
-            :processing="processing"
-            title="Delete Trainee"
-            :message="`Are you sure you want to delete ${selectedTrainee?.first_name} ${selectedTrainee?.last_name}? This action cannot be undone.`"
+            :item="selectedTrainee"
+            itemType="trainee"
             @close="closeDeleteModal"
             @confirm="confirmDelete"
         />
+
+        <!-- Status Change Modal -->
+        <Modal :show="showStatusModal" @close="closeStatusModal">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold mb-4">
+                    Change Trainee Status
+                </h2>
+
+                <div v-if="selectedTrainee" class="mb-4">
+                    <p class="text-sm text-gray-600 mb-2">
+                        Trainee:
+                        <strong
+                            >{{ selectedTrainee.first_name }}
+                            {{ selectedTrainee.last_name }}</strong
+                        >
+                    </p>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Current Status:
+                        <span
+                            :class="{
+                                'text-green-600':
+                                    selectedTrainee.status === 'active',
+                                'text-blue-600':
+                                    selectedTrainee.status === 'completed',
+                                'text-red-600':
+                                    selectedTrainee.status === 'dropped',
+                                'text-yellow-600':
+                                    selectedTrainee.status === 'pending',
+                            }"
+                            class="font-medium"
+                        >
+                            {{
+                                selectedTrainee.status.charAt(0).toUpperCase() +
+                                selectedTrainee.status.slice(1)
+                            }}
+                        </span>
+                    </p>
+                </div>
+
+                <div class="mb-4">
+                    <label
+                        for="new_status"
+                        class="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                        New Status
+                    </label>
+                    <select
+                        id="new_status"
+                        v-model="statusForm.status"
+                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    >
+                        <option value="pending">Pending (Not Enrolled)</option>
+                        <option value="active">Active (Enrolled)</option>
+                        <option value="completed">Completed</option>
+                        <option value="dropped">Dropped</option>
+                    </select>
+                </div>
+
+                <!-- Status Change Guidelines -->
+                <div
+                    class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4"
+                >
+                    <p class="text-sm text-blue-700 font-medium mb-1">
+                        📋 Status Change Guidelines:
+                    </p>
+                    <ul class="text-xs text-blue-600 space-y-1">
+                        <li>
+                            • <strong>Active:</strong> Trainee is officially
+                            enrolled and attending classes
+                        </li>
+                        <li>
+                            • <strong>Completed:</strong> Trainee has
+                            successfully finished the program
+                        </li>
+                        <li>
+                            • <strong>Dropped:</strong> Trainee has withdrawn or
+                            been removed from the program
+                        </li>
+                        <li>
+                            • <strong>Pending:</strong> Trainee is registered
+                            but not yet enrolled
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <SecondaryButton
+                        @click="closeStatusModal"
+                        :disabled="statusForm.processing"
+                    >
+                        Cancel
+                    </SecondaryButton>
+                    <PrimaryButton
+                        @click="confirmStatusChange"
+                        :disabled="statusForm.processing || !statusForm.status"
+                        class="bg-purple-600 hover:bg-purple-700"
+                    >
+                        <span v-if="statusForm.processing">Updating...</span>
+                        <span v-else>Update Status</span>
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
     </AuthenticatedLayout>
 </template>

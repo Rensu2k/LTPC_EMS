@@ -7,6 +7,7 @@ import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import SearchableSelect from "@/Components/SearchableSelect.vue";
 
 const props = defineProps({
     assessment: Object,
@@ -153,6 +154,70 @@ const submit = () => {
 const cancel = () => {
     router.visit(route("officer.assessments"));
 };
+
+// Watch for program selection changes to filter trainees and trainers
+watch(
+    () => form.program_id,
+    (newProgramId) => {
+        // Don't reset if it's the initial load with existing values
+        if (newProgramId && newProgramId !== props.assessment.program_id) {
+            form.trainee_id = "";
+            form.trainer_id = "";
+        }
+    }
+);
+
+// Computed property for filtered trainees based on selected program
+const filteredTrainees = computed(() => {
+    if (!form.program_id || !props.trainees) {
+        return [];
+    }
+
+    // Find the selected program
+    const selectedProgram = props.programs.find(
+        (p) => p.program_id === form.program_id
+    );
+    if (!selectedProgram) {
+        return [];
+    }
+
+    // Filter trainees who have completed the selected program or have that program qualification
+    return props.trainees
+        .filter((trainee) => {
+            // Check if trainee has this program qualification (legacy system)
+            if (trainee.program_qualification === selectedProgram.name) {
+                return true;
+            }
+
+            // TODO: When new enrollment system data is available, also check completed enrollments
+            // For now, we'll use the legacy program_qualification field
+            return false;
+        })
+        .map((trainee) => ({
+            ...trainee,
+            full_name: `${trainee.first_name} ${trainee.last_name}`,
+        }));
+});
+
+// Computed property for filtered trainers based on selected program
+const filteredTrainers = computed(() => {
+    if (!form.program_id || !props.trainers) {
+        return props.trainers; // Return all trainers if no program selected
+    }
+
+    // Find the selected program
+    const selectedProgram = props.programs.find(
+        (p) => p.program_id === form.program_id
+    );
+    if (!selectedProgram || !selectedProgram.assigned_trainers) {
+        return []; // Return empty if program not found or no assigned trainers
+    }
+
+    // Filter trainers who are assigned to the selected program
+    return props.trainers.filter((trainer) =>
+        selectedProgram.assigned_trainers.includes(trainer.id)
+    );
+});
 </script>
 
 <template>
@@ -388,85 +453,186 @@ const cancel = () => {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <!-- Program Selection -->
                             <div>
-                                <InputLabel
-                                    for="program_id"
-                                    value="Program *"
-                                />
-                                <select
-                                    id="program_id"
+                                <SearchableSelect
                                     v-model="form.program_id"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
-                                >
-                                    <option value="">Select a program</option>
-                                    <option
-                                        v-for="program in programs"
-                                        :key="program.program_id"
-                                        :value="program.program_id"
-                                    >
-                                        {{ program.name }}
-                                    </option>
-                                </select>
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.program_id"
+                                    :options="programs"
+                                    label="Program *"
+                                    placeholder="Type to search programs..."
+                                    display-key="name"
+                                    value-key="program_id"
+                                    :required="true"
+                                    :error="form.errors.program_id"
+                                    empty-message="No programs available"
                                 />
                             </div>
 
-                            <!-- Applicant Selection -->
-                            <div>
+                            <!-- Applicant Type Display -->
+                            <div class="md:col-span-2">
                                 <InputLabel
-                                    for="trainee_id"
-                                    value="Applicant *"
+                                    for="applicant_type"
+                                    value="Applicant Type"
                                 />
-                                <select
-                                    id="trainee_id"
-                                    v-model="form.trainee_id"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
+                                <div
+                                    class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
                                 >
-                                    <option value="">
-                                        Select an applicant
-                                    </option>
-                                    <option
-                                        v-for="trainee in trainees"
-                                        :key="trainee.id"
-                                        :value="trainee.id"
-                                    >
-                                        {{ trainee.first_name }}
-                                        {{ trainee.last_name }}
-                                    </option>
-                                </select>
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.trainee_id"
+                                    <span class="text-sm font-medium">
+                                        {{
+                                            form.applicant_type ===
+                                            "enrolled_trainee"
+                                                ? "Enrolled Applicant"
+                                                : "External Applicant"
+                                        }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Applicant type cannot be changed during
+                                    editing
+                                </p>
+                            </div>
+
+                            <!-- Enrolled Trainee Selection -->
+                            <div
+                                v-if="
+                                    form.applicant_type === 'enrolled_trainee'
+                                "
+                            >
+                                <SearchableSelect
+                                    v-model="form.trainee_id"
+                                    :options="filteredTrainees"
+                                    label="Applicant *"
+                                    placeholder="Type trainee name..."
+                                    display-key="full_name"
+                                    value-key="id"
+                                    secondary-key="status"
+                                    :required="true"
+                                    :error="form.errors.trainee_id"
+                                    :disabled="!form.program_id"
+                                    :empty-message="
+                                        !form.program_id
+                                            ? 'Please select a program first'
+                                            : 'No eligible applicants for this program'
+                                    "
                                 />
+                            </div>
+
+                            <!-- External Applicant Information -->
+                            <div
+                                v-if="
+                                    form.applicant_type === 'external_applicant'
+                                "
+                                class="md:col-span-2"
+                            >
+                                <h4
+                                    class="text-md font-medium text-gray-900 mb-4"
+                                >
+                                    External Applicant Information
+                                </h4>
+                                <div
+                                    class="grid grid-cols-1 md:grid-cols-3 gap-4"
+                                >
+                                    <!-- Full Name -->
+                                    <div>
+                                        <InputLabel
+                                            for="external_applicant_name"
+                                            value="Full Name *"
+                                        />
+                                        <TextInput
+                                            id="external_applicant_name"
+                                            v-model="
+                                                form.external_applicant_name
+                                            "
+                                            type="text"
+                                            class="mt-1 block w-full"
+                                            placeholder="Enter full name"
+                                            :required="
+                                                form.applicant_type ===
+                                                'external_applicant'
+                                            "
+                                        />
+                                        <InputError
+                                            class="mt-2"
+                                            :message="
+                                                form.errors
+                                                    .external_applicant_name
+                                            "
+                                        />
+                                    </div>
+
+                                    <!-- Email -->
+                                    <div>
+                                        <InputLabel
+                                            for="external_applicant_email"
+                                            value="Email Address *"
+                                        />
+                                        <TextInput
+                                            id="external_applicant_email"
+                                            v-model="
+                                                form.external_applicant_email
+                                            "
+                                            type="email"
+                                            class="mt-1 block w-full"
+                                            placeholder="Enter email address"
+                                            :required="
+                                                form.applicant_type ===
+                                                'external_applicant'
+                                            "
+                                        />
+                                        <InputError
+                                            class="mt-2"
+                                            :message="
+                                                form.errors
+                                                    .external_applicant_email
+                                            "
+                                        />
+                                    </div>
+
+                                    <!-- Phone -->
+                                    <div>
+                                        <InputLabel
+                                            for="external_applicant_phone"
+                                            value="Phone Number *"
+                                        />
+                                        <TextInput
+                                            id="external_applicant_phone"
+                                            v-model="
+                                                form.external_applicant_phone
+                                            "
+                                            type="text"
+                                            class="mt-1 block w-full"
+                                            placeholder="Enter phone number"
+                                            :required="
+                                                form.applicant_type ===
+                                                'external_applicant'
+                                            "
+                                        />
+                                        <InputError
+                                            class="mt-2"
+                                            :message="
+                                                form.errors
+                                                    .external_applicant_phone
+                                            "
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Trainer Selection -->
                             <div>
-                                <InputLabel
-                                    for="trainer_id"
-                                    value="Trainer/Assessor *"
-                                />
-                                <select
-                                    id="trainer_id"
+                                <SearchableSelect
                                     v-model="form.trainer_id"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
-                                >
-                                    <option value="">Select a trainer</option>
-                                    <option
-                                        v-for="trainer in trainers"
-                                        :key="trainer.id"
-                                        :value="trainer.id"
-                                    >
-                                        {{ trainer.full_name }}
-                                    </option>
-                                </select>
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.trainer_id"
+                                    :options="filteredTrainers"
+                                    label="Trainer/Assessor *"
+                                    placeholder="Type trainer name..."
+                                    display-key="full_name"
+                                    value-key="id"
+                                    :required="true"
+                                    :error="form.errors.trainer_id"
+                                    :disabled="!form.program_id"
+                                    :empty-message="
+                                        !form.program_id
+                                            ? 'Please select a program first'
+                                            : 'No trainers assigned to this program'
+                                    "
                                 />
                             </div>
                         </div>

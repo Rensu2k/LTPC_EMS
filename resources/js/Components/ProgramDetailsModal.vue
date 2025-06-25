@@ -135,10 +135,11 @@
                                 </svg>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Enrollments</p>
+                                <p class="text-sm text-gray-500">
+                                    Total Enrollments
+                                </p>
                                 <p class="text-lg font-semibold text-gray-900">
-                                    {{ program.enrollments || 0 }} /
-                                    {{ program.max_enrollments || "Unlimited" }}
+                                    {{ program.enrollments || 0 }}
                                 </p>
                             </div>
                         </div>
@@ -227,21 +228,25 @@
                     </div>
                 </div>
 
-                <!-- Program Statistics -->
+                <!-- Current Batch Status -->
                 <div class="bg-white border rounded-lg p-6">
                     <h4 class="text-lg font-semibold text-gray-900 mb-4">
-                        Enrollment Progress
+                        Current Batch Status
                     </h4>
                     <div class="mb-4">
                         <div class="flex justify-between text-sm mb-2">
-                            <span>Progress</span>
+                            <span
+                                >Batch
+                                {{ program.current_batch || 1 }} Progress</span
+                            >
                             <span
                                 >{{
-                                    Math.round(
-                                        (program.enrollments /
-                                            program.max_enrollments) *
-                                            100
-                                    )
+                                    Math.min(
+                                        ((program.current_batch_count || 0) /
+                                            25) *
+                                            100,
+                                        100
+                                    ).toFixed(0)
                                 }}%</span
                             >
                         </div>
@@ -251,30 +256,39 @@
                                 :style="{
                                     width:
                                         Math.min(
-                                            (program.enrollments /
-                                                program.max_enrollments) *
+                                            ((program.current_batch_count ||
+                                                0) /
+                                                25) *
                                                 100,
                                             100
                                         ) + '%',
                                 }"
                             ></div>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            Maximum 25 trainees per batch. New batch
+                            automatically created when full.
+                        </p>
                     </div>
                     <div class="grid grid-cols-3 gap-4 text-center">
                         <div>
                             <div class="text-2xl font-bold text-blue-600">
-                                {{ program.enrollments }}
+                                {{ program.current_batch_count || 0 }}
                             </div>
-                            <div class="text-sm text-gray-500">Enrolled</div>
+                            <div class="text-sm text-gray-500">
+                                Current Batch
+                            </div>
                         </div>
                         <div>
                             <div class="text-2xl font-bold text-gray-600">
                                 {{
-                                    program.max_enrollments -
-                                    program.enrollments
+                                    Math.max(
+                                        25 - (program.current_batch_count || 0),
+                                        0
+                                    )
                                 }}
                             </div>
-                            <div class="text-sm text-gray-500">Available</div>
+                            <div class="text-sm text-gray-500">Slots Left</div>
                         </div>
                         <div>
                             <div class="text-2xl font-bold text-green-600">

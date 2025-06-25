@@ -81,7 +81,7 @@ const getStatusBadgeClass = (status) => {
         case "completed":
             return "bg-blue-50 text-blue-700";
         case "dropped":
-        case "suspended":
+        case "pending":
             return "bg-gray-50 text-gray-700";
         default:
             return "bg-gray-50 text-gray-700";

@@ -546,7 +546,7 @@
                                     v-model="form.status"
                                     class="mt-1 block w-full border-gray-300 rounded-md"
                                 >
-                                    <option value="suspended">Suspended (Not Enrolled)</option>
+                                    <option value="pending">Pending (Not Enrolled)</option>
                                     <option value="active">Active (Enrolled)</option>
                                     <option value="completed">Completed</option>
                                     <option value="dropped">Dropped</option>

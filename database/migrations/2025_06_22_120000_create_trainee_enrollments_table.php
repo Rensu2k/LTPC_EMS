@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('batch')->default(1);
             $table->date('enrollment_date');
             $table->date('completion_date')->nullable();
-            $table->enum('status', ['active', 'completed', 'dropped', 'suspended'])->default('active');
+            $table->enum('status', ['active', 'completed', 'dropped', 'pending'])->default('active');
             $table->enum('payment_status', ['paid', 'unpaid', 'partial'])->default('unpaid');
             $table->decimal('enrollment_fee', 10, 2)->default(0);
             $table->string('payment_method')->nullable();

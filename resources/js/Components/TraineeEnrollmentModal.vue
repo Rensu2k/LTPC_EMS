@@ -62,7 +62,7 @@
                                     'bg-red-100 text-red-800':
                                         enrollment.status === 'dropped',
                                     'bg-yellow-100 text-yellow-800':
-                                        enrollment.status === 'suspended',
+                                        enrollment.status === 'pending',
                                 }"
                             >
                                 {{
@@ -80,38 +80,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Program Selection -->
                     <div class="md:col-span-2">
-                        <InputLabel for="program_id" value="Select Program *" />
-                        <select
-                            id="program_id"
+                        <SearchableSelect
                             v-model="form.program_id"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            required
-                        >
-                            <option value="">Choose a program</option>
-                            <option
-                                v-if="
-                                    !availablePrograms ||
-                                    availablePrograms.length === 0
-                                "
-                                disabled
-                            >
-                                No available programs (trainee may already be
-                                enrolled in all active programs)
-                            </option>
-                            <option
-                                v-for="program in availablePrograms"
-                                :key="program.program_id"
-                                :value="program.program_id"
-                            >
-                                {{ program.name }} - ₱{{
-                                    program.enrollment_fee
-                                }}
-                                ({{ program.duration }})
-                            </option>
-                        </select>
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.program_id"
+                            :options="enhancedPrograms"
+                            label="Select Program *"
+                            placeholder="Type to search programs..."
+                            display-key="display_name"
+                            value-key="program_id"
+                            :required="true"
+                            :error="form.errors.program_id"
+                            empty-message="No available programs (trainee may already be enrolled in all active programs)"
                         />
                         <p class="text-xs text-gray-500 mt-1">
                             Only programs where the trainee is not currently
@@ -122,10 +100,10 @@
 
                 <!-- Batch System Information -->
                 <div
-                    class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg"
+                    class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
                 >
                     <h3
-                        class="text-sm font-medium text-amber-900 mb-2 flex items-center gap-2"
+                        class="text-sm font-medium text-blue-900 mb-2 flex items-center gap-2"
                     >
                         <svg
                             class="h-4 w-4"
@@ -142,12 +120,14 @@
                         </svg>
                         Batch System Information
                     </h3>
-                    <p class="text-sm text-amber-800">
-                        Each program has a maximum of
-                        <strong>25 enrollments per batch</strong>. If the
-                        current batch is full, the trainee will be automatically
-                        enrolled in the next available batch. This ensures
-                        optimal class sizes and better learning experiences.
+                    <p class="text-sm text-blue-800">
+                        Programs use a batch system with a maximum of
+                        <strong>25 trainees per batch</strong>. Programs have
+                        unlimited enrollment capacity - when a batch reaches 25
+                        trainees, a new batch is automatically created. If no
+                        batch is specified, the trainee will be enrolled in the
+                        current active batch or the next available batch if
+                        current is full.
                     </p>
                 </div>
 
@@ -267,6 +247,7 @@ import TextInput from "./TextInput.vue";
 import InputError from "./InputError.vue";
 import PrimaryButton from "./PrimaryButton.vue";
 import SecondaryButton from "./SecondaryButton.vue";
+import SearchableSelect from "./SearchableSelect.vue";
 
 const props = defineProps({
     show: Boolean,
@@ -290,6 +271,14 @@ const isScholar = computed(() => {
         props.trainee?.scholarship_package &&
         props.trainee.scholarship_package.trim() !== ""
     );
+});
+
+// Enhanced programs with display text for SearchableSelect
+const enhancedPrograms = computed(() => {
+    return (props.availablePrograms || []).map((program) => ({
+        ...program,
+        display_name: `${program.name} - ₱${program.enrollment_fee} (${program.duration})`,
+    }));
 });
 
 // Auto-set fee to 0 for scholars

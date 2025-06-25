@@ -7,6 +7,7 @@ use App\Http\Controllers\TraineeController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\TraineeEnrollmentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CashierController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -142,6 +143,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/trainees/{trainee}/edit', [TraineeController::class, 'edit'])->name('trainees.edit');
         Route::put('/trainees/{trainee}', [TraineeController::class, 'update'])->name('trainees.update');
         Route::delete('/trainees/{trainee}', [TraineeController::class, 'destroy'])->name('trainees.destroy');
+        Route::patch('/trainees/{trainee}/status', [TraineeController::class, 'updateStatus'])->name('trainees.status');
         
         // Trainers Management - Officers can manage trainers
         Route::get('/trainers', [TrainerController::class, 'index'])->name('trainers');
@@ -176,20 +178,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     
     Route::prefix('cashier')->name('cashier.')->middleware('role:cashier')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Cashier/Dashboard');
-        })->name('dashboard');
-        
-        Route::get('/payments', function () {
-            return Inertia::render('Cashier/Payments');
-        })->name('payments');
-        
-        Route::get('/receipts', function () {
-            return Inertia::render('Cashier/Receipts');
-        })->name('receipts');
-        
-        Route::post('/payments/process', function () {            
-        })->name('payments.process');
+        Route::get('/dashboard', [CashierController::class, 'dashboard'])->name('dashboard');
+        Route::get('/payments', [CashierController::class, 'payments'])->name('payments');
+        Route::get('/receipts', [CashierController::class, 'receipts'])->name('receipts');
+        Route::post('/payments/process', [CashierController::class, 'processPayment'])->name('payments.process');
         
         Route::get('/reports/financial', function () {            
         })->name('reports.financial');

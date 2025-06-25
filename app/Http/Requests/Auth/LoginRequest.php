@@ -29,6 +29,7 @@ class LoginRequest extends FormRequest
         return [
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
+            'remember' => ['boolean'],
         ];
     }
 
@@ -41,11 +42,13 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // @phpstan-ignore-next-line
-        if (! Auth::attempt([
-            'username' => $this->input('username'),
-            'password' => $this->input('password'),
-        ])) {
+        $credentials = [
+            'username' => $this['username'],
+            'password' => $this['password'],
+        ];
+        $remember = (bool) ($this['remember'] ?? false);
+        
+        if (! Auth::attempt($credentials, $remember)) {
             RateLimiter::hit($this->throttleKey());
             throw ValidationException::withMessages([
                 'username' => trans('auth.failed'),
@@ -83,7 +86,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        // @phpstan-ignore-next-line
-        return Str::transliterate(Str::lower($this->input('username')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this['username']).'|'.request()->ip());
     }
 }

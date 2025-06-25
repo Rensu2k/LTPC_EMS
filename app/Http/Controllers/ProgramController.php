@@ -23,7 +23,8 @@ class ProgramController extends Controller
                 'status' => $program->status,
                 'assigned_trainers' => $program->assigned_trainers,
                 'enrollments' => $program->enrollment_count, // Active trainees only
-                'max_enrollments' => $program->max_enrollments ?? 25,
+                'current_batch' => $program->current_batch,
+                'current_batch_count' => $program->getCurrentBatchEnrollmentCount(),
                 'enrollment_fee' => $program->enrollment_fee,
                 'start_date' => $program->start_date,
                 'end_date' => $program->end_date,
@@ -32,8 +33,7 @@ class ProgramController extends Controller
                 'total_trainees' => $program->total_trainees_count,
                 'completed_trainees' => $program->completed_trainees_count,
                 'dropped_trainees' => $program->dropped_trainees_count,
-                'suspended_trainees' => $program->suspended_trainees_count,
-                'available_slots' => $program->available_slots,
+                'pending_trainees' => $program->pending_trainees_count,
             ];
         });
 
@@ -64,7 +64,6 @@ class ProgramController extends Controller
                 'description' => $program->description,
                 'duration' => $program->duration,
                 'prerequisites' => $program->prerequisites,
-                'max_students' => $program->max_enrollments,
                 'enrollment_fee' => $program->enrollment_fee,
                 'status' => $program->status,
                 'created_at' => $program->created_at,
@@ -74,8 +73,7 @@ class ProgramController extends Controller
                 'total_trainees' => $program->total_trainees_count,
                 'completed_trainees' => $program->completed_trainees_count,
                 'dropped_trainees' => $program->dropped_trainees_count,
-                'suspended_trainees' => $program->suspended_trainees_count,
-                'available_slots' => $program->available_slots,
+                'pending_trainees' => $program->pending_trainees_count,
             ];
         });
 
@@ -108,8 +106,7 @@ class ProgramController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
-        // Always set max_enrollments to 25 (fixed value)
-        $validated['max_enrollments'] = 25;
+        // Programs now allow unlimited enrollments
 
         $program = Program::create($validated);
 
@@ -138,7 +135,7 @@ class ProgramController extends Controller
             'description' => $validated['description'],
             'duration' => $validated['duration'],
             'prerequisites' => $validated['prerequisites'] ?? null,
-            'max_enrollments' => 25, // Fixed value for all programs
+            // Programs now allow unlimited enrollments
             'enrollment_fee' => $validated['enrollment_fee'] ?? null,
             'status' => $validated['status'] ?? 'active',
         ];
@@ -203,8 +200,7 @@ class ProgramController extends Controller
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
-        // Ensure max_enrollments remains at 25 (fixed value)
-        $validated['max_enrollments'] = 25;
+        // Programs now allow unlimited enrollments
 
         $program->update($validated);
 

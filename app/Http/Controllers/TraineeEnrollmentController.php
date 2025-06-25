@@ -62,8 +62,8 @@ class TraineeEnrollmentController extends Controller
             // Determine the batch for enrollment
             $assignedBatch = $validated['batch'] ?? $program->getNextAvailableBatch();
             
-            // Check if the determined batch is full
-            if ($program->getCurrentBatchEnrollmentCount() >= $program->max_enrollments && $assignedBatch == $program->current_batch) {
+            // Check if the determined batch is full (25 trainees per batch)
+            if ($program->getCurrentBatchEnrollmentCount() >= 25 && $assignedBatch == $program->current_batch) {
                 // Current batch is full, advance to next batch
                 $program->advanceBatchIfFull();
                 $assignedBatch = $program->current_batch;
@@ -82,8 +82,8 @@ class TraineeEnrollmentController extends Controller
             }
 
             $message = "Trainee successfully enrolled in {$program->name} (Batch {$assignedBatch})";
-            if ($assignedBatch > $program->current_batch - 1 && $program->getCurrentBatchEnrollmentCount() >= $program->max_enrollments) {
-                $message .= ". Previous batch was full, enrolled in next available batch.";
+            if ($assignedBatch > $program->current_batch - 1 && $program->getCurrentBatchEnrollmentCount() >= 25) {
+                $message .= ". Previous batch was full (25 trainees), enrolled in next available batch.";
             }
             if ($trainee->scholarship_package) {
                 $message .= " (Fee exempted due to scholarship)";
@@ -102,7 +102,7 @@ class TraineeEnrollmentController extends Controller
     public function updateStatus(Request $request, TraineeEnrollment $enrollment)
     {
         $validated = $request->validate([
-            'status' => 'required|in:active,completed,dropped,suspended',
+            'status' => 'required|in:active,completed,dropped,pending',
             'completion_date' => 'nullable|date|required_if:status,completed',
             'notes' => 'nullable|string|max:500'
         ]);
@@ -139,14 +139,14 @@ class TraineeEnrollmentController extends Controller
         if ($validated['payment_status'] === 'paid') {
             $updateData['payment_date'] = now();
             
-            // If payment is completed and trainee was suspended due to payment, reactivate
-            if ($enrollment->status === 'suspended') {
+            // If payment is completed and trainee was pending due to payment, reactivate
+            if ($enrollment->status === 'pending') {
                 $updateData['status'] = 'active';
                 $wasActivated = true;
             }
         } elseif ($validated['payment_status'] !== 'paid' && $enrollment->status === 'active') {
-            // If payment becomes unpaid and enrollment is active, suspend it
-            $updateData['status'] = 'suspended';
+            // If payment becomes unpaid and enrollment is active, set to pending
+            $updateData['status'] = 'pending';
         }
 
         $enrollment->update($updateData);
@@ -154,8 +154,8 @@ class TraineeEnrollmentController extends Controller
         $message = 'Payment status updated successfully!';
         if ($wasActivated) {
             $message = 'Payment completed and enrollment automatically activated!';
-        } elseif ($validated['payment_status'] !== 'paid' && $enrollment->status === 'suspended') {
-            $message = 'Payment status updated and enrollment suspended due to payment issue.';
+        } elseif ($validated['payment_status'] !== 'paid' && $enrollment->status === 'pending') {
+            $message = 'Payment status updated and enrollment set to pending due to payment issue.';
         }
 
         // Also check if trainee has other eligibility for auto-enrollment
@@ -220,7 +220,7 @@ class TraineeEnrollmentController extends Controller
 
         $availablePrograms = Program::where('status', 'active')
             ->whereNotIn('program_id', $enrolledProgramIds)
-            ->get(['program_id', 'name', 'description', 'duration', 'enrollment_fee', 'max_enrollments']);
+            ->get(['program_id', 'name', 'description', 'duration', 'enrollment_fee']);
 
         return response()->json($availablePrograms);
     }

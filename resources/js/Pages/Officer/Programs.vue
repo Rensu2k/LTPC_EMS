@@ -31,7 +31,6 @@ const programsList = ref(
         enrollment_fee: program.enrollment_fee || 0,
         status: program.status,
         enrollments: program.enrollments || 0,
-        max_enrollments: program.max_enrollments || 25,
         assigned_trainers: program.assigned_trainers || [],
         start_date: program.start_date,
         end_date: program.end_date,
@@ -524,11 +523,10 @@ const getStatusColor = (status) => {
 
         <DeleteConfirmationModal
             :show="showDeleteModal"
-            title="Delete Program"
-            :message="`Are you sure you want to delete the program '${selectedProgram?.name}'? This action cannot be undone.`"
+            :item="selectedProgram"
+            itemType="program"
             @close="closeDeleteModal"
             @confirm="confirmDelete"
-            :processing="processing"
         />
 
         <TrainerAssignmentModal

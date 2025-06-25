@@ -3,105 +3,38 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { ref } from "vue";
 
-// Sample data - replace with actual data from backend
-const stats = ref({
-    totalCollected: 86950,
-    totalCollectedChange: 15,
-    pendingPayments: 30,
-    pendingPaymentsChange: -5,
-    receiptsGenerated: 82,
-    receiptsGeneratedChange: 8,
+// Define props to receive data from backend
+const props = defineProps({
+    stats: {
+        type: Object,
+        default: () => ({
+            totalCollected: 0,
+            totalCollectedChange: 0,
+            pendingPayments: 0,
+            pendingPaymentsChange: 0,
+            receiptsGenerated: 0,
+            receiptsGeneratedChange: 0,
+        }),
+    },
+    paymentStatus: {
+        type: Array,
+        default: () => [],
+    },
+    paymentSummaries: {
+        type: Array,
+        default: () => [],
+    },
+    recentActivities: {
+        type: Array,
+        default: () => [],
+    },
 });
 
-const paymentStatus = ref([
-    {
-        id: "P001",
-        initials: "JD",
-        name: "Juan Dela Cruz",
-        course: "Web Development",
-        amountDue: 5000,
-        status: "paid",
-    },
-    {
-        id: "P002",
-        initials: "MS",
-        name: "Maria Santos",
-        course: "Baking & Pastry Arts",
-        amountDue: 4500,
-        status: "paid",
-    },
-    {
-        id: "P003",
-        initials: "PR",
-        name: "Pedro Reyes",
-        course: "Electrical Installation",
-        amountDue: 3000,
-        status: "pending",
-    },
-    {
-        id: "P004",
-        initials: "ET",
-        name: "Elena Torres",
-        course: "Culinary Arts",
-        amountDue: 4000,
-        status: "paid",
-    },
-    {
-        id: "P005",
-        initials: "RA",
-        name: "Roberto Aquino",
-        course: "Computer Servicing",
-        amountDue: 2500,
-        status: "pending",
-    },
-]);
-
-const paymentSummaries = ref([
-    {
-        period: "May 2025",
-        totalAmount: 25600,
-        paid: 24,
-        pending: 30,
-    },
-    {
-        period: "April 2025",
-        totalAmount: 32450,
-        paid: 34,
-        pending: 20,
-    },
-    {
-        period: "March 2025",
-        totalAmount: 28900,
-        paid: 30,
-        pending: 12,
-    },
-]);
-
-const recentActivities = ref([
-    {
-        id: 1,
-        description:
-            "Payment received for John Smith - Welding Technology (₱1,500)",
-        timestamp: "2025-05-04T06:30:00Z",
-    },
-    {
-        id: 2,
-        description:
-            "Partial payment received for Jane Doe - Food Processing (₱750)",
-        timestamp: "2025-05-03T13:45:00Z",
-    },
-    {
-        id: 3,
-        description: "Payment received for Miguel Lopez - Carpentry (₱1,200)",
-        timestamp: "2025-05-02T10:15:00Z",
-    },
-    {
-        id: 4,
-        description:
-            "Receipt generated for Sofia Garcia - Electronics Servicing",
-        timestamp: "2025-05-01T14:20:00Z",
-    },
-]);
+// Convert props to reactive refs for template usage
+const stats = ref(props.stats);
+const paymentStatus = ref(props.paymentStatus);
+const paymentSummaries = ref(props.paymentSummaries);
+const recentActivities = ref(props.recentActivities);
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-PH", {
@@ -127,14 +60,23 @@ const recordPayment = (paymentId) => {
 };
 
 const viewDetails = (paymentId) => {
-    // Redirect to payments page with the specific payment ID
-    router.visit(route("cashier.payments"), {
-        data: {
-            view: paymentId,
-            tab: "all",
-        },
-        preserveState: false,
-    });
+    // Determine which tab the payment belongs to based on ID prefix
+    let targetTab = "registrations"; // default
+    if (paymentId.startsWith("ENR-")) {
+        targetTab = "enrollments";
+    } else if (paymentId.startsWith("ASS-")) {
+        targetTab = "assessments";
+    } else if (paymentId.startsWith("REG-")) {
+        targetTab = "registrations";
+    }
+
+    // Redirect to payments page and switch to the appropriate tab
+    router.visit(
+        route("cashier.payments") + `?view=${paymentId}&tab=${targetTab}`,
+        {
+            preserveState: false,
+        }
+    );
 };
 
 const generateReport = (period) => {
@@ -153,7 +95,8 @@ const generateReport = (period) => {
                     Cashier Dashboard
                 </h1>
                 <p class="text-gray-600">
-                    Good evening, Cashier. Welcome to your cashier dashboard.
+                    Monitor payment collections including registration fees,
+                    enrollment fees, and assessment payments.
                 </p>
             </div>
 
@@ -324,13 +267,159 @@ const generateReport = (period) => {
                 </div>
             </div>
 
+            <!-- Payment Types Overview -->
+            <div class="mb-8 animate-fade-in">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">
+                    Payment Types Overview
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Registration Payments Card -->
+                    <div
+                        class="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">
+                                    Enrollment Fees - New
+                                </p>
+                                <p class="text-2xl font-bold text-orange-600">
+                                    {{
+                                        paymentStatus.filter((p) =>
+                                            p.id.startsWith("REG-")
+                                        ).length
+                                    }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    New trainees awaiting enrollment fee payment
+                                </p>
+                            </div>
+                            <div class="p-3 bg-orange-100 rounded-lg">
+                                <svg
+                                    class="w-6 h-6 text-orange-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                                    ></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Enrollment Payments Card -->
+                    <div
+                        class="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">
+                                    Enrollment Fees - Enrolled
+                                </p>
+                                <p class="text-2xl font-bold text-blue-600">
+                                    {{
+                                        paymentStatus.filter((p) =>
+                                            p.id.startsWith("ENR-")
+                                        ).length
+                                    }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    Enrolled trainees in 25-trainee batches
+                                </p>
+                            </div>
+                            <div class="p-3 bg-blue-100 rounded-lg">
+                                <svg
+                                    class="w-6 h-6 text-blue-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                    ></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Payments Card -->
+                    <div
+                        class="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">
+                                    Assessment Payments
+                                </p>
+                                <p class="text-2xl font-bold text-purple-600">
+                                    {{
+                                        paymentStatus.filter((p) =>
+                                            p.id.startsWith("ASS-")
+                                        ).length
+                                    }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    Competency assessments
+                                </p>
+                            </div>
+                            <div class="p-3 bg-purple-100 rounded-lg">
+                                <svg
+                                    class="w-6 h-6 text-purple-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                    ></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Payment Status Section -->
             <div class="mb-8 animate-fade-in">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-gray-900">
-                        Payment Status
+                        Recent Payment Status
                     </h2>
-                    <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-4 flex-wrap">
+                        <div class="flex items-center">
+                            <div
+                                class="w-3 h-3 bg-orange-500 rounded-full mr-2"
+                            ></div>
+                            <span class="text-sm text-gray-600"
+                                >New Enrollment</span
+                            >
+                        </div>
+                        <div class="flex items-center">
+                            <div
+                                class="w-3 h-3 bg-blue-500 rounded-full mr-2"
+                            ></div>
+                            <span class="text-sm text-gray-600"
+                                >Enrolled Batches</span
+                            >
+                        </div>
+                        <div class="flex items-center">
+                            <div
+                                class="w-3 h-3 bg-purple-500 rounded-full mr-2"
+                            ></div>
+                            <span class="text-sm text-gray-600"
+                                >Assessment</span
+                            >
+                        </div>
                         <div class="flex items-center">
                             <div
                                 class="w-3 h-3 bg-red-500 rounded-full mr-2"
@@ -347,6 +436,39 @@ const generateReport = (period) => {
                 </div>
 
                 <div
+                    v-if="paymentStatus.length === 0"
+                    class="bg-white rounded-xl shadow-sm p-12 border border-gray-100 text-center"
+                >
+                    <svg
+                        class="mx-auto h-12 w-12 text-gray-400 mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"
+                        ></path>
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        ></path>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">
+                        No payment data available
+                    </h3>
+                    <p class="text-gray-500">
+                        Payment information will appear here when data is
+                        available.
+                    </p>
+                </div>
+
+                <div
+                    v-else
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                     <div
@@ -362,14 +484,51 @@ const generateReport = (period) => {
                         <div class="flex items-start justify-between mb-4">
                             <div class="flex items-center">
                                 <div
-                                    class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                                    class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                                    :class="{
+                                        'bg-orange-500':
+                                            payment.id.startsWith('REG-'),
+                                        'bg-blue-500':
+                                            payment.id.startsWith('ENR-'),
+                                        'bg-purple-500':
+                                            payment.id.startsWith('ASS-'),
+                                    }"
                                 >
                                     {{ payment.initials }}
                                 </div>
                                 <div>
-                                    <h3 class="font-semibold text-gray-900">
-                                        {{ payment.name }}
-                                    </h3>
+                                    <div class="flex items-center space-x-2">
+                                        <h3 class="font-semibold text-gray-900">
+                                            {{ payment.name }}
+                                        </h3>
+                                        <span
+                                            class="px-2 py-0.5 text-xs font-medium rounded-full"
+                                            :class="{
+                                                'bg-orange-100 text-orange-800':
+                                                    payment.id.startsWith(
+                                                        'REG-'
+                                                    ),
+                                                'bg-blue-100 text-blue-800':
+                                                    payment.id.startsWith(
+                                                        'ENR-'
+                                                    ),
+                                                'bg-purple-100 text-purple-800':
+                                                    payment.id.startsWith(
+                                                        'ASS-'
+                                                    ),
+                                            }"
+                                        >
+                                            {{
+                                                payment.id.startsWith("REG-")
+                                                    ? "New Enrollment"
+                                                    : payment.id.startsWith(
+                                                          "ENR-"
+                                                      )
+                                                    ? "Enrolled Batch"
+                                                    : "Assessment"
+                                            }}
+                                        </span>
+                                    </div>
                                     <p class="text-sm text-gray-600">
                                         {{ payment.course }}
                                     </p>
@@ -443,7 +602,33 @@ const generateReport = (period) => {
                 <div
                     class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
                 >
-                    <div class="overflow-x-auto">
+                    <div
+                        v-if="paymentSummaries.length === 0"
+                        class="p-12 text-center"
+                    >
+                        <svg
+                            class="mx-auto h-12 w-12 text-gray-400 mb-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            ></path>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">
+                            No payment summaries available
+                        </h3>
+                        <p class="text-gray-500">
+                            Payment summary data will appear here when
+                            available.
+                        </p>
+                    </div>
+
+                    <div v-else class="overflow-x-auto">
                         <table class="w-full">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -507,27 +692,14 @@ const generateReport = (period) => {
                                         </span>
                                     </td>
                                     <td
-                                        class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                                        class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                     >
                                         <button
                                             @click="
                                                 generateReport(summary.period)
                                             "
-                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                            class="text-blue-600 hover:text-blue-900"
                                         >
-                                            <svg
-                                                class="w-4 h-4 mr-1"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    stroke-width="2"
-                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                                ></path>
-                                            </svg>
                                             Generate Report
                                         </button>
                                     </td>
@@ -540,59 +712,109 @@ const generateReport = (period) => {
 
             <!-- Recent Activities -->
             <div class="animate-fade-in">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-900">
-                        Recent Activities
-                    </h2>
-                    <button
-                        class="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                    >
-                        View All
-                    </button>
-                </div>
+                <h2 class="text-xl font-bold text-gray-900 mb-2">
+                    Recent Activities
+                </h2>
+                <p class="text-gray-600 mb-6">Latest payment transactions</p>
 
                 <div
-                    class="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+                    class="bg-white rounded-xl shadow-sm border border-gray-100"
                 >
-                    <div class="space-y-4">
-                        <div
-                            v-for="activity in recentActivities"
-                            :key="activity.id"
-                            class="flex items-start space-x-3"
+                    <div
+                        v-if="recentActivities.length === 0"
+                        class="p-12 text-center"
+                    >
+                        <svg
+                            class="mx-auto h-12 w-12 text-gray-400 mb-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                         >
-                            <div class="flex-shrink-0">
-                                <div
-                                    class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center"
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">
+                            No recent activities
+                        </h3>
+                        <p class="text-gray-500">
+                            Recent payment activities will appear here.
+                        </p>
+                    </div>
+
+                    <div v-else class="p-6">
+                        <div class="flow-root">
+                            <ul class="-mb-8">
+                                <li
+                                    v-for="(
+                                        activity, index
+                                    ) in recentActivities"
+                                    :key="activity.id"
                                 >
-                                    <svg
-                                        class="w-4 h-4 text-blue-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"
-                                        ></path>
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        ></path>
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm text-gray-900">
-                                    {{ activity.description }}
-                                </p>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    {{ formatDate(activity.timestamp) }}
-                                </p>
-                            </div>
+                                    <div class="relative pb-8">
+                                        <span
+                                            v-if="
+                                                index !==
+                                                recentActivities.length - 1
+                                            "
+                                            class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                                            aria-hidden="true"
+                                        ></span>
+                                        <div class="relative flex space-x-3">
+                                            <div>
+                                                <span
+                                                    class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white"
+                                                >
+                                                    <svg
+                                                        class="h-4 w-4 text-white"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"
+                                                        ></path>
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                        ></path>
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                            <div
+                                                class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4"
+                                            >
+                                                <div>
+                                                    <p
+                                                        class="text-sm text-gray-500"
+                                                    >
+                                                        {{
+                                                            activity.description
+                                                        }}
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    class="text-right text-sm whitespace-nowrap text-gray-500"
+                                                >
+                                                    <time>{{
+                                                        formatDate(
+                                                            activity.timestamp
+                                                        )
+                                                    }}</time>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -600,3 +822,20 @@ const generateReport = (period) => {
         </div>
     </AuthenticatedLayout>
 </template>
+
+<style scoped>
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+}
+</style>

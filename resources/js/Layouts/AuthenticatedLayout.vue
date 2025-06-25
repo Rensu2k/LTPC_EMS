@@ -729,15 +729,15 @@ function logout() {
                     </NavLink>
                 </template>
             </nav>
-            <div class="mt-auto px-6 py-4 border-t border-blue-800">
+            <div class="mt-auto px-6 py-2 border-t border-blue-800">
                 <button
                     @click="logout"
                     type="button"
-                    class="flex items-center gap-2 w-full text-left text-white/80 hover:text-white font-semibold"
+                    class="flex items-center gap-3 w-full text-left text-white/80 hover:text-white font-semibold py-3 px-3 rounded-lg hover:bg-blue-800/50 transition-all duration-200 text-xl"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5"
+                        class="h-8 w-8"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"

@@ -695,9 +695,8 @@ const exportData = () => {
         <!-- Delete Confirmation Modal -->
         <DeleteConfirmationModal
             :show="showDeleteModal"
-            :processing="processing"
-            title="Delete Assessment"
-            :message="`Are you sure you want to delete the assessment '${selectedAssessment?.title}'? This action cannot be undone.`"
+            :item="selectedAssessment"
+            itemType="assessment"
             @close="closeDeleteModal"
             @confirm="confirmDelete"
         />

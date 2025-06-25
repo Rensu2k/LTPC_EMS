@@ -17,12 +17,13 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->enum('type', ['practical', 'theoretical', 'both'])->default('theoretical');
-            $table->enum('status', ['pending', 'completed', 'graded'])->default('pending');
+            $table->enum('status', ['pending', 'completed', 'graded', 'pass', 'fail'])->default('pending');
             $table->integer('score')->nullable();
             $table->integer('max_score');
+            $table->integer('passing_score')->nullable()->comment('Minimum score required to pass');
             
-            // Fix foreign key constraints to match actual table structures
-            $table->string('course_id', 50); // Match courses.course_id
+            // Fix foreign key constraints to match actual table structures  
+            $table->string('course_id', 50); // Will be renamed to program_id later
             $table->unsignedBigInteger('trainee_id'); // Match trainees.id
             $table->unsignedBigInteger('trainer_id'); // Match trainers.id
             

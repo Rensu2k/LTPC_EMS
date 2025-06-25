@@ -31,21 +31,18 @@ const programProgressData = computed(
     () =>
         props.program_progress || [
             {
-                name: "Welding",
+                name: "Cookery NC II",
                 enrolled: 22,
-                max: 25,
                 progress: 88,
             },
             {
-                name: "Carpentry",
+                name: "Driving NC II",
                 enrolled: 15,
-                max: 25,
                 progress: 60,
             },
             {
-                name: "Computer Systems Servicing",
+                name: "Micro Computer Servicing",
                 enrolled: 25,
-                max: 25,
                 progress: 100,
             },
         ]
@@ -84,7 +81,7 @@ const quickStats = computed(() => [
         textColor: "text-green-900",
         subColor: "text-green-600",
         link: "/admin/programs",
-        subtitle: "Max 25 per program",
+        subtitle: "25 trainees per batch",
     },
     {
         title: "Payment Status",
@@ -241,7 +238,8 @@ const getActivityTypeLabel = (type) => {
                                 Program Capacity Monitoring
                             </h3>
                             <p class="text-sm text-gray-500">
-                                Maximum 25 trainees per program
+                                Maximum 25 trainees per batch - unlimited
+                                program capacity
                             </p>
                         </div>
                         <div class="p-6">
@@ -258,20 +256,18 @@ const getActivityTypeLabel = (type) => {
                                             class="font-medium text-gray-900"
                                             >{{ program.name }}</span
                                         >
-                                        <span class="text-sm text-gray-600"
-                                            >{{ program.enrolled }}/{{
-                                                program.max
-                                            }}</span
-                                        >
+                                        <span class="text-sm text-gray-600">{{
+                                            program.enrolled
+                                        }}</span>
                                     </div>
                                     <div
                                         class="w-full bg-gray-200 rounded-full h-2"
                                     >
                                         <div
                                             :class="
-                                                program.enrolled >= 25
+                                                program.progress >= 100
                                                     ? 'bg-red-500'
-                                                    : program.enrolled >= 20
+                                                    : program.progress >= 80
                                                     ? 'bg-yellow-500'
                                                     : 'bg-green-500'
                                             "
@@ -282,17 +278,17 @@ const getActivityTypeLabel = (type) => {
                                     <div
                                         class="mt-1 text-xs"
                                         :class="
-                                            program.enrolled >= 25
+                                            program.progress >= 100
                                                 ? 'text-red-600'
-                                                : program.enrolled >= 20
+                                                : program.progress >= 80
                                                 ? 'text-yellow-600'
                                                 : 'text-green-600'
                                         "
                                     >
                                         {{
-                                            program.enrolled >= 25
+                                            program.progress >= 100
                                                 ? "Full Capacity"
-                                                : program.enrolled >= 20
+                                                : program.progress >= 80
                                                 ? "Near Capacity"
                                                 : "Available Slots"
                                         }}

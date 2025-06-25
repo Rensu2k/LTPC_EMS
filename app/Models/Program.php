@@ -199,11 +199,11 @@ class Program extends Model
     }
 
     /**
-     * Check if current batch is full
+     * Check if current batch is full (25 trainees per batch limit)
      */
     public function isCurrentBatchFull()
     {
-        return $this->getCurrentBatchEnrollmentCount() >= $this->max_enrollments;
+        return $this->getCurrentBatchEnrollmentCount() >= 25; // 25 trainees per batch
     }
 
     /**
@@ -246,7 +246,7 @@ class Program extends Model
      */
     public function getAvailableSlotsAttribute()
     {
-        return $this->max_enrollments - $this->getCurrentBatchEnrollmentCount();
+        return 25 - $this->getCurrentBatchEnrollmentCount();
     }
 
     /**
@@ -290,19 +290,19 @@ class Program extends Model
     }
 
     /**
-     * Get suspended trainees count
+     * Get pending trainees count
      */
-    public function getSuspendedTraineesCountAttribute()
+    public function getPendingTraineesCountAttribute()
     {
         // Get trainee IDs that are already in the new enrollment system
         $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system suspended enrollments
-        $newSystemCount = $this->enrollments()->where('status', 'suspended')->count();
+        // Count new enrollment system pending enrollments
+        $newSystemCount = $this->enrollments()->where('status', 'pending')->count();
         
-        // Count legacy suspended trainees excluding those already in new system
+        // Count legacy pending trainees excluding those already in new system
         $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'suspended')
+            ->where('status', 'pending')
             ->whereNotIn('id', $enrolledTraineeIds)
             ->count();
         
@@ -322,11 +322,7 @@ class Program extends Model
      */
     public function getEnrollmentProgressAttribute()
     {
-        if ($this->max_enrollments == 0) {
-            return 0;
-        }
-        
-        return round(($this->getCurrentBatchEnrollmentCount() / $this->max_enrollments) * 100, 2);
+        return round(($this->getCurrentBatchEnrollmentCount() / 25) * 100, 2);
     }
 
     /**

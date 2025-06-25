@@ -215,8 +215,7 @@
                                             'bg-red-100 border-2 border-red-500':
                                                 enrollment.status === 'dropped',
                                             'bg-yellow-100 border-2 border-yellow-500':
-                                                enrollment.status ===
-                                                'suspended',
+                                                enrollment.status === 'pending',
                                         }"
                                     >
                                         <svg
@@ -233,7 +232,7 @@
                                                     'dropped',
                                                 'text-yellow-600':
                                                     enrollment.status ===
-                                                    'suspended',
+                                                    'pending',
                                             }"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
@@ -307,7 +306,7 @@
                                                                 'dropped',
                                                             'bg-yellow-100 text-yellow-800':
                                                                 enrollment.status ===
-                                                                'suspended',
+                                                                'pending',
                                                         }"
                                                     >
                                                         {{

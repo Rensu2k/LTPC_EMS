@@ -7,6 +7,7 @@ import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import SearchableSelect from "@/Components/SearchableSelect.vue";
 
 const props = defineProps({
     show: {
@@ -130,6 +131,9 @@ watch(
 watch(
     () => form.applicant_type,
     (newType) => {
+        // Reset trainee selection when switching applicant types
+        form.trainee_id = "";
+
         if (newType === "enrolled_trainee" && form.trainee_id) {
             const trainee = props.trainees.find((t) => t.id == form.trainee_id);
             if (
@@ -146,14 +150,85 @@ watch(
                 form.payment_method = "";
                 form.payment_reference = "";
             }
+        } else if (newType === "external_applicant") {
+            // External applicant - reset to default and clear enrolled trainee data
+            form.assessment_fee = "0"; // Default to 0, user can modify
+            form.payment_status = "pending";
+            form.payment_method = "";
+            form.payment_reference = "";
+            form.external_applicant_name = "";
+            form.external_applicant_email = "";
+            form.external_applicant_phone = "";
         } else {
-            // External applicant - reset to default
+            // Default case
             form.payment_status = "pending";
             form.payment_method = "";
             form.payment_reference = "";
         }
     }
 );
+
+// Watch for program selection changes to filter trainees and trainers
+watch(
+    () => form.program_id,
+    (newProgramId) => {
+        // Reset trainee and trainer selections when program changes
+        form.trainee_id = "";
+        form.trainer_id = "";
+    }
+);
+
+// Computed property for filtered trainees based on selected program
+const filteredTrainees = computed(() => {
+    if (!form.program_id || !props.trainees) {
+        return [];
+    }
+
+    // Find the selected program
+    const selectedProgram = props.programs.find(
+        (p) => p.program_id === form.program_id
+    );
+    if (!selectedProgram) {
+        return [];
+    }
+
+    // Filter trainees who have completed the selected program or have that program qualification
+    return props.trainees
+        .filter((trainee) => {
+            // Check if trainee has this program qualification (legacy system)
+            if (trainee.program_qualification === selectedProgram.name) {
+                return true;
+            }
+
+            // TODO: When new enrollment system data is available, also check completed enrollments
+            // For now, we'll use the legacy program_qualification field
+            return false;
+        })
+        .map((trainee) => ({
+            ...trainee,
+            full_name: `${trainee.first_name} ${trainee.last_name}`,
+        }));
+});
+
+// Computed property for filtered trainers based on selected program
+const filteredTrainers = computed(() => {
+    if (!form.program_id || !props.trainers) {
+        return props.trainers; // Return all trainers if no program selected
+    }
+
+    // Find the selected program
+    const selectedProgram = props.programs.find(
+        (p) => p.program_id === form.program_id
+    );
+    if (!selectedProgram || !selectedProgram.assigned_trainers) {
+        return []; // Return empty if program not found or no assigned trainers
+    }
+
+    // Filter trainers who are assigned to the selected program
+    return props.trainers.filter((trainer) =>
+        selectedProgram.assigned_trainers.includes(trainer.id)
+    );
+});
 </script>
 
 <template>
@@ -320,71 +395,41 @@ watch(
 
                     <!-- Program Selection -->
                     <div>
-                        <InputLabel for="program_id" value="Program *" />
-                        <select
-                            id="program_id"
+                        <SearchableSelect
                             v-model="form.program_id"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            required
-                        >
-                            <option value="">Select a program</option>
-                            <option
-                                v-if="!programs || programs.length === 0"
-                                disabled
-                            >
-                                No active programs available
-                            </option>
-                            <option
-                                v-for="program in programs"
-                                :key="program.program_id"
-                                :value="program.program_id"
-                            >
-                                {{ program.name }}
-                            </option>
-                        </select>
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.program_id"
+                            :options="programs"
+                            label="Program *"
+                            placeholder="Type to search programs..."
+                            display-key="name"
+                            value-key="program_id"
+                            :required="true"
+                            :error="form.errors.program_id"
+                            empty-message="No active programs available"
                         />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Selecting a program will filter the available
+                            trainees and trainers assigned to that program.
+                        </p>
                     </div>
 
                     <!-- Trainee Selection (for enrolled trainees) -->
                     <div v-if="form.applicant_type === 'enrolled_trainee'">
-                        <InputLabel
-                            for="trainee_id"
-                            value="Applicant (Completed Status) *"
-                        />
-                        <select
-                            id="trainee_id"
+                        <SearchableSelect
                             v-model="form.trainee_id"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            :class="{
-                                'border-red-500':
-                                    form.applicant_type ===
-                                        'enrolled_trainee' &&
-                                    form.errors.trainee_id,
-                            }"
-                        >
-                            <option value="">Select an applicant</option>
-                            <option
-                                v-if="!trainees || trainees.length === 0"
-                                value=""
-                                disabled
-                            >
-                                No eligible applicants available
-                            </option>
-                            <option
-                                v-for="trainee in trainees"
-                                :key="trainee.id"
-                                :value="trainee.id"
-                            >
-                                {{ trainee.first_name }}
-                                {{ trainee.last_name }} ({{ trainee.status }})
-                            </option>
-                        </select>
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.trainee_id"
+                            :options="filteredTrainees"
+                            label="Applicant (Completed Status) *"
+                            placeholder="Type trainee name..."
+                            display-key="full_name"
+                            value-key="id"
+                            secondary-key="status"
+                            :required="true"
+                            :error="form.errors.trainee_id"
+                            :disabled="!form.program_id"
+                            :empty-message="
+                                !form.program_id
+                                    ? 'Please select a program first'
+                                    : 'No eligible applicants for this program'
+                            "
                         />
                         <p class="text-xs text-gray-500 mt-1">
                             Only applicants with "completed" status can take
@@ -397,9 +442,34 @@ watch(
                         v-if="form.applicant_type === 'external_applicant'"
                         class="md:col-span-2"
                     >
-                        <h4 class="text-md font-medium text-gray-900 mb-4">
+                        <h4 class="text-md font-medium text-gray-900 mb-2">
                             External Applicant Information
                         </h4>
+                        <div
+                            class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4"
+                        >
+                            <p class="text-sm text-blue-700 font-medium">
+                                📋 External Applicant Guidelines:
+                            </p>
+                            <ul class="text-xs text-blue-600 mt-1 space-y-1">
+                                <li>
+                                    • External applicants are individuals not
+                                    currently enrolled in our programs
+                                </li>
+                                <li>
+                                    • They can take assessments for
+                                    certification or program qualification
+                                </li>
+                                <li>
+                                    • Assessment fees apply as per the selected
+                                    program requirements
+                                </li>
+                                <li>
+                                    • Ensure the program selected matches the
+                                    applicant's assessment purpose
+                                </li>
+                            </ul>
+                        </div>
                         <div class="space-y-4">
                             <!-- Full Name - Full Width -->
                             <div>
@@ -480,34 +550,21 @@ watch(
 
                     <!-- Trainer Selection -->
                     <div>
-                        <InputLabel
-                            for="trainer_id"
-                            value="Trainer/Assessor *"
-                        />
-                        <select
-                            id="trainer_id"
+                        <SearchableSelect
                             v-model="form.trainer_id"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            required
-                        >
-                            <option value="">Select a trainer</option>
-                            <option
-                                v-if="!trainers || trainers.length === 0"
-                                disabled
-                            >
-                                No active trainers available
-                            </option>
-                            <option
-                                v-for="trainer in trainers"
-                                :key="trainer.id"
-                                :value="trainer.id"
-                            >
-                                {{ trainer.full_name }}
-                            </option>
-                        </select>
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.trainer_id"
+                            :options="filteredTrainers"
+                            label="Trainer/Assessor *"
+                            placeholder="Type trainer name..."
+                            display-key="full_name"
+                            value-key="id"
+                            :required="true"
+                            :error="form.errors.trainer_id"
+                            :disabled="!form.program_id"
+                            :empty-message="
+                                !form.program_id
+                                    ? 'Please select a program first'
+                                    : 'No trainers assigned to this program'
+                            "
                         />
                     </div>
 
@@ -597,10 +654,12 @@ watch(
                             class="mt-1 block w-full"
                             :class="{
                                 'bg-gray-100':
+                                    isScholar &&
                                     form.applicant_type === 'enrolled_trainee',
                             }"
                             placeholder="0.00"
                             :readonly="
+                                isScholar &&
                                 form.applicant_type === 'enrolled_trainee'
                             "
                             required
@@ -610,14 +669,30 @@ watch(
                             :message="form.errors.assessment_fee"
                         />
 
-                        <!-- General fee note for non-scholars -->
-                        <p
-                            v-if="form.applicant_type !== 'enrolled_trainee'"
-                            class="text-xs text-gray-500 mt-1"
-                        >
-                            Set to 0 for free assessments. Scholar applicants
-                            are automatically exempted.
-                        </p>
+                        <!-- Fee guidance based on applicant type -->
+                        <div class="text-xs text-gray-500 mt-1">
+                            <p
+                                v-if="
+                                    form.applicant_type ===
+                                        'enrolled_trainee' && !isScholar
+                                "
+                            >
+                                Fee is editable for non-scholar enrolled
+                                trainees.
+                            </p>
+                            <p
+                                v-else-if="
+                                    form.applicant_type === 'external_applicant'
+                                "
+                            >
+                                Set appropriate fee for external applicants. Use
+                                ₱0 for free assessments.
+                            </p>
+                            <p v-else>
+                                Scholar trainees automatically get ₱0 assessment
+                                fee.
+                            </p>
+                        </div>
                     </div>
                 </div>
 

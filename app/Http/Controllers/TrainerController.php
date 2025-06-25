@@ -29,6 +29,7 @@ class TrainerController extends Controller
                 'total_trainees_count' => $trainer->total_trainees_count,
                 'active_trainees_count' => $trainer->active_trainees_count,
                 'completed_trainees_count' => $trainer->completed_trainees_count,
+                'assigned_programs' => $trainer->assigned_programs,
                 'created_at' => $trainer->created_at,
                 'updated_at' => $trainer->updated_at,
             ];
@@ -100,6 +101,7 @@ class TrainerController extends Controller
             'total_trainees_count' => $trainer->total_trainees_count,
             'active_trainees_count' => $trainer->active_trainees_count,
             'completed_trainees_count' => $trainer->completed_trainees_count,
+            'assigned_programs' => $trainer->assigned_programs,
             'created_at' => $trainer->created_at,
             'updated_at' => $trainer->updated_at,
         ];
@@ -167,6 +169,7 @@ class TrainerController extends Controller
                 'total_trainees_count' => $trainer->total_trainees_count,
                 'active_trainees_count' => $trainer->active_trainees_count,
                 'completed_trainees_count' => $trainer->completed_trainees_count,
+                'assigned_programs' => $trainer->assigned_programs,
                 'created_at' => $trainer->created_at,
                 'updated_at' => $trainer->updated_at,
             ];

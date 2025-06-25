@@ -4,7 +4,7 @@ import TrainerRegistrationModal from "@/Components/TrainerRegistrationModal.vue"
 import TrainerDetailsModal from "@/Components/TrainerDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const props = defineProps({
     trainers: Array,
@@ -39,6 +39,26 @@ const trainersList = ref(
         status: trainer.status,
     })) || []
 );
+
+// Computed property for filtered trainers - this provides automatic reactivity
+const filteredTrainers = computed(() => {
+    if (!searchQuery.value) {
+        return trainersList.value;
+    }
+
+    return trainersList.value.filter(
+        (trainer) =>
+            trainer.name
+                .toLowerCase()
+                .includes(searchQuery.value.toLowerCase()) ||
+            trainer.expertise_string
+                .toLowerCase()
+                .includes(searchQuery.value.toLowerCase()) ||
+            trainer.email
+                .toLowerCase()
+                .includes(searchQuery.value.toLowerCase())
+    );
+});
 
 const addTrainer = () => {
     showRegistrationModal.value = true;
@@ -102,37 +122,6 @@ const handleEditFromDetails = (trainer) => {
     closeDetailsModal();
     editTrainer(trainer);
 };
-
-const filteredTrainers = ref(
-    trainersList.value.filter(
-        (trainer) =>
-            trainer.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise_string
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.email
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    )
-);
-
-// Update filtered trainers when search query changes
-const updateFilter = () => {
-    filteredTrainers.value = trainersList.value.filter(
-        (trainer) =>
-            trainer.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise_string
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.email
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    );
-};
 </script>
 
 <template>
@@ -179,7 +168,6 @@ const updateFilter = () => {
                     <div class="relative">
                         <input
                             v-model="searchQuery"
-                            @input="updateFilter"
                             type="text"
                             placeholder="Search trainers..."
                             class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-80"
@@ -513,9 +501,7 @@ const updateFilter = () => {
         <DeleteConfirmationModal
             :show="showDeleteModal"
             :item="selectedTrainer"
-            item-type="trainer"
-            title="Delete Trainer"
-            :message="`Are you sure you want to permanently delete this trainer? This action cannot be undone.`"
+            itemType="trainer"
             @close="closeDeleteModal"
             @confirm="confirmDelete"
         />

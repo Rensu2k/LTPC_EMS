@@ -116,12 +116,19 @@ const emit = defineEmits(["close", "confirm"]);
 const processing = ref(false);
 
 const closeModal = () => {
-    emit("close");
+    handleClose();
 };
 
 const confirmDelete = () => {
+    if (!canDelete()) return;
     processing.value = true;
     emit("confirm");
+};
+
+// Reset processing state when modal is closed
+const handleClose = () => {
+    processing.value = false;
+    emit("close");
 };
 
 const getItemName = () => {
@@ -133,6 +140,8 @@ const getItemName = () => {
         return props.item?.full_name || "";
     } else if (props.itemType === "program") {
         return props.item?.name || "";
+    } else if (props.itemType === "assessment") {
+        return props.item?.title || "Assessment";
     }
     return "this item";
 };
@@ -146,7 +155,12 @@ const getItemId = () => {
     } else if (props.itemType === "trainer") {
         return `TR${String(props.item?.id).padStart(3, "0")}`;
     } else if (props.itemType === "program") {
-        return `P${String(props.item?.id).padStart(3, "0")}`;
+        return (
+            props.item?.program_id ||
+            `P${String(props.item?.id).padStart(3, "0")}`
+        );
+    } else if (props.itemType === "assessment") {
+        return `A${String(props.item?.id).padStart(3, "0")}`;
     }
     return `#${props.item?.id}`;
 };
@@ -158,34 +172,60 @@ const getItemDetails = () => {
         return `${props.item?.duration} • ${
             props.item?.enrollments || 0
         } enrollments`;
+    } else if (props.itemType === "assessment") {
+        return `${props.item?.assessment_date} • ${
+            props.item?.status || "Pending"
+        }`;
     }
     return null;
 };
 
 const canDelete = () => {
-    if (
-        props.itemType === "trainee" &&
-        ["completed", "dropped", "suspended"].includes(props.item?.status)
-    ) {
-        return false;
+    if (props.itemType === "trainee") {
+        // Cannot delete if status is active OR payment status is paid
+        if (
+            props.item?.status === "active" ||
+            props.item?.payment_status === "paid"
+        ) {
+            return false;
+        }
+        // Allow deletion if neither blocking condition is met
+        return true;
     }
     if (props.itemType === "program" && props.item?.enrollments > 0) {
         return false;
+    }
+    if (
+        props.itemType === "assessment" &&
+        (props.item?.status === "pass" || props.item?.status === "fail")
+    ) {
+        return false; // Cannot delete graded assessments
     }
     return true;
 };
 
 const getWarningMessage = () => {
-    if (
-        props.itemType === "trainee" &&
-        ["completed", "dropped", "suspended"].includes(props.item?.status)
-    ) {
-        return `This trainee has a status of "${props.item.status}" and cannot be deleted.`;
+    if (props.itemType === "trainee") {
+        // Check if status is active OR payment status is paid
+        if (
+            props.item?.status === "active" ||
+            props.item?.payment_status === "paid"
+        ) {
+            return `This trainee cannot be deleted. Trainees with active status or paid payment status cannot be deleted. Current status: ${
+                props.item?.status || "N/A"
+            }, Payment: ${props.item?.payment_status || "N/A"}.`;
+        }
     }
     if (props.itemType === "program" && props.item?.enrollments > 0) {
         return `This program has ${props.item.enrollments} active enrollment${
             props.item.enrollments === 1 ? "" : "s"
         } and cannot be deleted.`;
+    }
+    if (
+        props.itemType === "assessment" &&
+        (props.item?.status === "pass" || props.item?.status === "fail")
+    ) {
+        return `This assessment has been graded and finalized. Graded assessments cannot be deleted to maintain data integrity.`;
     }
     return null;
 };

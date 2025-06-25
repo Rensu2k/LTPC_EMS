@@ -51,8 +51,8 @@ class AssessmentController extends Controller
                 ];
             });
 
-        $programs = Program::where('status', 'active')->get(['program_id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status']);
+        $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/Assessments', [
@@ -153,8 +153,8 @@ class AssessmentController extends Controller
             return redirect()->route('officer.assessments')->with('error', 'Cannot edit graded assessments. This assessment has already been finalized.');
         }
 
-        $programs = Program::where('status', 'active')->get(['program_id', 'name']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status']);
+        $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
+        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/EditAssessment', [

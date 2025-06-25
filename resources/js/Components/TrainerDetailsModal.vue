@@ -38,6 +38,17 @@ const unavailableSchedule = computed(() => {
     if (!props.trainer?.availability_schedule) return [];
     return props.trainer.availability_schedule.filter((day) => !day.available);
 });
+
+const trainerExpertise = computed(() => {
+    if (!props.trainer?.expertise || !Array.isArray(props.trainer.expertise)) {
+        return [];
+    }
+    return props.trainer.expertise;
+});
+
+const expertiseString = computed(() => {
+    return props.trainer?.expertise_string || "No expertise specified";
+});
 </script>
 
 <template>
@@ -134,12 +145,26 @@ const unavailableSchedule = computed(() => {
                                 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-sm font-medium text-gray-500"
-                                    >Program:</span
+                                <span class="text-blue-700 font-medium"
+                                    >Status:</span
                                 >
-                                <span class="text-sm text-gray-900">{{
-                                    trainer?.program || "N/A"
-                                }}</span>
+                                <span
+                                    :class="{
+                                        'text-green-600':
+                                            trainer?.status === 'active',
+                                        'text-gray-600':
+                                            trainer?.status === 'inactive',
+                                    }"
+                                    class="font-medium"
+                                >
+                                    {{
+                                        trainer?.status
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                            trainer?.status?.slice(1) ||
+                                        "Active"
+                                    }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -184,6 +209,45 @@ const unavailableSchedule = computed(() => {
                         </div>
                     </div>
 
+                    <!-- Expertise -->
+                    <div class="bg-orange-50 rounded-lg p-6">
+                        <h3
+                            class="text-lg font-semibold text-orange-900 mb-4 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                                />
+                            </svg>
+                            Areas of Expertise
+                        </h3>
+                        <div
+                            v-if="trainerExpertise.length > 0"
+                            class="space-y-2"
+                        >
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    v-for="expertise in trainerExpertise"
+                                    :key="expertise"
+                                    class="inline-flex px-3 py-1 text-sm font-medium bg-orange-100 text-orange-800 rounded-full"
+                                >
+                                    {{ expertise }}
+                                </span>
+                            </div>
+                        </div>
+                        <div v-else class="text-gray-500 text-center py-4">
+                            No expertise areas specified
+                        </div>
+                    </div>
+
                     <!-- Biography -->
                     <div
                         class="bg-purple-50 rounded-lg p-6"
@@ -213,7 +277,7 @@ const unavailableSchedule = computed(() => {
                     </div>
                 </div>
 
-                <!-- Right Column: Availability Schedule -->
+                <!-- Right Column: Schedule & Statistics -->
                 <div class="space-y-6">
                     <!-- Available Days -->
                     <div class="bg-green-50 rounded-lg p-6">
@@ -324,7 +388,7 @@ const unavailableSchedule = computed(() => {
                             </svg>
                             Training Statistics
                         </h3>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 gap-4">
                             <div class="text-center">
                                 <div class="text-2xl font-bold text-blue-900">
                                     {{ trainer?.active_programs_count || 0 }}
@@ -356,6 +420,63 @@ const unavailableSchedule = computed(() => {
                                 <div class="text-sm text-purple-700">
                                     Completed
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assigned Programs -->
+                    <div
+                        class="bg-indigo-50 rounded-lg p-6"
+                        v-if="
+                            trainer?.assigned_programs &&
+                            trainer.assigned_programs.length > 0
+                        "
+                    >
+                        <h3
+                            class="text-lg font-semibold text-indigo-900 mb-4 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                />
+                            </svg>
+                            Assigned Programs
+                        </h3>
+                        <div class="space-y-2">
+                            <div
+                                v-for="program in trainer.assigned_programs"
+                                :key="program.id"
+                                class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-indigo-500"
+                            >
+                                <div>
+                                    <span class="font-medium text-gray-900">{{
+                                        program.name
+                                    }}</span>
+                                    <div class="text-sm text-gray-500">
+                                        {{ program.description }}
+                                    </div>
+                                </div>
+                                <span
+                                    :class="{
+                                        'bg-green-100 text-green-800':
+                                            program.status === 'active',
+                                        'bg-gray-100 text-gray-800':
+                                            program.status === 'inactive',
+                                        'bg-yellow-100 text-yellow-800':
+                                            program.status === 'pending',
+                                    }"
+                                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                >
+                                    {{ program.status }}
+                                </span>
                             </div>
                         </div>
                     </div>

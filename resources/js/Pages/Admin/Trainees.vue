@@ -9,6 +9,7 @@ import DangerButton from "@/Components/DangerButton.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
+import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 
 const props = defineProps({
     trainees: Array,
@@ -184,7 +185,7 @@ const getEnrollmentTypeColor = (type) => {
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                 Add New Trainee
+                                Add New Trainee
                             </SecondaryButton>
                             <SecondaryButton
                                 @click="exportEnrollments"
@@ -281,7 +282,8 @@ const getEnrollmentTypeColor = (type) => {
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
-                            <tr><th
+                            <tr>
+                                <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     ULI Number
@@ -291,7 +293,7 @@ const getEnrollmentTypeColor = (type) => {
                                 >
                                     Trainee
                                 </th>
-                                
+
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
@@ -688,41 +690,13 @@ const getEnrollmentTypeColor = (type) => {
         </Modal>
 
         <!-- Delete Confirmation Modal -->
-        <Modal :show="showDeleteModal" @close="showDeleteModal = false">
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-red-500 to-pink-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-red-900">
-                        Delete Trainee
-                    </h3>
-                </div>
-                <p class="text-sm text-gray-500 mb-4">
-                    Are you sure you want to delete "{{
-                        deletingTrainee?.first_name
-                    }}
-                    {{ deletingTrainee?.last_name }}"? This action cannot be
-                    undone.
-                </p>
-                <div class="flex justify-end space-x-3">
-                    <SecondaryButton
-                        @click="showDeleteModal = false"
-                        class="border-2 border-gray-300 hover:border-red-500 hover:text-red-600 transition-all duration-300"
-                    >
-                        Cancel
-                    </SecondaryButton>
-                    <DangerButton
-                        @click="deleteTrainee"
-                        class="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 transition-all duration-300"
-                    >
-                        Delete
-                    </DangerButton>
-                </div>
-            </div>
-        </Modal>
+        <DeleteConfirmationModal
+            :show="showDeleteModal"
+            :item="deletingTrainee"
+            itemType="trainee"
+            @close="showDeleteModal = false"
+            @confirm="deleteTrainee"
+        />
     </AuthenticatedLayout>
 </template>
 

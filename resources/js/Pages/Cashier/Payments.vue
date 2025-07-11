@@ -129,72 +129,81 @@ const closePaymentDetails = () => {
 const markAsPaid = (paymentId) => {
     // Search in all payment arrays
     let payment = registrationPayments.value.find((p) => p.id === paymentId);
-    let paymentArray = "registration";
+    let paymentType = "registration";
 
     if (!payment) {
         payment = enrollmentPayments.value.find((p) => p.id === paymentId);
-        paymentArray = "enrollment";
+        paymentType = "enrollment";
     }
 
     if (!payment) {
         payment = assessmentPayments.value.find((p) => p.id === paymentId);
-        paymentArray = "assessment";
+        paymentType = "assessment";
     }
 
     if (!payment) return;
 
-    // Prepare payment data based on type
-    const paymentData = {
-        payment_method: "cash",
-        payment_reference: `RN-${Date.now()}`,
-        payment_notes: "Payment processed via cashier interface",
-    };
+    // For registration payments (New Trainees), mark as paid first and then automatically show receipt modal
+    if (paymentType === "registration") {
+        // Prepare payment data for registration
+        const paymentData = {
+            payment_method: "cash",
+            payment_reference: `RN-${Date.now()}`,
+            payment_notes: "Payment processed via cashier interface",
+            trainee_id: payment.trainee_id,
+            skip_enrollment: true, // Flag to indicate we'll enroll after receipt generation
+        };
 
-    // Add the appropriate ID based on payment type
-    if (payment.type === "registration") {
-        paymentData.trainee_id = payment.trainee_id;
-    } else if (payment.type === "enrollment") {
-        paymentData.enrollment_id = payment.enrollment_id;
-    } else if (payment.type === "assessment") {
-        paymentData.assessment_id = payment.assessment_id;
+        // Call the backend to process the payment
+        router.post(route("cashier.payments.process"), paymentData, {
+            onSuccess: () => {
+                // Close payment details modal
+                closePaymentDetails();
+
+                // Update the payment status locally
+                payment.status = "paid";
+
+                // Automatically show receipt modal for registration payments
+                generateReceiptForPaidPayment(payment);
+            },
+            onError: (errors) => {
+                console.error("Payment processing failed:", errors);
+                alert("Failed to process payment. Please try again.");
+            },
+        });
+    } else {
+        // For other payment types (enrollment/assessment), use existing flow
+        const paymentData = {
+            payment_method: "cash",
+            payment_reference: `RN-${Date.now()}`,
+            payment_notes: "Payment processed via cashier interface",
+        };
+
+        // Add the appropriate ID based on payment type
+        if (paymentType === "enrollment") {
+            paymentData.enrollment_id = payment.enrollment_id;
+        } else if (paymentType === "assessment") {
+            paymentData.assessment_id = payment.assessment_id;
+        }
+
+        // Call the backend to process the payment
+        router.post(route("cashier.payments.process"), paymentData, {
+            onSuccess: () => {
+                // Close payment details modal
+                closePaymentDetails();
+
+                // Update the payment status locally
+                payment.status = "paid";
+
+                // Automatically show receipt modal for enrollment payments too
+                generateReceiptForPaidPayment(payment);
+            },
+            onError: (errors) => {
+                console.error("Payment processing failed:", errors);
+                alert("Failed to process payment. Please try again.");
+            },
+        });
     }
-
-    // Call the backend to process the payment
-    router.post(route("cashier.payments.process"), paymentData, {
-        onSuccess: () => {
-            // Update local state - find and update in the correct array
-            if (paymentArray === "registration") {
-                // Remove from registrations and refresh data
-                router.reload({ only: ["enrollmentPayments"] });
-            } else if (paymentArray === "enrollment") {
-                const paymentIndex = allPayments.value.findIndex(
-                    (p) => p.id === paymentId
-                );
-                if (paymentIndex !== -1) {
-                    allPayments.value[paymentIndex].status = "paid";
-                }
-            } else if (paymentArray === "assessment") {
-                const paymentIndex = assessmentPayments.value.findIndex(
-                    (p) => p.id === paymentId
-                );
-                if (paymentIndex !== -1) {
-                    assessmentPayments.value[paymentIndex].status = "paid";
-                }
-            }
-
-            // Update the selected payment if it's currently being viewed
-            if (
-                selectedPayment.value &&
-                selectedPayment.value.id === paymentId
-            ) {
-                selectedPayment.value.status = "paid";
-            }
-        },
-        onError: (errors) => {
-            console.error("Payment processing failed:", errors);
-            alert("Failed to process payment. Please try again.");
-        },
-    });
 };
 
 // Check for incoming payment ID from dashboard
@@ -204,6 +213,26 @@ onMounted(() => {
     if (viewParam) {
         viewPayment(viewParam);
     }
+});
+
+// Receipt modal state
+const showReceiptModal = ref(false);
+const selectedReceiptData = ref(null);
+const editableReceiptData = ref({
+    receiptNo: "",
+    trainee: {
+        name: "",
+        uli_number: "",
+    },
+    dateGenerated: "",
+    fees: [
+        {
+            natureOfCollection: "",
+            course: "",
+            accountCode: "EDU-001",
+            amount: 0,
+        },
+    ],
 });
 
 const generateReceipt = (paymentId) => {
@@ -217,43 +246,289 @@ const generateReceipt = (paymentId) => {
     }
 
     if (payment && payment.status === "paid") {
-        // Generate receipt data
-        const receiptData = {
-            id: payment.receiptNo,
-            paymentId: payment.id,
-            trainee: {
-                name: payment.trainee.name,
-                id: payment.trainee.id,
-            },
-            course: payment.course,
-            amount: payment.amount,
-            dateGenerated: new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD format
-            timeGenerated: new Date().toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-            }),
-            status: "generated",
-        };
-
-        // Add receipt to receipts page if the function exists
-        if (typeof window.addReceiptToPage === "function") {
-            window.addReceiptToPage(receiptData);
-        }
-
-        // Here you would typically make an API call to save the receipt to the backend
-        console.log("Receipt generated:", receiptData);
-
-        // Show success message
-        alert(
-            `Receipt ${receiptData.id} has been generated and saved to Receipts page!`
-        );
-
-        // Close the modal after generating receipt
-        closePaymentDetails();
+        generateReceiptForPaidPayment(payment);
     } else {
         alert("Receipt can only be generated for paid payments.");
     }
+};
+
+const generateReceiptForPaidPayment = (payment) => {
+    // Generate a unique receipt number with timestamp
+    const timestamp = Date.now();
+    const uniqueReceiptNo = `${payment.receiptNo}-${timestamp}`;
+
+    // Prepare editable receipt data
+    editableReceiptData.value = {
+        receiptNo: uniqueReceiptNo,
+        trainee: {
+            name: payment.trainee.name,
+            uli_number: payment.trainee.uli_number || "Not assigned",
+            id: payment.trainee.trainee_id || payment.trainee.id,
+        },
+        dateGenerated: new Date().toLocaleDateString("en-CA"),
+        fees: [
+            {
+                natureOfCollection:
+                    payment.type === "enrollment"
+                        ? "Enrollment Fee"
+                        : payment.type === "assessment"
+                        ? "Assessment Fee"
+                        : "Registration Fee",
+                course: payment.course,
+                accountCode: "EDU-001",
+                amount: payment.amount,
+            },
+        ],
+    };
+
+    selectedReceiptData.value = payment;
+    showReceiptModal.value = true;
+    closePaymentDetails();
+};
+
+const closeReceiptModal = (isSuccessfulSave = false) => {
+    // Only show cancel warning if it's NOT a successful save and receipt number assigned
+    if (!isSuccessfulSave && editableReceiptData.value.receiptNo) {
+        const confirmCancel = confirm(
+            "A receipt number has been assigned to this transaction. " +
+                "If you cancel now, this receipt will be marked as 'CANCELLED' for audit purposes " +
+                "and a new receipt number will be generated if you try again.\n\n" +
+                "Are you sure you want to cancel this receipt?"
+        );
+
+        if (!confirmCancel) {
+            return; // Don't close modal, let user continue
+        }
+
+        // Save the cancelled receipt for audit trail
+        saveCancelledReceipt();
+    }
+
+    showReceiptModal.value = false;
+    selectedReceiptData.value = null;
+    editableReceiptData.value = {};
+};
+
+const saveCancelledReceipt = () => {
+    // Extract trainee ID from the correct location based on payment type
+    let traineeId = selectedReceiptData.value.trainee_id;
+
+    // If trainee_id is not available at top level, try other locations
+    if (!traineeId) {
+        if (selectedReceiptData.value.type === "enrollment") {
+            traineeId = selectedReceiptData.value.trainee.trainee_id;
+        } else if (selectedReceiptData.value.type === "assessment") {
+            traineeId =
+                selectedReceiptData.value.trainee.database_id ||
+                selectedReceiptData.value.trainee.trainee_id;
+        }
+    }
+
+    // Prepare cancelled receipt data
+    const cancelledReceiptData = {
+        receiptNo: editableReceiptData.value.receiptNo,
+        paymentId: selectedReceiptData.value.id,
+        type: selectedReceiptData.value.type,
+        trainee: {
+            name: editableReceiptData.value.trainee.name,
+            id: String(traineeId),
+            uli_number: editableReceiptData.value.trainee.uli_number,
+        },
+        fees: editableReceiptData.value.fees,
+        dateGenerated: editableReceiptData.value.dateGenerated,
+        enrollment_id: selectedReceiptData.value.enrollment_id,
+        assessment_id: selectedReceiptData.value.assessment_id,
+        trainee_id: selectedReceiptData.value.trainee_id,
+        status: "cancelled",
+        cancellation_reason: "Cancelled by cashier",
+    };
+
+    // Save the cancelled receipt
+    router.post(route("cashier.receipts.save"), cancelledReceiptData, {
+        onSuccess: () => {
+            alert(
+                `Receipt ${cancelledReceiptData.receiptNo} has been cancelled and saved for audit purposes.`
+            );
+        },
+        onError: (errors) => {
+            let errorMessage = "Error saving cancelled receipt:\n\n";
+            if (typeof errors === "object" && errors !== null) {
+                for (const [field, messages] of Object.entries(errors)) {
+                    if (Array.isArray(messages)) {
+                        errorMessage += `${field}: ${messages.join(", ")}\n`;
+                    } else {
+                        errorMessage += `${field}: ${messages}\n`;
+                    }
+                }
+            } else {
+                errorMessage += errors;
+            }
+            alert(errorMessage);
+        },
+    });
+};
+
+const addFee = () => {
+    editableReceiptData.value.fees.push({
+        natureOfCollection: "",
+        course: "",
+        accountCode: "EDU-001",
+        amount: 0,
+    });
+};
+
+const removeFee = (index) => {
+    if (editableReceiptData.value.fees.length > 1) {
+        editableReceiptData.value.fees.splice(index, 1);
+    }
+};
+
+const getTotalAmount = () => {
+    return editableReceiptData.value.fees.reduce((total, fee) => {
+        return total + (parseFloat(fee.amount) || 0);
+    }, 0);
+};
+
+const saveReceipt = () => {
+    const totalAmount = getTotalAmount();
+
+    // Check if this is a registration payment that needs enrollment after receipt generation
+    const isRegistrationPayment =
+        selectedReceiptData.value.type === "registration";
+
+    // Prepare the data to send to the backend
+    const receiptData = {
+        receiptNo: editableReceiptData.value.receiptNo,
+        paymentId: selectedReceiptData.value.id,
+        type: selectedReceiptData.value.type,
+        trainee: {
+            name: editableReceiptData.value.trainee.name,
+            id: selectedReceiptData.value.trainee.id,
+            uli_number: editableReceiptData.value.trainee.uli_number,
+        },
+        fees: editableReceiptData.value.fees,
+        dateGenerated: editableReceiptData.value.dateGenerated,
+        enrollment_id: selectedReceiptData.value.enrollment_id,
+        assessment_id: selectedReceiptData.value.assessment_id,
+        trainee_id: selectedReceiptData.value.trainee_id,
+        complete_enrollment: isRegistrationPayment, // Flag to trigger enrollment after receipt generation
+    };
+
+    // Use Inertia router for proper CSRF handling
+    router.post(route("cashier.receipts.save"), receiptData, {
+        onSuccess: (page) => {
+            // Show appropriate success message
+            if (isRegistrationPayment) {
+                alert(
+                    `Receipt ${receiptData.receiptNo} has been saved successfully! The trainee has been officially enrolled and will now appear in the Additional Fees - Enrolled Trainees tab.`
+                );
+            } else {
+                alert(
+                    `Receipt ${receiptData.receiptNo} has been saved successfully and is now available in the Receipts page!`
+                );
+            }
+
+            // Close the modal after successful save
+            closeReceiptModal(true);
+
+            // Refresh the page to show updated data
+            window.location.reload();
+        },
+        onError: (errors) => {
+            console.error("Error saving receipt:", errors);
+            const errorMessage =
+                errors.message ||
+                Object.values(errors)[0] ||
+                "Failed to save receipt";
+            alert("Error saving receipt: " + errorMessage);
+        },
+    });
+};
+
+const formatAmount = (amount) => {
+    const num = parseFloat(amount);
+    return isNaN(num) ? "0.00" : num.toFixed(2);
+};
+
+const convertNumberToWords = (num) => {
+    const ones = [
+        "",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+    ];
+    const teens = [
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+    ];
+    const tens = [
+        "",
+        "",
+        "twenty",
+        "thirty",
+        "forty",
+        "fifty",
+        "sixty",
+        "seventy",
+        "eighty",
+        "ninety",
+    ];
+    const thousands = ["", "thousand", "million", "billion"];
+
+    if (num === 0) return "zero";
+
+    function convertGroup(n) {
+        let result = "";
+        if (n >= 100) {
+            result += ones[Math.floor(n / 100)] + " hundred ";
+            n %= 100;
+        }
+        if (n >= 20) {
+            result += tens[Math.floor(n / 10)] + " ";
+            n %= 10;
+        } else if (n >= 10) {
+            result += teens[n - 10] + " ";
+            return result;
+        }
+        if (n > 0) {
+            result += ones[n] + " ";
+        }
+        return result;
+    }
+
+    let result = "";
+    let groupIndex = 0;
+
+    while (num > 0) {
+        const group = num % 1000;
+        if (group !== 0) {
+            result = convertGroup(group) + thousands[groupIndex] + " " + result;
+        }
+        num = Math.floor(num / 1000);
+        groupIndex++;
+    }
+
+    // Handle decimal part
+    const parts = num.toString().split(".");
+    if (parts[1]) {
+        result += "and " + parts[1] + "/100";
+    }
+
+    return result.trim() + " pesos only";
 };
 </script>
 
@@ -361,7 +636,7 @@ const generateReceipt = (paymentId) => {
                                 d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                             ></path>
                         </svg>
-                        Enrollment Fees - Enrolled Trainees ({{
+                        Additional Fees - Enrolled Trainees ({{
                             enrollmentPayments.length
                         }})
                     </button>
@@ -656,7 +931,7 @@ const generateReceipt = (paymentId) => {
                                             d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                                         ></path>
                                     </svg>
-                                    Enrollment Fees - Enrolled Trainees
+                                    Additional Fees - Enrolled Trainees
                                 </span>
                                 <span
                                     v-else-if="activeTab === 'assessments'"
@@ -690,8 +965,8 @@ const generateReceipt = (paymentId) => {
                                 v-else-if="activeTab === 'enrollments'"
                                 class="text-sm text-blue-600 mt-1"
                             >
-                                Enrollment fees from trainees already enrolled
-                                in programs (organized into 25-trainee batches).
+                                Additional fees from trainees already enrolled
+                                in programs (Trainee ID, Certificate, etc.).
                             </p>
                             <p
                                 v-else-if="activeTab === 'assessments'"
@@ -775,16 +1050,6 @@ const generateReceipt = (paymentId) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Amount
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Receipt No.
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
                                     Date
                                 </th>
                                 <th
@@ -846,16 +1111,6 @@ const generateReceipt = (paymentId) => {
                                     {{ payment.course }}
                                 </td>
                                 <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                                >
-                                    {{ formatCurrency(payment.amount) }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    {{ payment.receiptNo }}
-                                </td>
-                                <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
                                     {{ payment.date }}
@@ -866,12 +1121,18 @@ const generateReceipt = (paymentId) => {
                                             'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                                             payment.status === 'paid'
                                                 ? 'bg-green-100 text-green-800'
+                                                : payment.status ===
+                                                  'paid_pending_enrollment'
+                                                ? 'bg-yellow-100 text-yellow-800'
                                                 : 'bg-red-100 text-red-800',
                                         ]"
                                     >
                                         {{
                                             payment.status === "paid"
                                                 ? "Paid"
+                                                : payment.status ===
+                                                  "paid_pending_enrollment"
+                                                ? "Paid - Pending Receipt"
                                                 : "Unpaid"
                                         }}
                                     </span>
@@ -906,7 +1167,10 @@ const generateReceipt = (paymentId) => {
                                             </svg>
                                         </button>
                                         <button
-                                            v-if="payment.status === 'unpaid'"
+                                            v-if="
+                                                payment.status === 'unpaid' &&
+                                                activeTab !== 'enrollments'
+                                            "
                                             @click="markAsPaid(payment.id)"
                                             class="text-blue-600 hover:text-blue-900"
                                             title="Mark as Paid"
@@ -926,9 +1190,36 @@ const generateReceipt = (paymentId) => {
                                             </svg>
                                         </button>
                                         <button
+                                            v-if="
+                                                payment.status ===
+                                                'paid_pending_enrollment'
+                                            "
+                                            @click="
+                                                generateReceiptForPaidPayment(
+                                                    payment
+                                                )
+                                            "
+                                            class="text-orange-600 hover:text-orange-900"
+                                            title="Complete Enrollment - Generate Receipt"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                ></path>
+                                            </svg>
+                                        </button>
+                                        <button
                                             @click="generateReceipt(payment.id)"
                                             class="text-green-600 hover:text-green-900"
-                                            title="Generate Receipt"
+                                            title="Generate New Receipt"
                                         >
                                             <svg
                                                 class="w-4 h-4"
@@ -986,7 +1277,6 @@ const generateReceipt = (paymentId) => {
             <div
                 v-if="showPaymentDetails"
                 class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-                @click="closePaymentDetails"
             >
                 <div
                     class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white"
@@ -1042,30 +1332,6 @@ const generateReceipt = (paymentId) => {
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600"
-                                                >Amount:</span
-                                            >
-                                            <span
-                                                class="text-sm font-medium text-gray-900"
-                                                >{{
-                                                    formatCurrency(
-                                                        selectedPayment.amount
-                                                    )
-                                                }}</span
-                                            >
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600"
-                                                >Receipt No.:</span
-                                            >
-                                            <span
-                                                class="text-sm font-medium text-gray-900"
-                                                >{{
-                                                    selectedPayment.receiptNo
-                                                }}</span
-                                            >
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600"
                                                 >Date:</span
                                             >
                                             <span
@@ -1085,6 +1351,9 @@ const generateReceipt = (paymentId) => {
                                                     selectedPayment.status ===
                                                     'paid'
                                                         ? 'bg-green-100 text-green-800'
+                                                        : selectedPayment.status ===
+                                                          'paid_pending_enrollment'
+                                                        ? 'bg-yellow-100 text-yellow-800'
                                                         : 'bg-red-100 text-red-800',
                                                 ]"
                                             >
@@ -1092,6 +1361,9 @@ const generateReceipt = (paymentId) => {
                                                     selectedPayment.status ===
                                                     "paid"
                                                         ? "Paid"
+                                                        : selectedPayment.status ===
+                                                          "paid_pending_enrollment"
+                                                        ? "Paid - Pending Receipt"
                                                         : "Unpaid"
                                                 }}
                                             </span>
@@ -1184,8 +1456,36 @@ const generateReceipt = (paymentId) => {
                                     Mark as Paid
                                 </button>
                                 <button
+                                    v-if="
+                                        selectedPayment.status ===
+                                        'paid_pending_enrollment'
+                                    "
+                                    @click="
+                                        generateReceiptForPaidPayment(
+                                            selectedPayment
+                                        )
+                                    "
+                                    class="px-4 py-2 bg-orange-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                                >
+                                    <svg
+                                        class="w-4 h-4 mr-2 inline"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        ></path>
+                                    </svg>
+                                    Complete Enrollment
+                                </button>
+                                <button
                                     @click="generateReceipt(selectedPayment.id)"
                                     class="px-4 py-2 bg-green-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                    title="Generate a new receipt (multiple receipts allowed)"
                                 >
                                     <svg
                                         class="w-4 h-4 mr-2 inline"
@@ -1200,10 +1500,601 @@ const generateReceipt = (paymentId) => {
                                             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                         ></path>
                                     </svg>
-                                    Generate Receipt
+                                    Generate New Receipt
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editable Receipt Modal -->
+            <div
+                v-if="showReceiptModal"
+                class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+            >
+                <div
+                    class="relative top-4 md:top-10 mx-auto p-4 md:p-5 border w-11/12 md:w-4/5 lg:w-3/4 xl:w-2/3 max-h-[90vh] overflow-y-auto shadow-lg rounded-md bg-white"
+                    @click.stop
+                >
+                    <!-- Modal Header -->
+                    <div
+                        class="flex items-center justify-between pb-4 border-b border-gray-200"
+                    >
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            Generate New Receipt
+                        </h3>
+                        <button
+                            @click="closeReceiptModal(false)"
+                            class="text-gray-400 hover:text-gray-600"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="mt-6">
+                        <!-- Information Banner -->
+                        <div
+                            class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+                        >
+                            <div class="flex items-start">
+                                <svg
+                                    class="w-5 h-5 text-blue-600 mt-0.5 mr-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    ></path>
+                                </svg>
+                                <div>
+                                    <h4
+                                        class="text-sm font-medium text-blue-800"
+                                    >
+                                        Multiple Receipt Generation
+                                    </h4>
+                                    <p class="text-sm text-blue-700 mt-1">
+                                        Each time you save a receipt, a new
+                                        receipt will be created. Previous
+                                        receipts will remain unchanged and can
+                                        be viewed in the Receipts page.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Left Side: Editable Form -->
+                            <div class="space-y-6">
+                                <h4 class="text-md font-semibold text-gray-900">
+                                    Receipt Information
+                                </h4>
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700"
+                                            >Receipt No.</label
+                                        >
+                                        <input
+                                            v-model="
+                                                editableReceiptData.receiptNo
+                                            "
+                                            type="text"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700"
+                                            >Date Generated</label
+                                        >
+                                        <input
+                                            v-model="
+                                                editableReceiptData.dateGenerated
+                                            "
+                                            type="date"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700"
+                                            >Trainee Name</label
+                                        >
+                                        <input
+                                            v-model="
+                                                editableReceiptData.trainee.name
+                                            "
+                                            type="text"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700"
+                                            >ULI Number</label
+                                        >
+                                        <input
+                                            v-model="
+                                                editableReceiptData.trainee
+                                                    .uli_number
+                                            "
+                                            type="text"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <!-- Fees Section -->
+                                <div class="space-y-4">
+                                    <div
+                                        class="flex items-center justify-between"
+                                    >
+                                        <h5
+                                            class="text-md font-semibold text-gray-900"
+                                        >
+                                            Fees
+                                        </h5>
+                                        <button
+                                            @click="addFee"
+                                            type="button"
+                                            class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        >
+                                            <svg
+                                                class="w-4 h-4 mr-1"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                ></path>
+                                            </svg>
+                                            Add Fee
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        v-for="(
+                                            fee, index
+                                        ) in editableReceiptData.fees"
+                                        :key="index"
+                                        class="p-4 border border-gray-200 rounded-lg space-y-3"
+                                    >
+                                        <div
+                                            class="flex items-center justify-between"
+                                        >
+                                            <h6
+                                                class="text-sm font-medium text-gray-700"
+                                            >
+                                                Fee {{ index + 1 }}
+                                            </h6>
+                                            <button
+                                                v-if="
+                                                    editableReceiptData.fees
+                                                        .length > 1
+                                                "
+                                                @click="removeFee(index)"
+                                                type="button"
+                                                class="text-red-600 hover:text-red-800"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                    ></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 gap-3">
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-gray-700"
+                                                    >Nature of Collection</label
+                                                >
+                                                <input
+                                                    v-model="
+                                                        fee.natureOfCollection
+                                                    "
+                                                    type="text"
+                                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-gray-700"
+                                                    >Course/Program</label
+                                                >
+                                                <input
+                                                    v-model="fee.course"
+                                                    type="text"
+                                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                                />
+                                            </div>
+
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label
+                                                        class="block text-sm font-medium text-gray-700"
+                                                        >Account Code</label
+                                                    >
+                                                    <input
+                                                        v-model="
+                                                            fee.accountCode
+                                                        "
+                                                        type="text"
+                                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label
+                                                        class="block text-sm font-medium text-gray-700"
+                                                        >Amount</label
+                                                    >
+                                                    <input
+                                                        v-model="fee.amount"
+                                                        type="number"
+                                                        step="0.01"
+                                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Total Amount Display -->
+                                    <div class="p-3 bg-gray-50 rounded-lg">
+                                        <div
+                                            class="flex justify-between items-center"
+                                        >
+                                            <span
+                                                class="text-sm font-medium text-gray-700"
+                                                >Total Amount:</span
+                                            >
+                                            <span
+                                                class="text-lg font-bold text-blue-600"
+                                                >₱{{
+                                                    formatAmount(
+                                                        getTotalAmount()
+                                                    )
+                                                }}</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Side: Receipt Preview -->
+                            <div class="space-y-4">
+                                <h4 class="text-md font-semibold text-gray-900">
+                                    Receipt Preview
+                                </h4>
+
+                                <!-- Receipt Preview -->
+                                <div
+                                    class="bg-white border-2 border-gray-800 font-mono text-xs leading-tight"
+                                >
+                                    <!-- Header Section -->
+                                    <div
+                                        class="border-b-2 border-gray-800 p-4 bg-gray-50 text-center"
+                                    >
+                                        <div
+                                            class="flex justify-between items-center mb-4"
+                                        >
+                                            <div
+                                                class="w-16 h-16 border-2 border-gray-600 flex items-center justify-center text-sm rounded-full overflow-hidden"
+                                                style="
+                                                    background-image: url('/images/Philippine_logo.png');
+                                                    background-size: cover;
+                                                    background-repeat: no-repeat;
+                                                    background-position: center;
+                                                "
+                                            ></div>
+                                            <div class="flex-1">
+                                                <h3 class="font-bold text-lg">
+                                                    OFFICIAL RECEIPT
+                                                </h3>
+                                                <p class="text-sm">
+                                                    Republic of the Philippines
+                                                </p>
+                                                <h4 class="font-bold text-base">
+                                                    CITY OF SURIGAO
+                                                </h4>
+                                                <h5 class="font-bold text-sm">
+                                                    LTPC TRAINING CENTER
+                                                </h5>
+                                                <p class="text-sm">
+                                                    Office of the Cashier
+                                                </p>
+                                            </div>
+                                            <div
+                                                class="w-16 h-16 border-2 border-gray-600 rounded-full overflow-hidden"
+                                                style="
+                                                    background-image: url('/images/Surigao_logo.jpg');
+                                                    background-size: cover;
+                                                    background-repeat: no-repeat;
+                                                    background-position: center;
+                                                "
+                                            ></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Form Info -->
+                                    <div class="flex border-b border-gray-800">
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5"
+                                        >
+                                            <strong
+                                                >Accountable Form No. 51</strong
+                                            ><br />
+                                            <small>(Revised June 2008)</small>
+                                        </div>
+                                        <div class="p-2 w-3/5 text-center">
+                                            <h4 class="font-bold">ORIGINAL</h4>
+                                            <h3 class="font-bold text-red-600">
+                                                {{
+                                                    editableReceiptData.receiptNo.padStart(
+                                                        7,
+                                                        "0"
+                                                    )
+                                                }}
+                                            </h3>
+                                        </div>
+                                    </div>
+
+                                    <!-- Date -->
+                                    <div class="flex border-b border-gray-800">
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5 font-bold"
+                                        >
+                                            DATE
+                                        </div>
+                                        <div class="p-2 w-3/5">
+                                            {{
+                                                editableReceiptData.dateGenerated
+                                            }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Payor -->
+                                    <div class="flex border-b border-gray-800">
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-3/4"
+                                        >
+                                            <strong>PAYOR</strong><br />
+                                            {{ editableReceiptData.trainee.name
+                                            }}<br />
+                                            <small
+                                                >ULI:
+                                                {{
+                                                    editableReceiptData.trainee
+                                                        .uli_number
+                                                }}</small
+                                            >
+                                        </div>
+                                        <div class="p-2 w-1/4 text-center">
+                                            <strong>FUND</strong>
+                                        </div>
+                                    </div>
+
+                                    <!-- Table Header -->
+                                    <div
+                                        class="flex border-b-2 border-gray-800 bg-gray-100"
+                                    >
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5 text-center font-bold"
+                                        >
+                                            NATURE OF COLLECTION
+                                        </div>
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-1/5 text-center font-bold"
+                                        >
+                                            ACCOUNT CODE
+                                        </div>
+                                        <div
+                                            class="p-2 w-2/5 text-center font-bold"
+                                        >
+                                            AMOUNT
+                                        </div>
+                                    </div>
+
+                                    <!-- Fee Entries -->
+                                    <div
+                                        v-for="(
+                                            fee, index
+                                        ) in editableReceiptData.fees"
+                                        :key="index"
+                                        class="flex border-b border-gray-800"
+                                    >
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5"
+                                        >
+                                            {{ fee.natureOfCollection }}<br />
+                                            <small>{{ fee.course }}</small>
+                                        </div>
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-1/5 text-center"
+                                        >
+                                            {{ fee.accountCode }}
+                                        </div>
+                                        <div
+                                            class="p-2 w-2/5 text-right font-bold"
+                                        >
+                                            ₱ {{ formatAmount(fee.amount) }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Empty Rows (only show if there are less than 4 fees) -->
+                                    <div
+                                        v-for="i in Math.max(
+                                            0,
+                                            4 - editableReceiptData.fees.length
+                                        )"
+                                        :key="'empty-' + i"
+                                        class="flex border-b border-gray-800"
+                                    >
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5 h-6"
+                                        ></div>
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-1/5 h-6"
+                                        ></div>
+                                        <div class="p-2 w-2/5 h-6"></div>
+                                    </div>
+
+                                    <!-- Total -->
+                                    <div
+                                        class="flex border-b-2 border-gray-800 bg-gray-100 font-bold"
+                                    >
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-2/5 text-center"
+                                        >
+                                            TOTAL
+                                        </div>
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-1/5"
+                                        ></div>
+                                        <div class="p-2 w-2/5 text-right">
+                                            ₱
+                                            {{ formatAmount(getTotalAmount()) }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Amount in Words -->
+                                    <div class="border-b-2 border-gray-800 p-2">
+                                        <strong>AMOUNT IN WORDS</strong><br />
+                                        <strong>{{
+                                            convertNumberToWords(
+                                                getTotalAmount()
+                                            ).toUpperCase()
+                                        }}</strong>
+                                    </div>
+
+                                    <!-- Payment Method -->
+                                    <div class="flex border-b border-gray-800">
+                                        <div
+                                            class="border-r border-gray-800 p-2 w-1/3"
+                                        >
+                                            ☑ Cash<br />
+                                            ☐ Check<br />
+                                            ☐ Money Order
+                                        </div>
+                                        <div class="p-2 w-2/3">
+                                            <div
+                                                class="flex border-b border-gray-600 text-xs font-bold"
+                                            >
+                                                <div
+                                                    class="border-r border-gray-600 p-1 w-1/3"
+                                                >
+                                                    DRAWEE BANK
+                                                </div>
+                                                <div
+                                                    class="border-r border-gray-600 p-1 w-1/3"
+                                                >
+                                                    NUMBER
+                                                </div>
+                                                <div class="p-1 w-1/3">
+                                                    DATE
+                                                </div>
+                                            </div>
+                                            <div class="flex">
+                                                <div
+                                                    class="border-r border-gray-600 p-1 w-1/3 h-6"
+                                                ></div>
+                                                <div
+                                                    class="border-r border-gray-600 p-1 w-1/3 h-6"
+                                                ></div>
+                                                <div
+                                                    class="p-1 w-1/3 h-6"
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div class="border-b border-gray-800 p-2">
+                                        Received the amount stated above
+                                    </div>
+
+                                    <!-- Signature -->
+                                    <div class="p-4 text-center">
+                                        <div class="float-right mr-8">
+                                            <div
+                                                class="border-b border-gray-800 w-32 mb-1"
+                                            ></div>
+                                            <div class="text-xs">
+                                                Collecting Officer
+                                            </div>
+                                        </div>
+                                        <div class="clear-both"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div
+                        class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 mt-6"
+                    >
+                        <button
+                            @click="closeReceiptModal(false)"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            @click="saveReceipt"
+                            class="px-4 py-2 bg-green-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                            <svg
+                                class="w-4 h-4 mr-2 inline"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 13l4 4L19 7"
+                                ></path>
+                            </svg>
+                            Generate New Receipt
+                        </button>
                     </div>
                 </div>
             </div>

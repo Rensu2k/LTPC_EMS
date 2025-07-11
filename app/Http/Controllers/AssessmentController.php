@@ -28,12 +28,25 @@ class AssessmentController extends Controller
                     'title' => $assessment->title,
                     'description' => $assessment->description,
                     'type' => $assessment->type,
-                    'status' => $assessment->status,
-                    'score' => $assessment->score,
-                    'max_score' => $assessment->max_score,
+                                    'status' => $assessment->status,
+                'result' => $assessment->result,
+                'result_status' => $assessment->result_status,
+                'result_color' => $assessment->result_color,
+                'can_be_reassessed' => $assessment->canBeReassessed(),
+                    'is_reassessment' => $assessment->is_reassessment,
+                    'attempt_number' => $assessment->attempt_number,
+                    'original_assessment_id' => $assessment->original_assessment_id,
+                    'program_id' => $assessment->program_id,
                     'program_name' => $assessment->program->name ?? 'N/A',
                     'applicant_name' => $assessment->applicant_name,
                     'applicant_type' => $assessment->applicant_type,
+                    'trainee_id' => $assessment->trainee_id,
+                    'trainee' => $assessment->trainee ? [
+                        'id' => $assessment->trainee->id,
+                        'first_name' => $assessment->trainee->first_name,
+                        'last_name' => $assessment->trainee->last_name,
+                        'scholarship_package' => $assessment->trainee->scholarship_package,
+                    ] : null,
                     'trainer_name' => $assessment->trainer->full_name ?? 'N/A',
                     'assessment_date' => $assessment->assessment_date,
                     'assessment_fee' => $assessment->assessment_fee,
@@ -74,65 +87,96 @@ class AssessmentController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-        public function store(Request $request)
-    {        
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|in:practical,theoretical,both',
-            'program_id' => 'required|exists:programs,program_id',
-            'trainer_id' => 'required|exists:trainers,id',
-            'max_score' => 'required|integer|min:1',
-            'passing_score' => 'required|integer|min:1|lte:max_score',
-            'assessment_date' => 'required|date',
-            'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
-            'trainee_id' => 'nullable|exists:trainees,id|required_if:applicant_type,enrolled_trainee',
-            'external_applicant_name' => 'nullable|string|max:255|required_if:applicant_type,external_applicant',
-            'external_applicant_email' => 'nullable|email|required_if:applicant_type,external_applicant',
-            'external_applicant_phone' => 'nullable|string|max:20|required_if:applicant_type,external_applicant',
-            'assessment_fee' => 'required|numeric|min:0',
-            'payment_status' => 'required|in:pending,paid,refunded',
-            'payment_method' => 'nullable|string|required_if:payment_status,paid',
-            'payment_reference' => 'nullable|string|required_if:payment_status,paid',
-            'payment_notes' => 'nullable|string',
-        ]);
-
-        // Additional validation: If enrolled trainee, check if they are completed
-        if ($validated['applicant_type'] === 'enrolled_trainee' && $validated['trainee_id']) {
-            $trainee = Trainee::find($validated['trainee_id']);
-            if ($trainee && $trainee->status !== 'completed') {
-                return redirect()->back()->withErrors([
-                    'trainee_id' => 'Only completed trainees can take assessments.'
-                ]);
-            }
+    public function store(Request $request)
+    {
+        try {
+            Log::info('Assessment creation attempt', ['request_data' => $request->all()]);
             
-            // Check if trainee is a scholar and automatically exempt from fee
-            if ($trainee && !empty($trainee->scholarship_package)) {
-                $validated['assessment_fee'] = 0;
-                $validated['payment_status'] = 'paid';
-                $validated['payment_method'] = 'scholarship_exemption';
-                $validated['payment_notes'] = 'Payment exempted due to ' . $trainee->scholarship_package . ' scholarship package';
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'type' => 'required|in:practical',
+                'status' => 'required|in:pending,completed',
+                'result' => 'nullable|in:pass,fail,absent',
+                'program_id' => 'required|exists:programs,program_id',
+                'trainer_id' => 'required|exists:trainers,id',
+                'assessment_date' => 'required|date',
+                'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
+                'trainee_id' => 'nullable|exists:trainees,id|required_if:applicant_type,enrolled_trainee',
+                'external_applicant_name' => 'nullable|string|max:255|required_if:applicant_type,external_applicant',
+                'external_applicant_email' => 'nullable|email|required_if:applicant_type,external_applicant',
+                'external_applicant_phone' => 'nullable|string|max:20|required_if:applicant_type,external_applicant',
+                'assessment_fee' => 'required|numeric|min:0',
+                'payment_status' => 'required|in:pending,paid,refunded',
+                'payment_method' => 'nullable|string|required_if:payment_status,paid',
+                'payment_reference' => 'nullable|string|required_if:payment_status,paid',
+                'payment_notes' => 'nullable|string',
+                // Re-assessment fields
+                'original_assessment_id' => 'nullable|exists:assessments,id',
+                'is_reassessment' => 'nullable|boolean',
+            ]);
+
+            Log::info('Assessment validation passed', ['validated_data' => $validated]);
+
+            // Determine attempt number and re-assessment status
+            if ($validated['original_assessment_id']) {
+                $originalAssessment = Assessment::find($validated['original_assessment_id']);
+                $validated['is_reassessment'] = true;
+                $validated['attempt_number'] = $originalAssessment->attempt_number + 1;
+            } else {
+                $validated['is_reassessment'] = false;
+                $validated['attempt_number'] = 1;
             }
+
+            // Additional validation: If enrolled trainee, check if they are completed
+            if ($validated['applicant_type'] === 'enrolled_trainee' && $validated['trainee_id']) {
+                $trainee = Trainee::find($validated['trainee_id']);
+                if ($trainee && $trainee->status !== 'completed') {
+                    Log::warning('Trainee not completed', ['trainee_id' => $validated['trainee_id'], 'status' => $trainee->status]);
+                    return redirect()->back()->withErrors([
+                        'trainee_id' => 'Only completed trainees can take assessments.'
+                    ]);
+                }
+                
+                // Check if trainee is a scholar - only exempt first attempt
+                if ($trainee && !empty($trainee->scholarship_package) && !$validated['is_reassessment']) {
+                    $validated['assessment_fee'] = 0;
+                    $validated['payment_status'] = 'paid';
+                    $validated['payment_method'] = 'scholarship_exemption';
+                    $validated['payment_notes'] = 'Payment exempted due to ' . $trainee->scholarship_package . ' scholarship package (first attempt only)';
+                }
+            }
+
+            // Set payment date if payment is made
+            if ($validated['payment_status'] === 'paid') {
+                $validated['payment_date'] = now();
+            }
+
+            // Clean up null values that shouldn't be null for external applicant fields
+            if ($validated['applicant_type'] === 'external_applicant') {
+                // Keep external applicant fields
+            } else {
+                // Remove external applicant fields when not needed
+                unset($validated['external_applicant_name']);
+                unset($validated['external_applicant_email']);
+                unset($validated['external_applicant_phone']);
+            }
+
+            Log::info('Creating assessment with data', ['final_data' => $validated]);
+            $assessment = Assessment::create($validated);
+            Log::info('Assessment created successfully', ['assessment_id' => $assessment->id]);
+
+            return redirect()->back()->with('success', 'Assessment created successfully!');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Assessment validation failed', ['errors' => $e->errors()]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Assessment creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->withErrors([
+                'general' => 'Failed to create assessment. Please check your input and try again.'
+            ])->withInput();
         }
-
-        // Set payment date if payment is made
-        if ($validated['payment_status'] === 'paid') {
-            $validated['payment_date'] = now();
-        }
-
-        // Clean up null values that shouldn't be null for external applicant fields
-        if ($validated['applicant_type'] === 'external_applicant') {
-            // Keep external applicant fields
-        } else {
-            // Remove external applicant fields when not needed
-            unset($validated['external_applicant_name']);
-            unset($validated['external_applicant_email']);
-            unset($validated['external_applicant_phone']);
-        }
-
-        $assessment = Assessment::create($validated);
-
-        return redirect()->back()->with('success', 'Assessment created successfully!');
     }
 
     /**
@@ -177,14 +221,19 @@ class AssessmentController extends Controller
             ]);
         }
 
+        // Prevent setting result if payment is not completed
+        if ($request->has('result') && $request->result && $assessment->payment_status !== 'paid') {
+            return redirect()->back()->withErrors([
+                'result' => 'Assessment cannot be evaluated until payment is completed.'
+            ]);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'type' => 'required|in:practical,theoretical,both',
-            'status' => 'required|in:pending,completed,graded,pass,fail',
-            'score' => 'nullable|integer|min:0',
-            'max_score' => 'required|integer|min:1',
-            'passing_score' => 'required|integer|min:1|lte:max_score',
+            'type' => 'required|in:practical',
+            'status' => 'required|in:pending,completed',
+            'result' => 'nullable|in:pass,fail,absent',
             'program_id' => 'required|exists:programs,program_id',
             'trainer_id' => 'required|exists:trainers,id',
             'assessment_date' => 'required|date',
@@ -225,9 +274,11 @@ class AssessmentController extends Controller
             $validated['payment_date'] = null;
         }
 
-        // Auto-determine pass/fail status if score is provided
-        if (isset($validated['score']) && $validated['score'] !== null && isset($validated['passing_score'])) {
-            $validated['status'] = $validated['score'] >= $validated['passing_score'] ? 'pass' : 'fail';
+        // Auto-set status based on result
+        if (isset($validated['result']) && $validated['result'] !== null) {
+            $validated['status'] = 'completed';
+        } else {
+            $validated['status'] = 'pending';
         }
 
         $assessment->update($validated);
@@ -248,5 +299,62 @@ class AssessmentController extends Controller
         $assessment->delete();
 
         return redirect()->back()->with('success', 'Assessment deleted successfully!');
+    }
+
+    /**
+     * Create a re-assessment
+     */
+    public function reassessment(Request $request, Assessment $assessment)
+    {
+        // Verify that the original assessment can be re-assessed
+        if (!$assessment->canBeReassessed()) {
+            return redirect()->back()->withErrors([
+                'assessment' => 'This assessment cannot be re-assessed. Only assessments with "Not Yet Competent" or "Absent" results can be re-assessed.'
+            ]);
+        }
+
+        $validated = $request->validate([
+            'assessment_date' => 'required|date',
+            'trainer_id' => 'required|exists:trainers,id',
+            'assessment_fee' => 'required|numeric|min:0',
+            'payment_status' => 'required|in:pending,paid,refunded',
+            'payment_method' => 'nullable|string|required_if:payment_status,paid',
+            'payment_reference' => 'nullable|string|required_if:payment_status,paid',
+            'payment_notes' => 'nullable|string',
+        ]);
+
+        // Create re-assessment with same basic data as original
+        $reassessmentData = [
+            'title' => $assessment->title,
+            'description' => $assessment->description,
+            'type' => $assessment->type,
+            'status' => 'pending',
+            'program_id' => $assessment->program_id,
+            'applicant_type' => $assessment->applicant_type,
+            'trainee_id' => $assessment->trainee_id,
+            'external_applicant_name' => $assessment->external_applicant_name,
+            'external_applicant_email' => $assessment->external_applicant_email,
+            'external_applicant_phone' => $assessment->external_applicant_phone,
+            'original_assessment_id' => $assessment->id,
+            'is_reassessment' => true,
+            'attempt_number' => $assessment->attempt_number + 1,
+            // New data from request
+            'assessment_date' => $validated['assessment_date'],
+            'trainer_id' => $validated['trainer_id'],
+            'assessment_fee' => $validated['assessment_fee'],
+            'payment_status' => $validated['payment_status'],
+            'payment_method' => $validated['payment_method'] ?? null,
+            'payment_reference' => $validated['payment_reference'] ?? null,
+            'payment_notes' => $validated['payment_notes'] ?? 'Re-assessment - payment required',
+        ];
+
+        // Set payment date if payment is made
+        if ($validated['payment_status'] === 'paid') {
+            $reassessmentData['payment_date'] = now();
+        }
+
+        $reassessmentAssessment = Assessment::create($reassessmentData);
+
+        return redirect()->back()->with('success', 'Re-assessment scheduled successfully!');
     }
 }

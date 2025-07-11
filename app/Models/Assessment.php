@@ -11,9 +11,10 @@ class Assessment extends Model
         'description',
         'type',
         'status',
-        'score',
-        'max_score',
-        'passing_score',
+        'result',
+        'original_assessment_id',
+        'attempt_number',
+        'is_reassessment',
         'program_id',
         'trainee_id',
         'trainer_id',
@@ -33,10 +34,8 @@ class Assessment extends Model
     protected $casts = [
         'assessment_date' => 'date',
         'payment_date' => 'datetime',
-        'score' => 'integer',
-        'max_score' => 'integer',
-        'passing_score' => 'integer',
         'assessment_fee' => 'decimal:2',
+        'is_reassessment' => 'boolean',
     ];
 
     /**
@@ -64,41 +63,19 @@ class Assessment extends Model
     }
 
     /**
-     * Get the percentage score
+     * Get the original assessment that this is a re-assessment of
      */
-    public function getPercentageAttribute()
+    public function originalAssessment()
     {
-        if ($this->max_score > 0 && $this->score !== null) {
-            return round(($this->score / $this->max_score) * 100, 2);
-        }
-        return null;
+        return $this->belongsTo(Assessment::class, 'original_assessment_id');
     }
 
     /**
-     * Get the grade based on percentage
+     * Get all re-assessments of this assessment
      */
-    public function getGradeAttribute()
+    public function reassessments()
     {
-        $percentage = $this->percentage;
-        if ($percentage === null) return 'N/A';
-
-        if ($percentage >= 90) return 'A';
-        if ($percentage >= 80) return 'B';
-        if ($percentage >= 70) return 'C';
-        if ($percentage >= 60) return 'D';
-        return 'F';
-    }
-
-    /**
-     * Get the pass/fail status based on passing score
-     */
-    public function getPassFailStatusAttribute()
-    {
-        if ($this->score === null || $this->passing_score === null) {
-            return null;
-        }
-        
-        return $this->score >= $this->passing_score ? 'pass' : 'fail';
+        return $this->hasMany(Assessment::class, 'original_assessment_id');
     }
 
     /**
@@ -106,7 +83,7 @@ class Assessment extends Model
      */
     public function isPassed()
     {
-        return $this->pass_fail_status === 'pass';
+        return $this->result === 'pass';
     }
 
     /**
@@ -114,15 +91,31 @@ class Assessment extends Model
      */
     public function isFailed()
     {
-        return $this->pass_fail_status === 'fail';
+        return $this->result === 'fail';
     }
 
     /**
-     * Check if the assessment is graded (has pass/fail status)
+     * Check if the trainee was absent
+     */
+    public function isAbsent()
+    {
+        return $this->result === 'absent';
+    }
+
+    /**
+     * Check if the assessment can be re-assessed (failed or absent assessments can be re-assessed)
+     */
+    public function canBeReassessed()
+    {
+        return $this->result === 'fail' || $this->result === 'absent';
+    }
+
+    /**
+     * Check if the assessment is graded (completed status indicates graded)
      */
     public function isGraded()
     {
-        return in_array($this->status, ['pass', 'fail']);
+        return $this->status === 'completed';
     }
 
     /**
@@ -130,7 +123,69 @@ class Assessment extends Model
      */
     public function isEditable()
     {
-        return !$this->isGraded();
+        return !$this->isGraded() || $this->status === 'pending';
+    }
+
+    /**
+     * Get the result status for display
+     */
+    public function getResultStatusAttribute()
+    {
+        switch ($this->result) {
+            case 'pass':
+                return 'Pass';
+            case 'fail':
+                return 'Fail';
+            case 'absent':
+                return 'Absent';
+            default:
+                return 'Not Evaluated';
+        }
+    }
+
+    /**
+     * Get the result status color class
+     */
+    public function getResultColorAttribute()
+    {
+        switch ($this->result) {
+            case 'pass':
+                return 'bg-green-100 text-green-800';
+            case 'fail':
+                return 'bg-red-100 text-red-800';
+            case 'absent':
+                return 'bg-gray-100 text-gray-800';
+            default:
+                return 'bg-blue-100 text-blue-800';
+        }
+    }
+
+    /**
+     * Check if this is the first attempt for a trainee/applicant
+     */
+    public function isFirstAttempt()
+    {
+        return !$this->is_reassessment && $this->attempt_number === 1;
+    }
+
+    /**
+     * Check if scholar payment exemption should apply
+     * Only applies to first attempt for enrolled trainees with scholarships
+     */
+    public function shouldApplyScholarExemption()
+    {
+        // Only for enrolled trainees
+        if ($this->applicant_type !== 'enrolled_trainee' || !$this->trainee) {
+            return false;
+        }
+
+        // Only if trainee has scholarship
+        if (empty($this->trainee->scholarship_package)) {
+            return false;
+        }
+
+        // Only for first attempt
+        return $this->isFirstAttempt();
     }
 
     /**

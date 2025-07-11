@@ -836,11 +836,7 @@ const navigateToStats = (section) => {
                                 >
                                     Program
                                 </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
-                                >
-                                    Score
-                                </th>
+
                                 <th
                                     class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
                                 >
@@ -886,23 +882,7 @@ const navigateToStats = (section) => {
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     {{ assessment.program_name }}
                                 </td>
-                                <td class="px-6 py-4">
-                                    <div v-if="assessment.score !== null">
-                                        <div
-                                            class="text-sm font-semibold text-gray-900"
-                                        >
-                                            {{ assessment.score }}/{{
-                                                assessment.max_score
-                                            }}
-                                        </div>
-                                        <div class="text-xs text-gray-500">
-                                            {{ assessment.percentage }}%
-                                        </div>
-                                    </div>
-                                    <div v-else class="text-xs text-gray-400">
-                                        Not graded
-                                    </div>
-                                </td>
+
                                 <td class="px-6 py-4">
                                     <span
                                         :class="`${getAssessmentStatusBadgeClass(

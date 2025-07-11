@@ -5,6 +5,15 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 
 // Define props to receive data from backend
 const props = defineProps({
+    groupedReceipts: {
+        type: Array,
+        default: () => [],
+    },
+    cancelledReceipts: {
+        type: Array,
+        default: () => [],
+    },
+    // Keep old props for backward compatibility
     enrollmentReceipts: {
         type: Array,
         default: () => [],
@@ -16,40 +25,80 @@ const props = defineProps({
 });
 
 // Convert props to reactive refs for template usage
-const enrollmentReceipts = ref(props.enrollmentReceipts);
-const assessmentReceipts = ref(props.assessmentReceipts);
+const groupedReceipts = ref(props.groupedReceipts);
+const cancelledReceipts = ref(props.cancelledReceipts);
 
-// Active tab state - now separates by receipt type
-const activeTab = ref("enrollments");
+// Active tab state
+const activeTab = ref("generated");
 
 const searchQuery = ref("");
 
-// Get current receipt data based on active tab
-const currentReceipts = computed(() => {
-    if (activeTab.value === "enrollments") {
-        return enrollmentReceipts.value;
-    } else if (activeTab.value === "assessments") {
-        return assessmentReceipts.value;
+// Track which trainee sections are expanded
+const expandedTrainees = ref(new Set());
+
+// Toggle trainee section expansion
+const toggleTraineeExpansion = (traineeId) => {
+    if (expandedTrainees.value.has(traineeId)) {
+        expandedTrainees.value.delete(traineeId);
+    } else {
+        expandedTrainees.value.add(traineeId);
     }
-    return [];
-});
+};
+
+// Check if trainee section is expanded
+const isTraineeExpanded = (traineeId) => {
+    return expandedTrainees.value.has(traineeId);
+};
+
+// Tab switching function
+const setActiveTab = (tab) => {
+    activeTab.value = tab;
+};
 
 // Computed filtered receipts based on search
-const filteredReceipts = computed(() => {
-    let filtered = currentReceipts.value;
-
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(
-            (receipt) =>
-                receipt.id.toLowerCase().includes(query) ||
-                receipt.trainee.name.toLowerCase().includes(query) ||
-                receipt.course.toLowerCase().includes(query) ||
-                receipt.trainee.id.toLowerCase().includes(query)
-        );
+const filteredGroupedReceipts = computed(() => {
+    if (!searchQuery.value) {
+        return groupedReceipts.value;
     }
 
-    return filtered;
+    const query = searchQuery.value.toLowerCase();
+    return groupedReceipts.value.filter((group) => {
+        // Search in trainee info
+        const traineeMatch =
+            group.trainee_name.toLowerCase().includes(query) ||
+            group.trainee_id_number.toLowerCase().includes(query) ||
+            (group.trainee_uli_number &&
+                group.trainee_uli_number.toLowerCase().includes(query));
+
+        // Search in receipts
+        const receiptMatch = group.receipts.some(
+            (receipt) =>
+                receipt.id.toLowerCase().includes(query) ||
+                receipt.course.toLowerCase().includes(query) ||
+                receipt.type.toLowerCase().includes(query)
+        );
+
+        return traineeMatch || receiptMatch;
+    });
+});
+
+// Computed filtered cancelled receipts based on search
+const filteredCancelledReceipts = computed(() => {
+    if (!searchQuery.value) {
+        return cancelledReceipts.value;
+    }
+
+    const query = searchQuery.value.toLowerCase();
+    return cancelledReceipts.value.filter((receipt) => {
+        return (
+            receipt.id.toLowerCase().includes(query) ||
+            receipt.trainee.name.toLowerCase().includes(query) ||
+            receipt.trainee.id.toLowerCase().includes(query) ||
+            receipt.course.toLowerCase().includes(query) ||
+            (receipt.cancellation_reason &&
+                receipt.cancellation_reason.toLowerCase().includes(query))
+        );
+    });
 });
 
 const formatCurrency = (amount) => {
@@ -81,17 +130,9 @@ const isPrinting = ref({});
 const showSuccessMessage = ref(false);
 const successMessage = ref("");
 
-const setActiveTab = (tab) => {
-    activeTab.value = tab;
-};
-
-const viewReceipt = (receiptId) => {
-    // Find the receipt in the current receipts
-    const receipt = currentReceipts.value.find((r) => r.id === receiptId);
-    if (receipt) {
-        selectedReceipt.value = receipt;
-        showReceiptModal.value = true;
-    }
+const viewReceipt = (receipt) => {
+    selectedReceipt.value = receipt;
+    showReceiptModal.value = true;
 };
 
 const closeReceiptModal = () => {
@@ -99,12 +140,11 @@ const closeReceiptModal = () => {
     selectedReceipt.value = null;
 };
 
-const downloadReceipt = (receiptId) => {
-    const receipt = currentReceipts.value.find((r) => r.id === receiptId);
+const downloadReceipt = (receipt) => {
     if (!receipt) return;
 
     // Set loading state
-    isDownloading.value[receiptId] = true;
+    isDownloading.value[receipt.id] = true;
 
     try {
         // Create receipt content
@@ -115,7 +155,7 @@ const downloadReceipt = (receiptId) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `Receipt_${receiptId}.txt`;
+        link.download = `Receipt_${receipt.id}.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -129,17 +169,16 @@ const downloadReceipt = (receiptId) => {
     } finally {
         // Clear loading state
         setTimeout(() => {
-            isDownloading.value[receiptId] = false;
+            isDownloading.value[receipt.id] = false;
         }, 500);
     }
 };
 
-const printReceipt = (receiptId) => {
-    const receipt = currentReceipts.value.find((r) => r.id === receiptId);
+const printReceipt = (receipt) => {
     if (!receipt) return;
 
     // Set loading state
-    isPrinting.value[receiptId] = true;
+    isPrinting.value[receipt.id] = true;
 
     try {
         // Create a new window for printing
@@ -158,7 +197,7 @@ const printReceipt = (receiptId) => {
     } finally {
         // Clear loading state
         setTimeout(() => {
-            isPrinting.value[receiptId] = false;
+            isPrinting.value[receipt.id] = false;
         }, 500);
     }
 };
@@ -213,7 +252,9 @@ const convertNumberToWords = (amount) => {
         "Ninety",
     ];
 
-    const convertGroup = (num) => {
+    if (numAmount === 0) return "Zero Pesos";
+
+    const convertHundreds = (num) => {
         let result = "";
 
         if (num >= 100) {
@@ -236,83 +277,115 @@ const convertNumberToWords = (amount) => {
         return result;
     };
 
-    if (numAmount === 0) return "Zero Pesos Only";
+    const convertThousands = (num) => {
+        if (num >= 1000000) {
+            return (
+                convertHundreds(Math.floor(num / 1000000)) +
+                "Million " +
+                convertThousands(num % 1000000)
+            );
+        } else if (num >= 1000) {
+            return (
+                convertHundreds(Math.floor(num / 1000)) +
+                "Thousand " +
+                convertHundreds(num % 1000)
+            );
+        } else {
+            return convertHundreds(num);
+        }
+    };
 
-    let pesos = Math.floor(numAmount);
+    const pesos = Math.floor(numAmount);
     const centavos = Math.round((numAmount - pesos) * 100);
 
-    let words = "";
-
-    if (pesos >= 1000000) {
-        words += convertGroup(Math.floor(pesos / 1000000)) + "Million ";
-        pesos %= 1000000;
-    }
-
-    if (pesos >= 1000) {
-        words += convertGroup(Math.floor(pesos / 1000)) + "Thousand ";
-        pesos %= 1000;
-    }
-
-    if (pesos > 0) {
-        words += convertGroup(pesos);
-    }
-
-    words += pesos === 1 ? "Peso" : "Pesos";
+    let result = convertThousands(pesos).trim() + " Pesos";
 
     if (centavos > 0) {
-        words +=
-            " and " +
-            convertGroup(centavos) +
-            (centavos === 1 ? "Centavo" : "Centavos");
+        result += " and " + convertHundreds(centavos).trim() + " Centavos";
     }
 
-    return words.trim() + " Only";
+    return result + " Only";
 };
 
 const generateReceiptContent = (receipt) => {
     const amountInWords = convertNumberToWords(receipt.amount);
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString("en-PH");
+
+    // Get all fees from the receipt (both original and custom fees)
+    const allFees = [];
+
+    // Add original fees if they exist
+    if (receipt.original_fees && Array.isArray(receipt.original_fees)) {
+        allFees.push(...receipt.original_fees);
+    }
+
+    // Add custom fees if they exist
+    if (receipt.fees && Array.isArray(receipt.fees)) {
+        allFees.push(...receipt.fees);
+    }
+
+    // If no custom fees structure exists, create a basic fee from receipt data
+    if (allFees.length === 0) {
+        allFees.push({
+            natureOfCollection:
+                receipt.type === "enrollment"
+                    ? "Enrollment Fee"
+                    : receipt.type === "assessment"
+                    ? "Assessment Fee"
+                    : "Registration Fee",
+            course: receipt.course,
+            accountCode: "EDU-001",
+            amount: receipt.amount,
+        });
+    }
+
+    // Generate fee rows
+    let feeRows = "";
+    allFees.forEach((fee) => {
+        const natureText = (fee.natureOfCollection || "Fee")
+            .substring(0, 23)
+            .padEnd(23);
+        const courseText = (fee.course || "").substring(0, 23).padEnd(23);
+        const amountText = formatCurrency(safeNumber(fee.amount)).padStart(23);
+        const accountCode = (fee.accountCode || "EDU-001").padEnd(14);
+
+        feeRows += `│ ${natureText} │ ${accountCode} │ ${amountText} │\n`;
+        if (fee.course) {
+            feeRows += `│ ${courseText} │                │                         │\n`;
+        }
+        feeRows += `├─────────────────────────┼────────────────┼─────────────────────────┤\n`;
+    });
+
+    // Add empty rows to fill up to 4 total rows
+    const emptyRowsNeeded = Math.max(0, 3 - allFees.length);
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+        feeRows += `│                         │                │                         │\n`;
+        feeRows += `├─────────────────────────┼────────────────┼─────────────────────────┤\n`;
+    }
 
     return `
-┌─────────────────────────────────────────────────────────────────────┐
-│                        OFFICIAL RECEIPT                             │
-│                    Republic of the Philippines                      │
-│                        CITY OF SURIGAO                              │
-│                       LTPC TRAINING CENTER                          │
-│                      Office of the Cashier                          │
-└─────────────────────────────────────────────────────────────────────┘
+LUZON TECHNOLOGICAL AND PROFESSIONAL CENTER, INC.
+Brgy. Tanza, Surigao City
+BIR Permit No. 12-074-134652-000-2013
+Valid Until: 12/31/2024
+ACC. No.: 7001-013-134652-000001-2013
+PTR: 0125364-01-07-2024
 
-┌──────────────────────────┬─────────────────────────────────────────┐
-│ Accountable Form No. 51  │              ORIGINAL                   │
-│ (Revised June 2008)      │              ${receipt.id.padStart(
-        7,
-        "0"
-    )}              │
-├──────────────────────────┼─────────────────────────────────────────┤
-│ DATE                     │ ${receipt.dateGenerated}                │
-├──────────────────────────┴──────────────┬──────────────────────────┤
-│ PAYOR                                    │ FUND                     │
-│ ${receipt.trainee.name.padEnd(36)}  │                          │
-│ ID: ${receipt.trainee.id.padEnd(31)}  │                          │
-├─────────────────────────┬────────────────┬─────────────────────────┤
+                    OFFICIAL RECEIPT
+                      No. ${receipt.id}
+
+Date: ${formattedDate}
+Received from: ${receipt.trainee.name}
+ULI No: ${receipt.trainee.uli_number || "N/A"}
+Trainee ID: ${receipt.trainee.id}
+
+The sum of: ${formatCurrency(safeNumber(receipt.amount))}
+
+┌─────────────────────────┬────────────────┬─────────────────────────┐
 │ NATURE OF COLLECTION    │ ACCOUNT CODE   │ AMOUNT                  │
 ├─────────────────────────┼────────────────┼─────────────────────────┤
-│ ${(receipt.type === "enrollment"
-        ? "Enrollment Fee"
-        : "Assessment Fee"
-    ).padEnd(23)} │ EDU-001        │ ${formatCurrency(
-        safeNumber(receipt.amount)
-    ).padStart(23)} │
-│ ${receipt.course
-        .substring(0, 23)
-        .padEnd(23)} │                │                         │
-├─────────────────────────┼────────────────┼─────────────────────────┤
-│                         │                │                         │
-├─────────────────────────┼────────────────┼─────────────────────────┤
-│                         │                │                         │
-├─────────────────────────┼────────────────┼─────────────────────────┤
-│                         │                │                         │
-├─────────────────────────┼────────────────┼─────────────────────────┤
-│ TOTAL                   │                │ ${formatCurrency(
+${feeRows}│ TOTAL                   │                │ ${formatCurrency(
         safeNumber(receipt.amount)
     ).padStart(23)} │
 ├─────────────────────────┴────────────────┴─────────────────────────┤
@@ -342,6 +415,67 @@ const generateReceiptHTML = (receipt) => {
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString("en-PH");
 
+    // Get all fees from the receipt (both original and custom fees)
+    const allFees = [];
+
+    // Add original fees if they exist
+    if (receipt.original_fees && Array.isArray(receipt.original_fees)) {
+        allFees.push(...receipt.original_fees);
+    }
+
+    // Add custom fees if they exist
+    if (receipt.fees && Array.isArray(receipt.fees)) {
+        allFees.push(...receipt.fees);
+    }
+
+    // If no custom fees structure exists, create a basic fee from receipt data
+    if (allFees.length === 0) {
+        allFees.push({
+            natureOfCollection:
+                receipt.type === "enrollment"
+                    ? "Enrollment Fee"
+                    : receipt.type === "assessment"
+                    ? "Assessment Fee"
+                    : "Registration Fee",
+            course: receipt.course,
+            accountCode: "EDU-001",
+            amount: receipt.amount,
+        });
+    }
+
+    // Generate fee rows HTML
+    let feeRowsHTML = "";
+    allFees.forEach((fee) => {
+        feeRowsHTML += `
+        <div class="table-row">
+            <div class="col-nature">${fee.natureOfCollection || "Fee"}</div>
+            <div class="col-account">${fee.accountCode || "EDU-001"}</div>
+            <div class="col-amount">${formatCurrency(
+                safeNumber(fee.amount)
+            )}</div>
+        </div>`;
+
+        if (fee.course) {
+            feeRowsHTML += `
+        <div class="table-row">
+            <div class="col-nature">${fee.course}</div>
+            <div class="col-account"></div>
+            <div class="col-amount"></div>
+        </div>`;
+        }
+    });
+
+    // Add empty rows to fill up to 4 total rows
+    const emptyRowsNeeded = Math.max(0, 4 - allFees.length * 2);
+    for (let i = 0; i < emptyRowsNeeded; i++) {
+        feeRowsHTML += `
+        <div class="table-row">
+            <div class="col-nature"></div>
+            <div class="col-account"></div>
+            <div class="col-amount"></div>
+        </div>`;
+    }
+
     return `
 <!DOCTYPE html>
 <html>
@@ -360,36 +494,36 @@ const generateReceiptHTML = (receipt) => {
             border: 2px solid #000;
             background: white;
         }
-                 .header-section { 
-             text-align: center; 
-             border-bottom: 2px solid #000; 
-             padding: 20px;
-             background: #f8f9fa;
-         }
-         .header-logos {
-             display: flex;
-             justify-content: space-between;
-             align-items: center;
-             margin-bottom: 15px;
-         }
-                 .logo-placeholder {
-             width: 120px;
-             height: 120px;
-             border: 2px solid #000;
-             display: flex;
-             align-items: center;
-             justify-content: center;
-             font-size: 12px;
-             background-size: contain;
-             background-repeat: no-repeat;
-             background-position: center;
-         }
-         .phil-logo {
-             background-image: url('/images/Philippine_logo.png');
-         }
-         .surigao-logo {
-             background-image: url('/images/Surigao_logo.jpg');
-         }
+        .header-section { 
+            text-align: center; 
+            border-bottom: 2px solid #000; 
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .header-logos {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .logo-placeholder {
+            width: 120px;
+            height: 120px;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .phil-logo {
+            background-image: url('/images/Philippine_logo.png');
+        }
+        .surigao-logo {
+            background-image: url('/images/Surigao_logo.jpg');
+        }
         .form-info {
             display: flex;
             border-bottom: 1px solid #000;
@@ -501,165 +635,120 @@ const generateReceiptHTML = (receipt) => {
 </head>
 <body>
     <div class="receipt-container">
-                 <!-- Header -->
-         <div class="header-section">
-             <div class="header-logos">
-                 <div class="logo-placeholder phil-logo"></div>
-                 <div style="text-align: center; flex: 1;">
-                     <h2 style="margin: 0; font-size: 20px; font-weight: bold;">OFFICIAL RECEIPT</h2>
-                     <p style="margin: 5px 0; font-size: 14px;">Republic of the Philippines</p>
-                     <h3 style="margin: 0; font-size: 16px; font-weight: bold;">CITY OF SURIGAO</h3>
-                     <h4 style="margin: 0; font-size: 14px; font-weight: bold;">LTPC TRAINING CENTER</h4>
-                     <p style="margin: 5px 0; font-size: 12px;">Office of the Cashier</p>
-                 </div>
-                 <div class="logo-placeholder surigao-logo"></div>
-             </div>
-         </div>
+        <div class="header-section">
+            <div class="header-logos">
+                <div class="logo-placeholder phil-logo"></div>
+                <div style="text-align: center; flex: 1; margin: 0 20px;">
+                    <h2 style="margin: 0; font-size: 16px; font-weight: bold;">
+                        LUZON TECHNOLOGICAL AND PROFESSIONAL CENTER, INC.
+                    </h2>
+                    <p style="margin: 5px 0; font-size: 12px;">Brgy. Tanza, Surigao City</p>
+                    <p style="margin: 2px 0; font-size: 10px;">BIR Permit No. 12-074-134652-000-2013</p>
+                    <p style="margin: 2px 0; font-size: 10px;">Valid Until: 12/31/2024</p>
+                    <p style="margin: 2px 0; font-size: 10px;">ACC. No.: 7001-013-134652-000001-2013</p>
+                    <p style="margin: 2px 0; font-size: 10px;">PTR: 0125364-01-07-2024</p>
+                </div>
+                <div class="logo-placeholder surigao-logo"></div>
+            </div>
+        </div>
         
-        <!-- Form Info -->
         <div class="form-info">
             <div class="form-left">
-                <strong>Accountable Form No. 51</strong><br>
-                <small>(Revised June 2008)</small>
+                <strong>OFFICIAL RECEIPT</strong>
             </div>
             <div class="form-right">
-                <h3 style="margin: 0;">ORIGINAL</h3>
-                <h2 style="margin: 5px 0; color: red;">${receipt.id.padStart(
-                    7,
-                    "0"
-                )}</h2>
+                <strong>No. ${receipt.id}</strong>
             </div>
         </div>
-        
-        <!-- Date -->
+
         <div class="date-section">
-            <div class="date-left">DATE</div>
-            <div class="date-right">${receipt.dateGenerated}</div>
+            <div class="date-left">Date:</div>
+            <div class="date-right">${formattedDate}</div>
         </div>
-        
-        <!-- Payor -->
+
         <div class="payor-section">
             <div class="payor-left">
-                <strong>PAYOR</strong><br>
-                ${receipt.trainee.name}<br>
-                <small>ID: ${receipt.trainee.id}</small>
+                <strong>Received from:</strong> ${receipt.trainee.name}<br>
+                <strong>ULI No:</strong> ${
+                    receipt.trainee.uli_number || "N/A"
+                }<br>
+                <strong>Trainee ID:</strong> ${receipt.trainee.id}
             </div>
             <div class="payor-right">
-                <strong>FUND</strong>
+                <strong>Amount</strong><br>
+                ${formatCurrency(safeNumber(receipt.amount))}
             </div>
         </div>
-        
-        <!-- Table Header -->
+
         <div class="table-header">
             <div class="col-nature">NATURE OF COLLECTION</div>
             <div class="col-account">ACCOUNT CODE</div>
             <div class="col-amount">AMOUNT</div>
         </div>
-        
-        <!-- Main Entry -->
-        <div class="table-row">
-            <div class="col-nature">${
-                receipt.type === "enrollment"
-                    ? "Enrollment Fee"
-                    : "Assessment Fee"
-            }<br><small>${receipt.course}</small></div>
-            <div class="col-account">EDU-001</div>
-                         <div class="col-amount" style="text-align: right; font-weight: bold;">₱ ${formatAmount(
-                             receipt.amount
-                         )}</div>
-        </div>
-        
-        <!-- Empty Rows -->
-        <div class="table-row">
-            <div class="col-nature"></div>
-            <div class="col-account"></div>
-            <div class="col-amount"></div>
-        </div>
-        <div class="table-row">
-            <div class="col-nature"></div>
-            <div class="col-account"></div>
-            <div class="col-amount"></div>
-        </div>
-        <div class="table-row">
-            <div class="col-nature"></div>
-            <div class="col-account"></div>
-            <div class="col-amount"></div>
-        </div>
-        
-        <!-- Total -->
+
+        ${feeRowsHTML}
+
         <div class="total-row">
-            <div class="col-nature" style="text-align: center;">TOTAL</div>
+            <div class="col-nature">TOTAL</div>
             <div class="col-account"></div>
-                         <div class="col-amount" style="text-align: right;">₱ ${formatAmount(
-                             receipt.amount
-                         )}</div>
+            <div class="col-amount">${formatCurrency(
+                safeNumber(receipt.amount)
+            )}</div>
         </div>
-        
-        <!-- Amount in Words -->
+
         <div class="amount-words">
-            <strong>AMOUNT IN WORDS</strong><br>
-            <strong>${amountInWords.toUpperCase()}</strong>
+            <strong>AMOUNT IN WORDS:</strong><br>
+            ${amountInWords.toUpperCase()}
         </div>
-        
-                 <!-- Payment Method -->
-         <div class="payment-method">
-             <div class="method-left">
-                 <input type="checkbox" class="checkbox" checked> Cash<br>
-                 <input type="checkbox" class="checkbox"> Check<br>
-                 <input type="checkbox" class="checkbox"> Money Order
-             </div>
+
+        <div class="payment-method">
+            <div class="method-left">
+                <input type="checkbox" class="checkbox" checked> Cash<br>
+                <input type="checkbox" class="checkbox"> Check<br>
+                <input type="checkbox" class="checkbox"> Money Order
+            </div>
             <div class="method-right">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr style="border-bottom: 1px solid #000;">
-                        <td style="border-right: 1px solid #000; padding: 4px;"><strong>DRAWEE BANK</strong></td>
-                        <td style="border-right: 1px solid #000; padding: 4px;"><strong>NUMBER</strong></td>
-                        <td style="padding: 4px;"><strong>DATE</strong></td>
+                        <th style="border-right: 1px solid #000; padding: 4px; text-align: center;">DRAWEE BANK</th>
+                        <th style="border-right: 1px solid #000; padding: 4px; text-align: center;">NUMBER</th>
+                        <th style="padding: 4px; text-align: center;">DATE</th>
                     </tr>
                     <tr>
-                        <td style="border-right: 1px solid #000; padding: 8px; height: 20px;"></td>
-                        <td style="border-right: 1px solid #000; padding: 8px;"></td>
-                        <td style="padding: 8px;"></td>
+                        <td style="border-right: 1px solid #000; padding: 4px; height: 25px;"></td>
+                        <td style="border-right: 1px solid #000; padding: 4px;"></td>
+                        <td style="padding: 4px;"></td>
                     </tr>
                 </table>
             </div>
         </div>
-        
-        <!-- Footer -->
-        <div style="padding: 8px; border-bottom: 1px solid #000;">
-            Received the amount stated above
-        </div>
-        
-        <!-- Signature -->
+
         <div class="signature-section">
-            <div style="float: right; margin-right: 50px;">
-                <div style="border-bottom: 1px solid #000; width: 200px; margin-bottom: 5px;"></div>
-                <div style="text-align: center;"><small>Collecting Officer</small></div>
+            <p>Received the amount stated above</p>
+            <br><br>
+            <div style="text-align: right; margin-right: 50px;">
+                _________________________<br>
+                Collecting Officer
             </div>
-            <div style="clear: both;"></div>
         </div>
     </div>
 </body>
-</html>
-    `;
+</html>`;
 };
 
-// Function to add new receipt (called from payments page)
-const addReceipt = (receiptData) => {
-    // Determine which array to add to based on receipt type
-    if (receiptData.type === "enrollment") {
-        enrollmentReceipts.value.unshift(receiptData);
-    } else if (receiptData.type === "assessment") {
-        assessmentReceipts.value.unshift(receiptData);
-    }
-};
-
-// Expose the addReceipt function globally for use from other pages
-window.addReceiptToPage = addReceipt;
+// Expand all trainees by default for better UX
+onMounted(() => {
+    groupedReceipts.value.forEach((group) => {
+        expandedTrainees.value.add(group.trainee_id);
+    });
+});
 
 // Keyboard event handler
 const handleKeydown = (event) => {
-    if (event.key === "Escape" && showReceiptModal.value) {
-        closeReceiptModal();
+    if (event.key === "Escape") {
+        if (showReceiptModal.value) {
+            closeReceiptModal();
+        }
     }
 };
 
@@ -684,8 +773,7 @@ onUnmounted(() => {
                         Receipt Management
                     </h1>
                     <p class="text-gray-600">
-                        View and manage official receipts generated from
-                        payments.
+                        View and manage generated and cancelled receipts.
                     </p>
                 </div>
             </div>
@@ -694,11 +782,11 @@ onUnmounted(() => {
             <div class="mb-6 animate-fade-in">
                 <nav class="flex space-x-8">
                     <button
-                        @click="setActiveTab('enrollments')"
+                        @click="setActiveTab('generated')"
                         :class="[
                             'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'enrollments'
-                                ? 'border-blue-500 text-blue-600'
+                            activeTab === 'generated'
+                                ? 'border-green-500 text-green-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                         ]"
                     >
@@ -712,17 +800,17 @@ onUnmounted(() => {
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 stroke-width="2"
-                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             ></path>
                         </svg>
-                        Enrollment Receipts ({{ enrollmentReceipts.length }})
+                        Generated Receipts ({{ groupedReceipts.length }})
                     </button>
                     <button
-                        @click="setActiveTab('assessments')"
+                        @click="setActiveTab('cancelled')"
                         :class="[
                             'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'assessments'
-                                ? 'border-purple-500 text-purple-600'
+                            activeTab === 'cancelled'
+                                ? 'border-red-500 text-red-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
                         ]"
                     >
@@ -736,28 +824,35 @@ onUnmounted(() => {
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 stroke-width="2"
-                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                d="M6 18L18 6M6 6l12 12"
                             ></path>
                         </svg>
-                        Assessment Receipts ({{ assessmentReceipts.length }})
+                        Cancelled Receipts ({{ cancelledReceipts.length }})
                     </button>
                 </nav>
             </div>
 
-            <!-- Receipts Table -->
+            <!-- Success Message -->
             <div
-                class="bg-white rounded-xl shadow-sm border border-gray-100 animate-fade-in"
+                v-if="showSuccessMessage"
+                class="mb-6 p-4 bg-green-100 border border-green-300 text-green-700 rounded-lg animate-fade-in"
             >
-                <!-- Section Header -->
+                {{ successMessage }}
+            </div>
+
+            <!-- Search and Summary for Generated Receipts -->
+            <div
+                v-if="activeTab === 'generated'"
+                class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 animate-fade-in"
+            >
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900">
-                            <span
-                                v-if="activeTab === 'enrollments'"
-                                class="flex items-center"
+                        <div class="flex items-center space-x-6">
+                            <h2
+                                class="text-lg font-semibold text-gray-900 flex items-center"
                             >
                                 <svg
-                                    class="w-5 h-5 mr-2 text-blue-600"
+                                    class="w-5 h-5 mr-2 text-green-600"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"
@@ -766,31 +861,48 @@ onUnmounted(() => {
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
                                         stroke-width="2"
-                                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                     ></path>
                                 </svg>
-                                Enrollment Receipt History
-                            </span>
-                            <span
-                                v-else-if="activeTab === 'assessments'"
-                                class="flex items-center"
+                                Generated Receipts by Trainee
+                            </h2>
+                            <div
+                                class="flex items-center space-x-4 text-sm text-gray-600"
                             >
-                                <svg
-                                    class="w-5 h-5 mr-2 text-purple-600"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                                <span
+                                    class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
                                 >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                                    ></path>
-                                </svg>
-                                Assessment Receipt History
-                            </span>
-                        </h2>
+                                    {{ filteredGroupedReceipts.length }}
+                                    Trainees
+                                </span>
+                                <span
+                                    class="px-3 py-1 bg-green-100 text-green-800 rounded-full"
+                                >
+                                    {{
+                                        filteredGroupedReceipts.reduce(
+                                            (sum, group) =>
+                                                sum + group.total_receipts,
+                                            0
+                                        )
+                                    }}
+                                    Total Receipts
+                                </span>
+                                <span
+                                    class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            filteredGroupedReceipts.reduce(
+                                                (sum, group) =>
+                                                    sum + group.total_amount,
+                                                0
+                                            )
+                                        )
+                                    }}
+                                    Total Amount
+                                </span>
+                            </div>
+                        </div>
                         <div class="flex items-center space-x-3">
                             <!-- Search -->
                             <div class="relative">
@@ -814,136 +926,273 @@ onUnmounted(() => {
                                 <input
                                     v-model="searchQuery"
                                     type="text"
-                                    placeholder="Search receipts..."
+                                    placeholder="Search trainees or receipts..."
                                     class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Table -->
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Receipt No.
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Trainee
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Course
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Amount
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Date Generated
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Time
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Status
-                                </th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr
-                                v-for="receipt in filteredReceipts"
-                                :key="receipt.id"
-                                class="hover:bg-gray-50"
+            <!-- Search and Summary for Cancelled Receipts -->
+            <div
+                v-if="activeTab === 'cancelled'"
+                class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 animate-fade-in"
+            >
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-6">
+                            <h2
+                                class="text-lg font-semibold text-gray-900 flex items-center"
                             >
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600"
+                                <svg
+                                    class="w-5 h-5 mr-2 text-red-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    {{ receipt.id }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-10 w-10">
-                                            <div
-                                                class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center"
-                                            >
-                                                <span
-                                                    class="text-sm font-medium text-gray-700"
-                                                >
-                                                    {{
-                                                        receipt.trainee.name
-                                                            .split(" ")
-                                                            .map((n) => n[0])
-                                                            .join("")
-                                                    }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div
-                                                class="text-sm font-medium text-gray-900"
-                                            >
-                                                {{ receipt.trainee.name }}
-                                            </div>
-                                            <div class="text-sm text-gray-500">
-                                                {{ receipt.trainee.id }}
-                                            </div>
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    ></path>
+                                </svg>
+                                Cancelled Receipts (Audit Trail)
+                            </h2>
+                            <div
+                                class="flex items-center space-x-4 text-sm text-gray-600"
+                            >
+                                <span
+                                    class="px-3 py-1 bg-red-100 text-red-800 rounded-full"
+                                >
+                                    {{ filteredCancelledReceipts.length }}
+                                    Cancelled
+                                </span>
+                                <span
+                                    class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full"
+                                >
+                                    {{
+                                        formatCurrency(
+                                            filteredCancelledReceipts.reduce(
+                                                (sum, receipt) =>
+                                                    sum + receipt.amount,
+                                                0
+                                            )
+                                        )
+                                    }}
+                                    Total Amount
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <!-- Search -->
+                            <div class="relative">
+                                <div
+                                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                                >
+                                    <svg
+                                        class="h-5 w-5 text-gray-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Search cancelled receipts..."
+                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generated Receipts - Trainee Groups -->
+            <div v-if="activeTab === 'generated'" class="space-y-4">
+                <div
+                    v-for="group in filteredGroupedReceipts"
+                    :key="group.trainee_id"
+                    class="bg-white rounded-xl shadow-sm border border-gray-100 animate-fade-in"
+                >
+                    <!-- Trainee Header -->
+                    <div
+                        @click="toggleTraineeExpansion(group.trainee_id)"
+                        class="px-6 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0 h-12 w-12">
+                                    <div
+                                        class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center"
+                                    >
+                                        <span
+                                            class="text-lg font-bold text-white"
+                                        >
+                                            {{
+                                                group.trainee_name
+                                                    .split(" ")
+                                                    .map((n) => n[0])
+                                                    .join("")
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3
+                                        class="text-lg font-semibold text-gray-900"
+                                    >
+                                        {{ group.trainee_name }}
+                                    </h3>
+                                    <div
+                                        class="flex items-center space-x-4 text-sm text-gray-600"
+                                    >
+                                        <span>{{
+                                            group.trainee_id_number
+                                        }}</span>
+                                        <span v-if="group.trainee_uli_number"
+                                            >ULI:
+                                            {{ group.trainee_uli_number }}</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-6">
+                                <div class="text-right">
+                                    <div class="text-sm text-gray-500">
+                                        {{ group.total_receipts }} Receipt{{
+                                            group.total_receipts !== 1
+                                                ? "s"
+                                                : ""
+                                        }}
+                                    </div>
+                                    <div
+                                        class="text-lg font-semibold text-gray-900"
+                                    >
+                                        {{ formatCurrency(group.total_amount) }}
+                                    </div>
+                                </div>
+                                <svg
+                                    class="w-5 h-5 text-gray-400 transition-transform duration-200"
+                                    :class="{
+                                        'rotate-180': isTraineeExpanded(
+                                            group.trainee_id
+                                        ),
+                                    }"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 9l-7 7-7-7"
+                                    ></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Receipts List (Expandable) -->
+                    <div
+                        v-if="isTraineeExpanded(group.trainee_id)"
+                        class="divide-y divide-gray-100"
+                    >
+                        <div
+                            v-for="receipt in group.receipts"
+                            :key="receipt.id"
+                            class="px-6 py-4 hover:bg-gray-50 transition-colors duration-200"
+                        >
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex-shrink-0">
+                                        <div
+                                            class="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-medium"
+                                            :class="{
+                                                'bg-blue-500':
+                                                    receipt.type ===
+                                                    'enrollment',
+                                                'bg-purple-500':
+                                                    receipt.type ===
+                                                    'assessment',
+                                                'bg-orange-500':
+                                                    receipt.type ===
+                                                    'registration',
+                                            }"
+                                        >
+                                            {{
+                                                receipt.type === "enrollment"
+                                                    ? "EN"
+                                                    : receipt.type ===
+                                                      "assessment"
+                                                    ? "AS"
+                                                    : "REG"
+                                            }}
                                         </div>
                                     </div>
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    {{ receipt.course }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                                >
-                                    {{ formatCurrency(receipt.amount) }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    {{ receipt.dateGenerated }}
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    {{ receipt.timeGenerated }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span
-                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                                    >
-                                        Generated
-                                    </span>
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm font-medium"
-                                >
-                                    <div class="flex items-center space-x-1">
+                                    <div>
+                                        <div
+                                            class="text-sm font-medium text-gray-900"
+                                        >
+                                            {{ receipt.id }}
+                                        </div>
+                                        <div class="text-sm text-gray-600">
+                                            {{ receipt.course }}
+                                        </div>
+                                        <div
+                                            class="flex items-center space-x-4 text-xs text-gray-500 mt-1"
+                                        >
+                                            <span class="capitalize">{{
+                                                receipt.type
+                                            }}</span>
+                                            <span>{{
+                                                receipt.dateGenerated
+                                            }}</span>
+                                            <span>{{
+                                                receipt.timeGenerated
+                                            }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-4">
+                                    <div class="text-right">
+                                        <div
+                                            class="text-lg font-semibold text-gray-900"
+                                        >
+                                            {{ formatCurrency(receipt.amount) }}
+                                        </div>
+                                        <div
+                                            class="text-xs px-2 py-1 rounded-full"
+                                            :class="{
+                                                'bg-green-100 text-green-800':
+                                                    receipt.status ===
+                                                    'generated',
+                                                'bg-blue-100 text-blue-800':
+                                                    receipt.isCustom,
+                                            }"
+                                        >
+                                            {{
+                                                receipt.isCustom
+                                                    ? "Custom"
+                                                    : receipt.status
+                                            }}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
                                         <button
-                                            @click="viewReceipt(receipt.id)"
-                                            class="inline-flex items-center justify-center w-8 h-8 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-full transition-colors"
+                                            @click="viewReceipt(receipt)"
+                                            class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                                             title="View Receipt"
                                         >
                                             <svg
@@ -967,17 +1216,29 @@ onUnmounted(() => {
                                             </svg>
                                         </button>
                                         <button
-                                            @click="downloadReceipt(receipt.id)"
+                                            @click="downloadReceipt(receipt)"
                                             :disabled="
                                                 isDownloading[receipt.id]
                                             "
-                                            class="inline-flex items-center justify-center w-8 h-8 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                                             title="Download Receipt"
                                         >
                                             <svg
-                                                v-if="
-                                                    !isDownloading[receipt.id]
-                                                "
+                                                v-if="isDownloading[receipt.id]"
+                                                class="w-4 h-4 animate-spin"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                ></path>
+                                            </svg>
+                                            <svg
+                                                v-else
                                                 class="w-4 h-4"
                                                 fill="none"
                                                 stroke="currentColor"
@@ -990,35 +1251,29 @@ onUnmounted(() => {
                                                     d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                                 ></path>
                                             </svg>
-                                            <svg
-                                                v-else
-                                                class="w-4 h-4 animate-spin"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <circle
-                                                    class="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    stroke-width="4"
-                                                ></circle>
-                                                <path
-                                                    class="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                ></path>
-                                            </svg>
                                         </button>
                                         <button
-                                            @click="printReceipt(receipt.id)"
+                                            @click="printReceipt(receipt)"
                                             :disabled="isPrinting[receipt.id]"
-                                            class="inline-flex items-center justify-center w-8 h-8 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 disabled:opacity-50"
                                             title="Print Receipt"
                                         >
                                             <svg
-                                                v-if="!isPrinting[receipt.id]"
+                                                v-if="isPrinting[receipt.id]"
+                                                class="w-4 h-4 animate-spin"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                ></path>
+                                            </svg>
+                                            <svg
+                                                v-else
                                                 class="w-4 h-4"
                                                 fill="none"
                                                 stroke="currentColor"
@@ -1031,407 +1286,248 @@ onUnmounted(() => {
                                                     d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
                                                 ></path>
                                             </svg>
-                                            <svg
-                                                v-else
-                                                class="w-4 h-4 animate-spin"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <circle
-                                                    class="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    stroke-width="4"
-                                                ></circle>
-                                                <path
-                                                    class="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                ></path>
-                                            </svg>
                                         </button>
                                     </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Empty State -->
-                <div
-                    v-if="filteredReceipts.length === 0"
-                    class="text-center py-12"
-                >
-                    <svg
-                        class="mx-auto h-12 w-12 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        ></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">
-                        No receipts found
-                    </h3>
-                    <p class="mt-1 text-sm text-gray-500">
-                        {{
-                            searchQuery
-                                ? "Try adjusting your search terms."
-                                : "Receipts will appear here when generated from payments."
-                        }}
-                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Receipt View Modal -->
+            <!-- Empty State for Generated Receipts -->
             <div
-                v-if="showReceiptModal"
-                class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-                @click="closeReceiptModal"
+                v-if="
+                    activeTab === 'generated' &&
+                    filteredGroupedReceipts.length === 0
+                "
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center animate-fade-in"
             >
-                <div
-                    class="relative top-4 md:top-10 mx-auto p-4 md:p-5 border w-11/12 md:w-3/4 lg:w-1/2 xl:w-1/3 max-h-[90vh] overflow-y-auto shadow-lg rounded-md bg-white"
-                    @click.stop
+                <svg
+                    class="w-16 h-16 text-gray-300 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                 >
-                    <!-- Modal Header -->
-                    <div
-                        class="flex items-center justify-between pb-4 border-b border-gray-200"
-                    >
-                        <h3 class="text-lg font-semibold text-gray-900">
-                            Receipt Details
-                        </h3>
-                        <button
-                            @click="closeReceiptModal"
-                            class="text-gray-400 hover:text-gray-600"
-                        >
-                            <svg
-                                class="w-6 h-6"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                ></path>
-                            </svg>
-                        </button>
-                    </div>
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    ></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                    No Generated Receipts Found
+                </h3>
+                <p class="text-gray-600 mb-4">
+                    No generated receipts match your search criteria.
+                </p>
+                <button
+                    @click="searchQuery = ''"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                >
+                    Clear Search
+                </button>
+            </div>
 
-                    <!-- Receipt Content -->
-                    <div v-if="selectedReceipt" class="mt-6">
-                        <!-- Receipt Preview -->
-                        <div
-                            class="bg-white border-2 border-gray-800 font-mono text-xs leading-tight max-w-lg mx-auto"
-                        >
-                            <!-- Header Section -->
-                            <div
-                                class="border-b-2 border-gray-800 p-4 bg-gray-50 text-center"
-                            >
-                                <div
-                                    class="flex justify-between items-center mb-4"
-                                >
+            <!-- Cancelled Receipts List -->
+            <div v-if="activeTab === 'cancelled'" class="space-y-4">
+                <div
+                    v-for="receipt in filteredCancelledReceipts"
+                    :key="receipt.id"
+                    class="bg-white rounded-xl shadow-sm border border-gray-100 animate-fade-in"
+                >
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
                                     <div
-                                        class="w-20 h-20 border-2 border-gray-600 flex items-center justify-center text-sm rounded-full overflow-hidden"
-                                        style="
-                                            background-image: url('/images/Philippine_logo.png');
-                                            background-size: cover;
-                                            background-repeat: no-repeat;
-                                            background-position: center;
-                                        "
-                                    ></div>
-                                    <div class="flex-1">
-                                        <h3 class="font-bold text-lg">
-                                            OFFICIAL RECEIPT
-                                        </h3>
-                                        <p class="text-sm">
-                                            Republic of the Philippines
-                                        </p>
-                                        <h4 class="font-bold text-base">
-                                            CITY OF SURIGAO
-                                        </h4>
-                                        <h5 class="font-bold text-sm">
-                                            LTPC TRAINING CENTER
-                                        </h5>
-                                        <p class="text-sm">
-                                            Office of the Cashier
-                                        </p>
-                                    </div>
-                                    <div
-                                        class="w-20 h-20 border-2 border-gray-600 rounded-full overflow-hidden"
-                                        style="
-                                            background-image: url('/images/Surigao_logo.jpg');
-                                            background-size: cover;
-                                            background-repeat: no-repeat;
-                                            background-position: center;
-                                        "
-                                    ></div>
-                                </div>
-                            </div>
-
-                            <!-- Form Info -->
-                            <div class="flex border-b border-gray-800">
-                                <div class="border-r border-gray-800 p-2 w-2/5">
-                                    <strong>Accountable Form No. 51</strong
-                                    ><br />
-                                    <small>(Revised June 2008)</small>
-                                </div>
-                                <div class="p-2 w-3/5 text-center">
-                                    <h4 class="font-bold">ORIGINAL</h4>
-                                    <h3 class="font-bold text-red-600">
-                                        {{
-                                            selectedReceipt.id.padStart(7, "0")
-                                        }}
-                                    </h3>
-                                </div>
-                            </div>
-
-                            <!-- Date -->
-                            <div class="flex border-b border-gray-800">
-                                <div
-                                    class="border-r border-gray-800 p-2 w-2/5 font-bold"
-                                >
-                                    DATE
-                                </div>
-                                <div class="p-2 w-3/5">
-                                    {{ selectedReceipt.dateGenerated }}
-                                </div>
-                            </div>
-
-                            <!-- Payor -->
-                            <div class="flex border-b border-gray-800">
-                                <div class="border-r border-gray-800 p-2 w-3/4">
-                                    <strong>PAYOR</strong><br />
-                                    {{ selectedReceipt.trainee.name }}<br />
-                                    <small
-                                        >ID:
-                                        {{ selectedReceipt.trainee.id }}</small
+                                        class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center"
                                     >
+                                        <svg
+                                            class="w-6 h-6 text-red-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            ></path>
+                                        </svg>
+                                    </div>
                                 </div>
-                                <div class="p-2 w-1/4 text-center">
-                                    <strong>FUND</strong>
-                                </div>
-                            </div>
-
-                            <!-- Table Header -->
-                            <div
-                                class="flex border-b-2 border-gray-800 bg-gray-100"
-                            >
-                                <div
-                                    class="border-r border-gray-800 p-2 w-2/5 text-center font-bold"
-                                >
-                                    NATURE OF COLLECTION
-                                </div>
-                                <div
-                                    class="border-r border-gray-800 p-2 w-1/5 text-center font-bold"
-                                >
-                                    ACCOUNT CODE
-                                </div>
-                                <div class="p-2 w-2/5 text-center font-bold">
-                                    AMOUNT
-                                </div>
-                            </div>
-
-                            <!-- Main Entry -->
-                            <div class="flex border-b border-gray-800">
-                                <div class="border-r border-gray-800 p-2 w-2/5">
-                                    {{
-                                        selectedReceipt.type === "enrollment"
-                                            ? "Enrollment Fee"
-                                            : "Assessment Fee"
-                                    }}<br />
-                                    <small>{{ selectedReceipt.course }}</small>
-                                </div>
-                                <div
-                                    class="border-r border-gray-800 p-2 w-1/5 text-center"
-                                >
-                                    EDU-001
-                                </div>
-                                <div class="p-2 w-2/5 text-right font-bold">
-                                    ₱ {{ formatAmount(selectedReceipt.amount) }}
-                                </div>
-                            </div>
-
-                            <!-- Empty Rows -->
-                            <div
-                                class="flex border-b border-gray-800"
-                                v-for="i in 3"
-                                :key="i"
-                            >
-                                <div
-                                    class="border-r border-gray-800 p-2 w-2/5 h-6"
-                                ></div>
-                                <div
-                                    class="border-r border-gray-800 p-2 w-1/5 h-6"
-                                ></div>
-                                <div class="p-2 w-2/5 h-6"></div>
-                            </div>
-
-                            <!-- Total -->
-                            <div
-                                class="flex border-b-2 border-gray-800 bg-gray-100 font-bold"
-                            >
-                                <div
-                                    class="border-r border-gray-800 p-2 w-2/5 text-center"
-                                >
-                                    TOTAL
-                                </div>
-                                <div
-                                    class="border-r border-gray-800 p-2 w-1/5"
-                                ></div>
-                                <div class="p-2 w-2/5 text-right">
-                                    ₱ {{ formatAmount(selectedReceipt.amount) }}
-                                </div>
-                            </div>
-
-                            <!-- Amount in Words -->
-                            <div class="border-b-2 border-gray-800 p-2">
-                                <strong>AMOUNT IN WORDS</strong><br />
-                                <strong>{{
-                                    convertNumberToWords(
-                                        selectedReceipt.amount
-                                    ).toUpperCase()
-                                }}</strong>
-                            </div>
-
-                            <!-- Payment Method -->
-                            <div class="flex border-b border-gray-800">
-                                <div class="border-r border-gray-800 p-2 w-1/3">
-                                    ☑ Cash<br />
-                                    ☐ Check<br />
-                                    ☐ Money Order
-                                </div>
-                                <div class="p-2 w-2/3">
+                                <div>
                                     <div
-                                        class="flex border-b border-gray-600 text-xs font-bold"
+                                        class="text-lg font-medium text-gray-900"
                                     >
-                                        <div
-                                            class="border-r border-gray-600 p-1 w-1/3"
-                                        >
-                                            DRAWEE BANK
-                                        </div>
-                                        <div
-                                            class="border-r border-gray-600 p-1 w-1/3"
-                                        >
-                                            NUMBER
-                                        </div>
-                                        <div class="p-1 w-1/3">DATE</div>
+                                        {{ receipt.id }}
                                     </div>
-                                    <div class="flex">
-                                        <div
-                                            class="border-r border-gray-600 p-1 w-1/3 h-6"
-                                        ></div>
-                                        <div
-                                            class="border-r border-gray-600 p-1 w-1/3 h-6"
-                                        ></div>
-                                        <div class="p-1 w-1/3 h-6"></div>
+                                    <div class="text-sm text-gray-600">
+                                        {{ receipt.trainee.name }} ({{
+                                            receipt.trainee.id
+                                        }})
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ receipt.course }}
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Footer -->
-                            <div class="border-b border-gray-800 p-2">
-                                Received the amount stated above
-                            </div>
-
-                            <!-- Signature -->
-                            <div class="p-4 text-center">
-                                <div class="float-right mr-8">
-                                    <div
-                                        class="border-b border-gray-800 w-32 mb-1"
-                                    ></div>
-                                    <div class="text-xs">
-                                        Collecting Officer
-                                    </div>
+                            <div class="text-right">
+                                <div
+                                    class="text-lg font-semibold text-gray-900"
+                                >
+                                    {{ formatCurrency(receipt.amount) }}
                                 </div>
-                                <div class="clear-both"></div>
+                                <div class="text-sm text-gray-500">
+                                    {{ receipt.dateGenerated }}
+                                    {{ receipt.timeGenerated }}
+                                </div>
+                                <div
+                                    class="text-xs px-2 py-1 bg-red-100 text-red-800 rounded-full mt-1"
+                                >
+                                    CANCELLED
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Action Buttons -->
                         <div
-                            class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 mt-6"
+                            v-if="receipt.cancellation_reason"
+                            class="mt-4 pt-4 border-t border-gray-200"
+                        >
+                            <div class="text-sm text-gray-600">
+                                <span class="font-medium"
+                                    >Cancellation Reason:</span
+                                >
+                                {{ receipt.cancellation_reason }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State for Cancelled Receipts -->
+            <div
+                v-if="
+                    activeTab === 'cancelled' &&
+                    filteredCancelledReceipts.length === 0
+                "
+                class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center animate-fade-in"
+            >
+                <svg
+                    class="w-16 h-16 text-gray-300 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                    No Cancelled Receipts Found
+                </h3>
+                <p class="text-gray-600 mb-4">
+                    {{
+                        searchQuery
+                            ? "No cancelled receipts match your search criteria."
+                            : "No receipts have been cancelled yet."
+                    }}
+                </p>
+                <button
+                    v-if="searchQuery"
+                    @click="searchQuery = ''"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                >
+                    Clear Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Receipt Modal -->
+        <div
+            v-if="showReceiptModal"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            aria-labelledby="modal-title"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div
+                class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+            >
+                <div
+                    class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                    aria-hidden="true"
+                    @click="closeReceiptModal"
+                ></div>
+
+                <span
+                    class="hidden sm:inline-block sm:align-middle sm:h-screen"
+                    aria-hidden="true"
+                    >&#8203;</span
+                >
+
+                <div
+                    class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+                >
+                    <div class="bg-white">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                Receipt Preview - {{ selectedReceipt?.id }}
+                            </h3>
+                        </div>
+                        <div class="px-6 py-4">
+                            <div
+                                v-if="selectedReceipt"
+                                v-html="generateReceiptHTML(selectedReceipt)"
+                                class="border border-gray-300 rounded-lg p-4 bg-gray-50"
+                            ></div>
+                        </div>
+                        <div
+                            class="bg-gray-50 px-6 py-4 flex justify-end space-x-3"
                         >
                             <button
+                                type="button"
                                 @click="closeReceiptModal"
-                                class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
                                 Close
                             </button>
                             <button
-                                @click="downloadReceipt(selectedReceipt.id)"
-                                class="px-4 py-2 bg-green-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                @click="printReceipt(selectedReceipt)"
+                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             >
-                                <svg
-                                    class="w-4 h-4 mr-2 inline"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                    ></path>
-                                </svg>
-                                Download
-                            </button>
-                            <button
-                                @click="printReceipt(selectedReceipt.id)"
-                                class="px-4 py-2 bg-purple-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                            >
-                                <svg
-                                    class="w-4 h-4 mr-2 inline"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                    ></path>
-                                </svg>
-                                Print
+                                Print Receipt
                             </button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Success/Error Message -->
-            <div
-                v-if="showSuccessMessage"
-                class="fixed bottom-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg animate-fade-in"
-            >
-                <div class="flex items-center">
-                    <svg
-                        class="w-5 h-5 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M5 13l4 4L19 7"
-                        ></path>
-                    </svg>
-                    {{ successMessage }}
                 </div>
             </div>
         </div>
     </AuthenticatedLayout>
 </template>
+
+<style scoped>
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+</style>

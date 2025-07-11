@@ -15,7 +15,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["close", "edit"]);
+const emit = defineEmits(["close", "edit", "reassessment"]);
 
 const formattedDate = computed(() => {
     if (!props.assessment?.assessment_date) return "N/A";
@@ -29,32 +29,12 @@ const formattedDate = computed(() => {
     );
 });
 
-const percentage = computed(() => {
-    if (!props.assessment?.score || !props.assessment?.max_score) return null;
-    return Math.round(
-        (props.assessment.score / props.assessment.max_score) * 100
-    );
-});
-
-const grade = computed(() => {
-    const percent = percentage.value;
-    if (percent === null) return "N/A";
-
-    if (percent >= 90) return "A";
-    if (percent >= 80) return "B";
-    if (percent >= 70) return "C";
-    if (percent >= 60) return "D";
-    return "F";
-});
-
 const statusColor = computed(() => {
     switch (props.assessment?.status) {
         case "pending":
             return "bg-yellow-100 text-yellow-800";
         case "completed":
             return "bg-blue-100 text-blue-800";
-        case "graded":
-            return "bg-green-100 text-green-800";
         default:
             return "bg-gray-100 text-gray-800";
     }
@@ -79,6 +59,10 @@ const close = () => {
 
 const editAssessment = () => {
     emit("edit", props.assessment);
+};
+
+const reassessment = () => {
+    emit("reassessment", props.assessment);
 };
 </script>
 
@@ -205,14 +189,6 @@ const editAssessment = () => {
                                 }}
                             </span>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-medium text-gray-500"
-                                >Maximum Score:</span
-                            >
-                            <span class="text-sm text-gray-900 font-semibold"
-                                >{{ assessment.max_score }} points</span
-                            >
-                        </div>
                     </div>
                 </div>
 
@@ -256,7 +232,7 @@ const editAssessment = () => {
                     </div>
                 </div>
 
-                <!-- Score Information -->
+                <!-- Assessment Status Information -->
                 <div class="lg:col-span-2">
                     <div class="bg-blue-50 rounded-lg p-6">
                         <h3
@@ -272,77 +248,30 @@ const editAssessment = () => {
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
                                     stroke-width="2"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                             </svg>
-                            Assessment Score
+                            Assessment Status
                         </h3>
 
-                        <div
-                            v-if="
-                                assessment.score !== null &&
-                                assessment.score !== undefined
-                            "
-                            class="grid grid-cols-1 md:grid-cols-3 gap-6"
-                        >
-                            <div class="text-center">
-                                <div class="text-3xl font-bold text-blue-900">
-                                    {{ assessment.score }}/{{
-                                        assessment.max_score
-                                    }}
-                                </div>
-                                <div class="text-sm text-blue-700 mt-1">
-                                    Raw Score
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-3xl font-bold text-blue-900">
-                                    {{ percentage }}%
-                                </div>
-                                <div class="text-sm text-blue-700 mt-1">
-                                    Percentage
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <div
-                                    class="text-3xl font-bold"
-                                    :class="{
-                                        'text-green-600':
-                                            grade === 'A' || grade === 'B',
-                                        'text-yellow-600': grade === 'C',
-                                        'text-red-600':
-                                            grade === 'D' || grade === 'F',
-                                    }"
-                                >
-                                    {{ grade }}
-                                </div>
-                                <div class="text-sm text-blue-700 mt-1">
-                                    Grade
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-else class="text-center py-8">
-                            <svg
-                                class="mx-auto h-12 w-12 text-blue-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                        <div class="flex justify-center">
+                            <div
+                                class="text-center bg-white rounded-lg p-6 border-2"
                             >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                            </svg>
-                            <h4 class="mt-2 text-lg font-medium text-blue-900">
-                                Not Graded Yet
-                            </h4>
-                            <p class="mt-1 text-sm text-blue-700">
-                                This assessment is still
-                                {{ assessment.status }} and hasn't been graded.
-                            </p>
+                                <div
+                                    class="flex items-center justify-center gap-3 mb-2"
+                                >
+                                    <span
+                                        :class="assessment.competency_color"
+                                        class="inline-flex px-3 py-1 text-lg font-semibold rounded-full"
+                                    >
+                                        {{ assessment.competency_status }}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Assessment status based on current progress
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -351,6 +280,26 @@ const editAssessment = () => {
             <!-- Actions -->
             <div class="flex items-center justify-end gap-3 pt-6 border-t mt-6">
                 <SecondaryButton @click="close"> Close </SecondaryButton>
+                <PrimaryButton
+                    v-if="assessment.can_be_reassessed"
+                    @click="reassessment"
+                    class="bg-orange-600 hover:bg-orange-700"
+                >
+                    <svg
+                        class="-ml-1 mr-2 h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                    </svg>
+                    Schedule Re-assessment
+                </PrimaryButton>
                 <PrimaryButton
                     @click="editAssessment"
                     class="bg-blue-600 hover:bg-blue-700"

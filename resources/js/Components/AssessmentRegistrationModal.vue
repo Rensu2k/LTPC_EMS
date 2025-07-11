@@ -33,7 +33,8 @@ const emit = defineEmits(["close", "submitted"]);
 const form = useForm({
     title: "",
     description: "",
-    type: "theoretical",
+    type: "practical",
+    status: "pending",
     program_id: "",
     applicant_type: "enrolled_trainee",
     trainee_id: "",
@@ -41,21 +42,37 @@ const form = useForm({
     external_applicant_email: "",
     external_applicant_phone: "",
     trainer_id: "",
-    max_score: "100",
-    passing_score: "75",
     assessment_date: "",
     assessment_fee: "0",
     payment_status: "pending",
     payment_method: "",
     payment_reference: "",
+    original_assessment_id: null,
+    is_reassessment: false,
 });
 
 const submit = () => {
+    // Add some debugging
+    console.log("Submitting assessment form with data:", form.data());
+
+    // Transform data to ensure proper types for backend
+    form.transform((data) => ({
+        ...data,
+        assessment_fee: parseFloat(data.assessment_fee) || 0,
+    }));
+
     form.post(route("officer.assessments.store"), {
         onSuccess: () => {
+            console.log("Assessment created successfully");
             form.reset();
             emit("submitted");
             emit("close");
+        },
+        onError: (errors) => {
+            console.error("Assessment creation failed:", errors);
+        },
+        onFinish: () => {
+            console.log("Assessment creation request finished");
         },
     });
 };
@@ -119,6 +136,7 @@ watch(
                 form.payment_reference = `SCHOLAR-${trainee.scholarship_package.toUpperCase()}-${Date.now()}`;
             } else {
                 // Reset to default for non-scholars
+                form.assessment_fee = "0";
                 form.payment_status = "pending";
                 form.payment_method = "";
                 form.payment_reference = "";
@@ -146,6 +164,7 @@ watch(
                 form.payment_method = "scholarship_exemption";
                 form.payment_reference = `SCHOLAR-${trainee.scholarship_package.toUpperCase()}-${Date.now()}`;
             } else {
+                form.assessment_fee = "0";
                 form.payment_status = "pending";
                 form.payment_method = "";
                 form.payment_reference = "";
@@ -306,54 +325,9 @@ const filteredTrainers = computed(() => {
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             required
                         >
-                            <option value="theoretical">Theoretical</option>
                             <option value="practical">Practical</option>
-                            <option value="both">
-                                Both (Theoretical & Practical)
-                            </option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.type" />
-                    </div>
-
-                    <!-- Maximum Score -->
-                    <div>
-                        <InputLabel for="max_score" value="Maximum Score *" />
-                        <TextInput
-                            id="max_score"
-                            v-model="form.max_score"
-                            type="number"
-                            class="mt-1 block w-full"
-                            min="1"
-                            required
-                        />
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.max_score"
-                        />
-                    </div>
-
-                    <!-- Passing Score -->
-                    <div>
-                        <InputLabel
-                            for="passing_score"
-                            value="Passing Score *"
-                        />
-                        <TextInput
-                            id="passing_score"
-                            v-model="form.passing_score"
-                            type="number"
-                            class="mt-1 block w-full"
-                            min="1"
-                            :max="form.max_score"
-                            required
-                        />
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.passing_score"
-                        />
-                        <p class="text-xs text-gray-500 mt-1">
-                            Minimum score required to pass the assessment
-                        </p>
                     </div>
 
                     <!-- Applicant Type -->

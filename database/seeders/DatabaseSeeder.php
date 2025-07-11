@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        // Seed default users
         User::firstOrCreate(
             ['username' => 'admin'],
             [
@@ -42,5 +43,10 @@ class DatabaseSeeder extends Seeder
                 'role' => 'cashier',
             ]
         );
+
+        // Seed programs
+        $this->call([
+            ProgramSeeder::class,
+        ]);
     }
 }

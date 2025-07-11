@@ -1,26 +1,48 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { Head, router, usePage } from "@inertiajs/vue3";
+import { ref, computed, watch } from "vue";
+import SearchInput from "@/Components/SearchInput.vue";
 import AssessmentRegistrationModal from "@/Components/AssessmentRegistrationModal.vue";
 import AssessmentDetailsModal from "@/Components/AssessmentDetailsModal.vue";
+import AssessmentReassessmentModal from "@/Components/AssessmentReassessmentModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
-import { Head, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
 
 const props = defineProps({
     assessments: Array,
     programs: Array,
     trainees: Array,
     trainers: Array,
+    flash: Object,
 });
+
+// Access page props for flash messages
+const page = usePage();
+
+// Watch for flash messages
+watch(
+    () => page.props.flash,
+    (flash) => {
+        if (flash?.success) {
+            console.log("Success message:", flash.success);
+        }
+        if (flash?.error) {
+            console.log("Error message:", flash.error);
+        }
+    },
+    { deep: true, immediate: true }
+);
 
 const searchQuery = ref("");
 const selectedType = ref("All Types");
 const selectedStatus = ref("All Status");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
+const showReassessmentModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedAssessment = ref(null);
 const processing = ref(false);
+const assessmentErrors = ref({});
 
 // Process assessments data
 const assessmentsList = ref(
@@ -30,8 +52,10 @@ const assessmentsList = ref(
         description: assessment.description,
         type: assessment.type,
         status: assessment.status,
-        score: assessment.score,
-        max_score: assessment.max_score,
+        result: assessment.result,
+        result_status: assessment.result_status,
+        result_color: assessment.result_color,
+        can_be_reassessed: assessment.can_be_reassessed,
         program_name: assessment.program_name,
         applicant_name: assessment.applicant_name,
         applicant_type: assessment.applicant_type,
@@ -43,18 +67,6 @@ const assessmentsList = ref(
         payment_status: assessment.payment_status,
         payment_required: assessment.payment_required,
         payment_completed: assessment.payment_completed,
-        percentage:
-            assessment.score && assessment.max_score
-                ? Math.round((assessment.score / assessment.max_score) * 100)
-                : null,
-        grade:
-            assessment.score && assessment.max_score
-                ? getGrade(
-                      Math.round(
-                          (assessment.score / assessment.max_score) * 100
-                      )
-                  )
-                : "N/A",
     })) || []
 );
 
@@ -66,20 +78,29 @@ function getGrade(percentage) {
     return "F";
 }
 
-// Check if assessment is graded (has pass/fail status)
+// Check if assessment is graded (based on status)
 function isGraded(assessment) {
-    return ["pass", "fail"].includes(assessment.status);
+    return assessment.status === "completed";
 }
 
 const addAssessment = () => {
+    assessmentErrors.value = {};
     showRegistrationModal.value = true;
 };
 
 const closeRegistrationModal = () => {
+    assessmentErrors.value = {};
     showRegistrationModal.value = false;
 };
 
 const onAssessmentSubmitted = () => {
+    assessmentErrors.value = {};
+    showRegistrationModal.value = false;
+    // Refresh the page to show the new assessment
+    window.location.reload();
+};
+
+const onReassessmentSubmitted = () => {
     window.location.reload();
 };
 
@@ -101,6 +122,17 @@ const editAssessment = (assessment) => {
     router.visit(`/officer/assessments/${assessment.id}/edit`);
 };
 
+const reassessment = (assessment) => {
+    if (!assessment.can_be_reassessed) {
+        alert(
+            "This assessment cannot be re-assessed. Only assessments with 'Fail' or 'Absent' results can be re-assessed."
+        );
+        return;
+    }
+    selectedAssessment.value = assessment;
+    showReassessmentModal.value = true;
+};
+
 const deleteAssessment = (assessment) => {
     if (isGraded(assessment)) {
         alert(
@@ -117,6 +149,11 @@ const closeDetailsModal = () => {
     selectedAssessment.value = null;
 };
 
+const closeReassessmentModal = () => {
+    showReassessmentModal.value = false;
+    selectedAssessment.value = null;
+};
+
 const closeDeleteModal = () => {
     showDeleteModal.value = false;
     selectedAssessment.value = null;
@@ -130,6 +167,8 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
+            // Refresh to show updated list
+            window.location.reload();
         },
         onError: () => {
             processing.value = false;
@@ -140,6 +179,11 @@ const confirmDelete = () => {
 const handleEditFromDetails = (assessment) => {
     closeDetailsModal();
     editAssessment({ id: assessment.id });
+};
+
+const handleReassessmentFromDetails = (assessment) => {
+    closeDetailsModal();
+    reassessment(assessment);
 };
 
 // Computed property for filtered assessments
@@ -332,15 +376,16 @@ const exportData = () => {
                                 >
                                     Type
                                 </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Score
-                                </th>
+
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                     Status
+                                </th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    Result
                                 </th>
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -430,25 +475,7 @@ const exportData = () => {
                                         }}
                                     </span>
                                 </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    <div v-if="assessment.score !== null">
-                                        <div class="font-semibold">
-                                            {{ assessment.score }}/{{
-                                                assessment.max_score
-                                            }}
-                                        </div>
-                                        <div class="text-xs text-gray-500">
-                                            {{ assessment.percentage }}% ({{
-                                                assessment.grade
-                                            }})
-                                        </div>
-                                    </div>
-                                    <div v-else class="text-gray-400">
-                                        Not graded
-                                    </div>
-                                </td>
+
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
                                         :class="{
@@ -457,12 +484,6 @@ const exportData = () => {
                                             'bg-blue-100 text-blue-800':
                                                 assessment.status ===
                                                 'completed',
-                                            'bg-indigo-100 text-indigo-800':
-                                                assessment.status === 'graded',
-                                            'bg-green-100 text-green-800':
-                                                assessment.status === 'pass',
-                                            'bg-red-100 text-red-800':
-                                                assessment.status === 'fail',
                                         }"
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                                     >
@@ -480,6 +501,19 @@ const exportData = () => {
                                     >
                                         🔒
                                     </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div v-if="assessment.result">
+                                        <span
+                                            :class="assessment.result_color"
+                                            class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                        >
+                                            {{ assessment.result_status }}
+                                        </span>
+                                    </div>
+                                    <div v-else class="text-gray-400 text-sm">
+                                        Not evaluated
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div>
@@ -579,6 +613,26 @@ const exportData = () => {
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
                                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            v-if="assessment.can_be_reassessed"
+                                            @click="reassessment(assessment)"
+                                            class="text-orange-600 hover:text-orange-900 p-1 rounded"
+                                            title="Schedule Re-assessment"
+                                        >
+                                            <svg
+                                                class="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                                                 />
                                             </svg>
                                         </button>
@@ -690,6 +744,17 @@ const exportData = () => {
             :assessment="selectedAssessment"
             @close="closeDetailsModal"
             @edit="handleEditFromDetails"
+            @reassessment="handleReassessmentFromDetails"
+        />
+
+        <!-- Assessment Re-assessment Modal -->
+        <AssessmentReassessmentModal
+            :show="showReassessmentModal"
+            :assessment="selectedAssessment"
+            :programs="programs"
+            :trainers="trainers"
+            @close="closeReassessmentModal"
+            @submitted="onReassessmentSubmitted"
         />
 
         <!-- Delete Confirmation Modal -->

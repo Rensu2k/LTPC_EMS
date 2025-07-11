@@ -1,15 +1,23 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref } from "vue";
 
 const model = defineModel({
     type: String,
     required: true,
+    get: (value) => {
+        // Convert any non-string values to strings
+        return typeof value === "string" ? value : String(value || "");
+    },
+    set: (value) => {
+        // Ensure we always store strings
+        return typeof value === "string" ? value : String(value || "");
+    },
 });
 
 const input = ref(null);
 
 onMounted(() => {
-    if (input.value.hasAttribute('autofocus')) {
+    if (input.value.hasAttribute("autofocus")) {
         input.value.focus();
     }
 });

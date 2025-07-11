@@ -20,7 +20,7 @@ const props = defineProps({
     },
     closeOnClickOutside: {
         type: Boolean,
-        default: true,
+        default: false,
     },
 });
 

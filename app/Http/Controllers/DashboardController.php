@@ -98,7 +98,7 @@ class DashboardController extends Controller
                     'program_name' => $assessment->program->name ?? 'N/A',
                     'trainer_name' => $assessment->trainer->full_name ?? 'N/A',
                     'status' => $assessment->status,
-                    'score' => $assessment->score,
+    
                     'max_score' => $assessment->max_score,
                     'percentage' => $assessment->percentage,
                     'assessment_date' => $assessment->assessment_date 

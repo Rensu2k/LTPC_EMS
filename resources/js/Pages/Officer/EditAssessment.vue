@@ -20,14 +20,8 @@ const form = useForm({
     title: props.assessment.title || "",
     description: props.assessment.description || "",
     type: props.assessment.type || "",
-    status: props.assessment.status || "",
-    score: props.assessment.score ? String(props.assessment.score) : "",
-    max_score: props.assessment.max_score
-        ? String(props.assessment.max_score)
-        : "",
-    passing_score: props.assessment.passing_score
-        ? String(props.assessment.passing_score)
-        : "75",
+    status: props.assessment.status || "pending",
+    result: props.assessment.result || "",
     program_id: props.assessment.program_id || "",
     trainee_id: props.assessment.trainee_id || "",
     trainer_id: props.assessment.trainer_id || "",
@@ -48,55 +42,7 @@ const form = useForm({
     payment_notes: props.assessment.payment_notes || "",
 });
 
-const percentage = computed(() => {
-    const score = parseFloat(form.score);
-    const maxScore = parseFloat(form.max_score);
-    if (score && maxScore && score > 0 && maxScore > 0) {
-        return Math.round((score / maxScore) * 100);
-    }
-    return null;
-});
-
-const grade = computed(() => {
-    const percent = percentage.value;
-    if (percent === null) return "N/A";
-
-    if (percent >= 90) return "A";
-    if (percent >= 80) return "B";
-    if (percent >= 70) return "C";
-    if (percent >= 60) return "D";
-    return "F";
-});
-
-const passFailStatus = computed(() => {
-    const score = parseFloat(form.score);
-    const passingScore = parseFloat(form.passing_score);
-
-    if (score && passingScore && score >= 0 && passingScore > 0) {
-        return score >= passingScore ? "pass" : "fail";
-    }
-    return null;
-});
-
 // Watch for changes to numeric fields and ensure they remain strings
-watch(
-    () => form.score,
-    (newValue) => {
-        if (typeof newValue === "number") {
-            form.score = String(newValue);
-        }
-    }
-);
-
-watch(
-    () => form.max_score,
-    (newValue) => {
-        if (typeof newValue === "number") {
-            form.max_score = String(newValue);
-        }
-    }
-);
-
 watch(
     () => form.assessment_fee,
     (newValue) => {
@@ -106,36 +52,22 @@ watch(
     }
 );
 
+// Auto-update status when result is selected
 watch(
-    () => form.passing_score,
-    (newValue) => {
-        if (typeof newValue === "number") {
-            form.passing_score = String(newValue);
+    () => form.result,
+    (newResult) => {
+        if (newResult && newResult !== "") {
+            form.status = "completed";
+        } else {
+            form.status = "pending";
         }
     }
 );
-
-// Auto-update status when score or passing score changes
-watch([() => form.score, () => form.passing_score], () => {
-    if (form.score && form.passing_score) {
-        const score = parseFloat(form.score);
-        const passingScore = parseFloat(form.passing_score);
-
-        if (score >= 0 && passingScore > 0) {
-            form.status = score >= passingScore ? "pass" : "fail";
-        }
-    }
-});
 
 const submit = () => {
     // Convert numeric fields for backend
     form.transform((data) => ({
         ...data,
-        score: data.score ? parseFloat(data.score) : null,
-        max_score: data.max_score ? parseFloat(data.max_score) : null,
-        passing_score: data.passing_score
-            ? parseFloat(data.passing_score)
-            : null,
         assessment_fee: data.assessment_fee
             ? parseFloat(data.assessment_fee)
             : 0,
@@ -329,13 +261,7 @@ const filteredTrainers = computed(() => {
                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     required
                                 >
-                                    <option value="theoretical">
-                                        Theoretical
-                                    </option>
                                     <option value="practical">Practical</option>
-                                    <option value="both">
-                                        Both (Theoretical & Practical)
-                                    </option>
                                 </select>
                                 <InputError
                                     class="mt-2"
@@ -343,26 +269,7 @@ const filteredTrainers = computed(() => {
                                 />
                             </div>
 
-                            <!-- Assessment Status -->
-                            <div>
-                                <InputLabel for="status" value="Status *" />
-                                <select
-                                    id="status"
-                                    v-model="form.status"
-                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
-                                >
-                                    <option value="pending">Pending</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="graded">Graded</option>
-                                    <option value="pass">Pass</option>
-                                    <option value="fail">Fail</option>
-                                </select>
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.status"
-                                />
-                            </div>
+                            <!-- Status is automatically managed: Pending → Completed when score is assigned -->
 
                             <!-- Assessment Date -->
                             <div>
@@ -381,50 +288,6 @@ const filteredTrainers = computed(() => {
                                     class="mt-2"
                                     :message="form.errors.assessment_date"
                                 />
-                            </div>
-
-                            <!-- Maximum Score -->
-                            <div>
-                                <InputLabel
-                                    for="max_score"
-                                    value="Maximum Score *"
-                                />
-                                <TextInput
-                                    id="max_score"
-                                    v-model="form.max_score"
-                                    type="number"
-                                    class="mt-1 block w-full"
-                                    min="1"
-                                    required
-                                />
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.max_score"
-                                />
-                            </div>
-
-                            <!-- Passing Score -->
-                            <div>
-                                <InputLabel
-                                    for="passing_score"
-                                    value="Passing Score *"
-                                />
-                                <TextInput
-                                    id="passing_score"
-                                    v-model="form.passing_score"
-                                    type="number"
-                                    class="mt-1 block w-full"
-                                    min="1"
-                                    :max="form.max_score"
-                                    required
-                                />
-                                <InputError
-                                    class="mt-2"
-                                    :message="form.errors.passing_score"
-                                />
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Minimum score required to pass
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -638,7 +501,7 @@ const filteredTrainers = computed(() => {
                         </div>
                     </div>
 
-                    <!-- Grading Section -->
+                    <!-- Assessment Evaluation Section -->
                     <div class="bg-blue-50 rounded-lg p-6">
                         <h3
                             class="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2"
@@ -653,97 +516,217 @@ const filteredTrainers = computed(() => {
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
                                     stroke-width="2"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                             </svg>
-                            Assessment Grading
+                            Assessment Evaluation
                         </h3>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Score Input -->
+                        <!-- Payment Required Warning -->
+                        <div
+                            v-if="form.payment_status !== 'paid'"
+                            class="mb-4 p-4 bg-amber-100 border border-amber-200 rounded-lg"
+                        >
+                            <div class="flex items-center gap-2">
+                                <svg
+                                    class="w-5 h-5 text-amber-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                    />
+                                </svg>
+                                <span class="text-amber-800 font-medium"
+                                    >Payment Required</span
+                                >
+                            </div>
+                            <p class="text-amber-700 text-sm mt-1">
+                                Assessment evaluation is only available after
+                                payment has been completed. Please ensure the
+                                assessment fee is paid before proceeding with
+                                evaluation.
+                            </p>
+                        </div>
+
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 gap-6"
+                            :class="{
+                                'opacity-50 pointer-events-none':
+                                    form.payment_status !== 'paid',
+                            }"
+                        >
+                            <!-- Assessment Result -->
                             <div>
-                                <InputLabel for="score" value="Score" />
-                                <TextInput
-                                    id="score"
-                                    v-model="form.score"
-                                    type="number"
-                                    class="mt-1 block w-full"
-                                    :max="form.max_score"
-                                    min="0"
-                                    placeholder="Enter score (optional)"
+                                <InputLabel
+                                    for="result"
+                                    value="Assessment Result"
                                 />
+                                <select
+                                    id="result"
+                                    v-model="form.result"
+                                    :disabled="form.payment_status !== 'paid'"
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                >
+                                    <option value="">
+                                        {{
+                                            form.payment_status !== "paid"
+                                                ? "Payment required for evaluation"
+                                                : "Select assessment result"
+                                        }}
+                                    </option>
+                                    <option
+                                        value="pass"
+                                        :disabled="
+                                            form.payment_status !== 'paid'
+                                        "
+                                    >
+                                        Pass
+                                    </option>
+                                    <option
+                                        value="fail"
+                                        :disabled="
+                                            form.payment_status !== 'paid'
+                                        "
+                                    >
+                                        Fail
+                                    </option>
+                                    <option
+                                        value="absent"
+                                        :disabled="
+                                            form.payment_status !== 'paid'
+                                        "
+                                    >
+                                        Absent
+                                    </option>
+                                </select>
                                 <InputError
                                     class="mt-2"
-                                    :message="form.errors.score"
+                                    :message="form.errors.result"
                                 />
-                                <p class="text-xs text-blue-700 mt-1">
-                                    Score out of {{ form.max_score }} points
+                                <p
+                                    class="text-xs mt-1"
+                                    :class="
+                                        form.payment_status !== 'paid'
+                                            ? 'text-amber-600'
+                                            : 'text-blue-700'
+                                    "
+                                >
+                                    {{
+                                        form.payment_status !== "paid"
+                                            ? "Complete payment to enable evaluation"
+                                            : "Select the final assessment result"
+                                    }}
                                 </p>
                             </div>
 
-                            <!-- Grade Display -->
-                            <div v-if="percentage !== null">
-                                <InputLabel value="Assessment Results" />
+                            <!-- Result Display -->
+                            <div v-if="form.result">
+                                <InputLabel value="Assessment Summary" />
                                 <div
-                                    class="mt-1 p-3 bg-white rounded-lg border"
+                                    class="mt-1 p-4 bg-white rounded-lg border"
                                 >
-                                    <div
-                                        class="flex items-center justify-between"
-                                    >
-                                        <span class="text-sm text-gray-600"
-                                            >Percentage:</span
-                                        >
-                                        <span class="font-semibold"
-                                            >{{ percentage }}%</span
-                                        >
-                                    </div>
-                                    <div
-                                        class="flex items-center justify-between mt-2"
-                                    >
-                                        <span class="text-sm text-gray-600"
-                                            >Grade:</span
-                                        >
-                                        <span
-                                            class="text-lg font-bold"
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-4 h-4 rounded-full"
                                             :class="{
-                                                'text-green-600':
-                                                    grade === 'A' ||
-                                                    grade === 'B',
-                                                'text-yellow-600':
-                                                    grade === 'C',
-                                                'text-red-600':
-                                                    grade === 'D' ||
-                                                    grade === 'F',
+                                                'bg-green-500':
+                                                    form.result === 'pass',
+                                                'bg-red-500':
+                                                    form.result === 'fail',
+                                                'bg-gray-500':
+                                                    form.result === 'absent',
+                                            }"
+                                        ></div>
+                                        <span
+                                            class="text-lg font-semibold"
+                                            :class="{
+                                                'text-green-700':
+                                                    form.result === 'pass',
+                                                'text-red-700':
+                                                    form.result === 'fail',
+                                                'text-gray-700':
+                                                    form.result === 'absent',
                                             }"
                                         >
-                                            {{ grade }}
+                                            {{
+                                                form.result === "pass"
+                                                    ? "Pass"
+                                                    : form.result === "fail"
+                                                    ? "Fail"
+                                                    : "Absent"
+                                            }}
                                         </span>
                                     </div>
-                                    <div
-                                        v-if="passFailStatus !== null"
-                                        class="flex items-center justify-between mt-2 pt-2 border-t"
-                                    >
-                                        <span class="text-sm text-gray-600"
-                                            >Result:</span
-                                        >
-                                        <span
-                                            class="text-lg font-bold uppercase tracking-wide"
-                                            :class="{
-                                                'text-green-600 bg-green-100 px-2 py-1 rounded':
-                                                    passFailStatus === 'pass',
-                                                'text-red-600 bg-red-100 px-2 py-1 rounded':
-                                                    passFailStatus === 'fail',
-                                            }"
-                                        >
-                                            {{ passFailStatus }}
-                                        </span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-2">
-                                        Passing score:
-                                        {{ form.passing_score }} points
+                                    <p class="text-sm text-gray-600 mt-2">
+                                        {{
+                                            form.result === "pass"
+                                                ? "The applicant has successfully passed the assessment."
+                                                : form.result === "fail"
+                                                ? "The applicant needs additional training or reassessment."
+                                                : "The applicant was absent for the assessment."
+                                        }}
                                     </p>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Status Display -->
+                        <div class="mt-4 p-3 bg-white rounded-lg border">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-700"
+                                    >Assessment Status:</span
+                                >
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        :class="{
+                                            'bg-yellow-100 text-yellow-800':
+                                                form.status === 'pending',
+                                            'bg-green-100 text-green-800':
+                                                form.status === 'completed',
+                                        }"
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                    >
+                                        {{
+                                            form.status
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                            form.status.slice(1)
+                                        }}
+                                    </span>
+                                    <span
+                                        v-if="form.payment_status !== 'paid'"
+                                        :class="{
+                                            'bg-red-100 text-red-800':
+                                                form.payment_status ===
+                                                'pending',
+                                            'bg-orange-100 text-orange-800':
+                                                form.payment_status ===
+                                                'refunded',
+                                        }"
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                    >
+                                        Payment
+                                        {{
+                                            form.payment_status
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                            form.payment_status.slice(1)
+                                        }}
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{
+                                    form.payment_status !== "paid"
+                                        ? "Payment must be completed before assessment can be evaluated"
+                                        : 'Status automatically changes to "Completed" when a result is selected'
+                                }}
+                            </p>
                         </div>
                     </div>
 

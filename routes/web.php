@@ -159,6 +159,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/assessments/{assessment}/edit', [AssessmentController::class, 'edit'])->name('assessments.edit');
         Route::put('/assessments/{assessment}', [AssessmentController::class, 'update'])->name('assessments.update');
         Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])->name('assessments.destroy');
+        Route::post('/assessments/{assessment}/reassessment', [AssessmentController::class, 'reassessment'])->name('assessments.reassessment');
 
         // Trainee Enrollments - Officers can manage multiple program enrollments
         Route::get('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'create'])->name('trainees.enroll');
@@ -182,6 +183,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/payments', [CashierController::class, 'payments'])->name('payments');
         Route::get('/receipts', [CashierController::class, 'receipts'])->name('receipts');
         Route::post('/payments/process', [CashierController::class, 'processPayment'])->name('payments.process');
+        Route::post('/receipts/save', [CashierController::class, 'saveCustomReceipt'])->name('receipts.save');
+        Route::put('/receipts/{customReceipt}', [CashierController::class, 'updateCustomReceipt'])->name('receipts.update');
         
         Route::get('/reports/financial', function () {            
         })->name('reports.financial');

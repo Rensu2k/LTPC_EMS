@@ -331,7 +331,7 @@ onMounted(() => {
                 <p
                     class="mb-12 text-xl text-blue-100 max-w-3xl text-center mx-auto leading-relaxed"
                 >
-                    An integrated system for managing enrollments, courses, and
+                    An integrated system for managing enrollments, programs, and
                     training progress at the Livelihood Training and
                     Productivity Center.
                 </p>
@@ -367,10 +367,10 @@ onMounted(() => {
                         </span>
                         <div>
                             <div class="font-bold text-lg">
-                                Course Management
+                                Program Management
                             </div>
                             <div class="text-blue-100 text-sm leading-relaxed">
-                                Create and manage training courses and batches
+                                Create and manage training programs and batches
                             </div>
                         </div>
                     </div>
@@ -430,7 +430,7 @@ onMounted(() => {
                                 Trainer Assignment
                             </div>
                             <div class="text-blue-100 text-sm leading-relaxed">
-                                Assign trainers to courses and monitor
+                                Assign trainers to programs and monitor
                                 performance
                             </div>
                         </div>

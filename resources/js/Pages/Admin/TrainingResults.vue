@@ -23,7 +23,7 @@ const deletingResult = ref(null);
 const viewingResult = ref(null);
 const searchQuery = ref("");
 const selectedStatus = ref("");
-const selectedCourse = ref("");
+const selectedProgram = ref("");
 
 const form = useForm({
     training_id: "",
@@ -44,7 +44,7 @@ const filteredResults = computed(() => {
                 result.trainee?.last_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                result.training?.course?.name
+                result.training?.program?.name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
                 result.training?.trainer?.first_name
@@ -62,24 +62,24 @@ const filteredResults = computed(() => {
         );
     }
 
-    if (selectedCourse.value) {
+    if (selectedProgram.value) {
         filtered = filtered.filter(
-            (result) => result.training?.course_id == selectedCourse.value
+            (result) => result.training?.program_id == selectedProgram.value
         );
     }
 
     return filtered;
 });
 
-const courses = computed(() => {
-    const uniqueCourses = [
+const programs = computed(() => {
+    const uniquePrograms = [
         ...new Set(
             props.training_results
-                ?.map((result) => result.training?.course)
+                ?.map((result) => result.training?.program)
                 .filter(Boolean)
         ),
     ];
-    return uniqueCourses;
+    return uniquePrograms;
 });
 
 const openCreateModal = () => {
@@ -166,7 +166,7 @@ const calculateFinalScore = () => {
 };
 
 const exportResults = () => {
-    console.log("Exporting training results...");
+    // TODO: Implement export functionality
 };
 </script>
 
@@ -238,21 +238,21 @@ const exportResults = () => {
                         </div>
                         <div>
                             <InputLabel
-                                for="course-filter"
-                                value="Filter by Course"
+                                for="program-filter"
+                                value="Filter by Program"
                             />
                             <select
-                                id="course-filter"
-                                v-model="selectedCourse"
+                                id="program-filter"
+                                v-model="selectedProgram"
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                             >
-                                <option value="">All Courses</option>
+                                <option value="">All Programs</option>
                                 <option
-                                    v-for="course in courses"
-                                    :key="course.id"
-                                    :value="course.id"
+                                    v-for="program in programs"
+                                    :key="program.id"
+                                    :value="program.id"
                                 >
-                                    {{ course.name }}
+                                    {{ program.name }}
                                 </option>
                             </select>
                         </div>
@@ -481,7 +481,7 @@ const exportResults = () => {
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
                                         {{
-                                            result.training?.course?.name ||
+                                            result.training?.program?.name ||
                                             "N/A"
                                         }}
                                     </div>
@@ -747,9 +747,9 @@ const exportResults = () => {
                             </h4>
                             <div class="space-y-2">
                                 <p class="text-sm">
-                                    <span class="font-medium">Course:</span>
+                                    <span class="font-medium">Program:</span>
                                     {{
-                                        viewingResult.training?.course?.name ||
+                                        viewingResult.training?.program?.name ||
                                         "N/A"
                                     }}
                                 </p>

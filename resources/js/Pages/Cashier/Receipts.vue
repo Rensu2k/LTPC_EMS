@@ -2,8 +2,11 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useNotifications } from "@/composables/useNotifications";
 
 // Define props to receive data from backend
+const notifications = useNotifications();
+
 const props = defineProps({
     groupedReceipts: {
         type: Array,
@@ -126,9 +129,7 @@ const selectedReceipt = ref(null);
 const isDownloading = ref({});
 const isPrinting = ref({});
 
-// Success feedback
-const showSuccessMessage = ref(false);
-const successMessage = ref("");
+// Remove success feedback state - using notifications now
 
 const viewReceipt = (receipt) => {
     selectedReceipt.value = receipt;
@@ -162,10 +163,10 @@ const downloadReceipt = (receipt) => {
         window.URL.revokeObjectURL(url);
 
         // Show success message
-        showSuccessFeedback("Receipt downloaded successfully!");
+        notifications.success("Receipt downloaded successfully!");
     } catch (error) {
         console.error("Download error:", error);
-        showSuccessFeedback("Error downloading receipt", true);
+        notifications.error("Error downloading receipt");
     } finally {
         // Clear loading state
         setTimeout(() => {
@@ -190,10 +191,10 @@ const printReceipt = (receipt) => {
         printWindow.print();
 
         // Show success message
-        showSuccessFeedback("Receipt sent to printer!");
+        notifications.success("Receipt sent to printer!");
     } catch (error) {
         console.error("Print error:", error);
-        showSuccessFeedback("Error printing receipt", true);
+        notifications.error("Error printing receipt");
     } finally {
         // Clear loading state
         setTimeout(() => {
@@ -202,16 +203,7 @@ const printReceipt = (receipt) => {
     }
 };
 
-const showSuccessFeedback = (message, isError = false) => {
-    successMessage.value = message;
-    showSuccessMessage.value = true;
-
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-        showSuccessMessage.value = false;
-        successMessage.value = "";
-    }, 3000);
-};
+// showSuccessFeedback function removed - using notifications system now
 
 const convertNumberToWords = (amount) => {
     const numAmount = safeNumber(amount);
@@ -333,7 +325,7 @@ const generateReceiptContent = (receipt) => {
                     ? "Enrollment Fee"
                     : receipt.type === "assessment"
                     ? "Assessment Fee"
-                    : "Registration Fee",
+                    : "Enrollment Fee",
             course: receipt.course,
             accountCode: "EDU-001",
             amount: receipt.amount,
@@ -436,7 +428,7 @@ const generateReceiptHTML = (receipt) => {
                     ? "Enrollment Fee"
                     : receipt.type === "assessment"
                     ? "Assessment Fee"
-                    : "Registration Fee",
+                    : "Enrollment Fee",
             course: receipt.course,
             accountCode: "EDU-001",
             amount: receipt.amount,

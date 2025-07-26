@@ -148,6 +148,25 @@ class Program extends Model
     }
 
     /**
+     * Get total enrollment count (all enrollments, all statuses) - Updated for new system
+     */
+    public function getTotalEnrollmentCountAttribute()
+    {
+        // Get trainee IDs that are already in the new enrollment system
+        $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
+        
+        // Count new enrollment system enrollments (all statuses)
+        $newSystemCount = $this->enrollments()->count();
+        
+        // Count legacy trainees excluding those already in new system
+        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
+            ->whereNotIn('id', $enrolledTraineeIds)
+            ->count();
+        
+        return $newSystemCount + $legacyCount;
+    }
+
+    /**
      * Get total trainees count (all statuses)
      */
     public function getTotalTraineesCountAttribute()

@@ -2,6 +2,7 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { computed, onMounted, ref } from "vue";
+import Alert from "@/Components/Alert.vue";
 
 const props = defineProps({
     statistics: Object,
@@ -238,42 +239,17 @@ const navigateToStats = (section) => {
             </div>
 
             <!-- Priority Alerts -->
-            <div v-if="priorityAlerts.length > 0" class="mb-6 animate-fade-in">
-                <div
+            <div v-if="priorityAlerts.length > 0" class="mb-6 space-y-4">
+                <Alert
                     v-for="alert in priorityAlerts"
                     :key="alert.title"
-                    class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm"
-                >
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <svg
-                                class="w-5 h-5 text-yellow-400 mr-3"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                            <div>
-                                <h3 class="text-sm font-medium text-yellow-800">
-                                    {{ alert.title }}
-                                </h3>
-                                <p class="text-sm text-yellow-700">
-                                    {{ alert.message }}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            @click="router.visit(route(alert.route))"
-                            class="text-yellow-800 hover:text-yellow-900 text-sm font-medium underline"
-                        >
-                            {{ alert.action }}
-                        </button>
-                    </div>
-                </div>
+                    type="warning"
+                    :title="alert.title"
+                    :message="alert.message"
+                    :action-text="alert.action"
+                    :dismissible="false"
+                    @action="router.visit(route(alert.route))"
+                />
             </div>
 
             <!-- Statistics Cards -->

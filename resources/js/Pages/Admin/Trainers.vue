@@ -3,13 +3,17 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TrainerRegistrationModal from "@/Components/TrainerRegistrationModal.vue";
 import TrainerDetailsModal from "@/Components/TrainerDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
-import { Head, router } from "@inertiajs/vue3";
+import { Head, router, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 
 const props = defineProps({
     trainers: Array,
-    courses: Array,
+    programs: Array,
 });
+
+const user = computed(() => usePage().props.auth.user);
+const isOfficer = computed(() => user.value?.role === "officer");
+const isAdmin = computed(() => user.value?.role === "admin");
 
 const searchQuery = ref("");
 const showRegistrationModal = ref(false);
@@ -27,7 +31,7 @@ const trainersList = ref(
         expertise_string: trainer.expertise_string,
         email: trainer.email,
         phone: trainer.phone,
-        activeCourses: trainer.active_courses_count || 0,
+        activePrograms: trainer.active_programs_count || 0,
         totalTrainees: trainer.total_trainees_count || 0,
         activeTrainees: trainer.active_trainees_count || 0,
         completedTrainees: trainer.completed_trainees_count || 0,
@@ -151,6 +155,7 @@ const handleEditFromDetails = (trainer) => {
                         </div>
                         <div>
                             <button
+                                v-if="isOfficer"
                                 @click="addTrainer"
                                 class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all"
                             >
@@ -169,6 +174,34 @@ const handleEditFromDetails = (trainer) => {
                                 </svg>
                                 Add Trainer
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Permissions Notice -->
+                <div
+                    v-if="isAdmin"
+                    class="p-4 bg-yellow-50 border-l-4 border-yellow-400"
+                >
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg
+                                class="h-5 w-5 text-yellow-400"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">
+                                Only Officers can add, edit, or delete trainers.
+                                Admins have read-only access.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -319,12 +352,12 @@ const handleEditFromDetails = (trainer) => {
                                     <div class="space-y-1">
                                         <div class="flex items-center gap-1">
                                             <span class="text-xs text-gray-500"
-                                                >Courses:</span
+                                                >Programs:</span
                                             >
                                             <span
                                                 class="font-semibold text-emerald-600"
                                                 >{{
-                                                    trainer.activeCourses
+                                                    trainer.activePrograms
                                                 }}</span
                                             >
                                         </div>
@@ -388,6 +421,7 @@ const handleEditFromDetails = (trainer) => {
                                             </svg>
                                         </button>
                                         <button
+                                            v-if="isOfficer"
                                             @click="editTrainer(trainer)"
                                             class="text-green-700 hover:text-green-900 p-1 rounded"
                                             title="Edit"
@@ -407,6 +441,7 @@ const handleEditFromDetails = (trainer) => {
                                             </svg>
                                         </button>
                                         <button
+                                            v-if="isOfficer"
                                             @click="deleteTrainer(trainer)"
                                             :disabled="processing"
                                             class="text-red-600 hover:text-red-800 p-1 rounded"
@@ -468,7 +503,7 @@ const handleEditFromDetails = (trainer) => {
         <!-- Modals -->
         <TrainerRegistrationModal
             :show="showRegistrationModal"
-            :courses="courses"
+            :programs="programs"
             @close="closeRegistrationModal"
             @submitted="onTrainerSubmitted"
         />

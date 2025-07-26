@@ -7,6 +7,7 @@ import AssessmentRegistrationModal from "@/Components/AssessmentRegistrationModa
 import AssessmentDetailsModal from "@/Components/AssessmentDetailsModal.vue";
 import AssessmentReassessmentModal from "@/Components/AssessmentReassessmentModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import { useNotifications } from "@/composables/useNotifications";
 
 const props = defineProps({
     assessments: Array,
@@ -18,17 +19,13 @@ const props = defineProps({
 
 // Access page props for flash messages
 const page = usePage();
+const notifications = useNotifications();
 
 // Watch for flash messages
 watch(
     () => page.props.flash,
     (flash) => {
-        if (flash?.success) {
-            console.log("Success message:", flash.success);
-        }
-        if (flash?.error) {
-            console.log("Error message:", flash.error);
-        }
+        notifications.handleFlash(flash);
     },
     { deep: true, immediate: true }
 );
@@ -114,7 +111,7 @@ const viewAssessment = (assessment) => {
 
 const editAssessment = (assessment) => {
     if (isGraded(assessment)) {
-        alert(
+        notifications.warning(
             "Cannot edit finalized assessments. This assessment has already been graded."
         );
         return;
@@ -124,7 +121,7 @@ const editAssessment = (assessment) => {
 
 const reassessment = (assessment) => {
     if (!assessment.can_be_reassessed) {
-        alert(
+        notifications.warning(
             "This assessment cannot be re-assessed. Only assessments with 'Fail' or 'Absent' results can be re-assessed."
         );
         return;
@@ -135,7 +132,7 @@ const reassessment = (assessment) => {
 
 const deleteAssessment = (assessment) => {
     if (isGraded(assessment)) {
-        alert(
+        notifications.warning(
             "Cannot delete finalized assessments. This assessment has already been graded."
         );
         return;
@@ -227,7 +224,7 @@ const filteredAssessments = computed(() => {
 });
 
 const exportData = () => {
-    console.log("Exporting assessment data...");
+    // TODO: Implement export functionality
 };
 </script>
 

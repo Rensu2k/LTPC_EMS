@@ -13,7 +13,9 @@ class TraineeEnrollment extends Model
         'program_id', 
         'batch',
         'enrollment_date',
+        'date_started',
         'completion_date',
+        'date_ended',
         'status',
         'payment_status',
         'enrollment_fee',
@@ -26,7 +28,9 @@ class TraineeEnrollment extends Model
 
     protected $casts = [
         'enrollment_date' => 'date',
+        'date_started' => 'date',
         'completion_date' => 'date',
+        'date_ended' => 'date',
         'payment_date' => 'datetime',
         'enrollment_fee' => 'decimal:2',
     ];

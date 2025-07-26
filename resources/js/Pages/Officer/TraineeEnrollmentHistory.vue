@@ -4,7 +4,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <button
-                        @click="$inertia.visit(route('officer.trainees'))"
+                        @click="$inertia.visit(route(backRoute))"
                         class="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                         <svg
@@ -32,6 +32,7 @@
                     </div>
                 </div>
                 <button
+                    v-if="isOfficer"
                     @click="showEnrollModal = true"
                     class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                 >
@@ -180,7 +181,7 @@
                                 This trainee hasn't been enrolled in any
                                 programs yet.
                             </p>
-                            <div class="mt-6">
+                            <div v-if="isOfficer" class="mt-6">
                                 <button
                                     @click="showEnrollModal = true"
                                     class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
@@ -321,7 +322,7 @@
                                                 </div>
 
                                                 <div
-                                                    class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"
+                                                    class="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm"
                                                 >
                                                     <div>
                                                         <span
@@ -347,6 +348,41 @@
                                                             {{
                                                                 formatDate(
                                                                     enrollment.enrollment_date
+                                                                )
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <span
+                                                            class="text-gray-500"
+                                                            >Start Date:</span
+                                                        >
+                                                        <div
+                                                            class="font-medium"
+                                                        >
+                                                            {{
+                                                                formatDate(
+                                                                    enrollment.date_started
+                                                                )
+                                                            }}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <span
+                                                            class="text-gray-500"
+                                                            >End Date:</span
+                                                        >
+                                                        <div
+                                                            class="font-medium"
+                                                            :class="{
+                                                                'text-red-600':
+                                                                    enrollment.status ===
+                                                                    'dropped',
+                                                            }"
+                                                        >
+                                                            {{
+                                                                formatDateEnded(
+                                                                    enrollment
                                                                 )
                                                             }}
                                                         </div>
@@ -453,33 +489,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <!-- Actions -->
-                                            <div class="flex gap-2 ml-4">
-                                                <button
-                                                    @click="
-                                                        editEnrollment(
-                                                            enrollment
-                                                        )
-                                                    "
-                                                    class="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                                                    title="Edit enrollment"
-                                                >
-                                                    <svg
-                                                        class="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -504,7 +513,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import { router } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TraineeEnrollmentModal from "@/Components/TraineeEnrollmentModal.vue";
 
@@ -518,6 +527,15 @@ const props = defineProps({
 });
 
 const showEnrollModal = ref(false);
+
+// Role detection
+const user = computed(() => usePage().props.auth.user);
+const isOfficer = computed(() => user.value?.role === "officer");
+
+// Dynamic back route based on user role
+const backRoute = computed(() => {
+    return isOfficer.value ? "officer.trainees" : "admin.trainees";
+});
 
 // Computed properties for stats
 const completedCount = computed(
@@ -538,16 +556,26 @@ const formatDate = (dateString) => {
     });
 };
 
+// Format date ended with special logic
+const formatDateEnded = (enrollment) => {
+    // If trainee dropped, show "Dropped"
+    if (enrollment.status === "dropped") {
+        return "Dropped";
+    }
+
+    // If there's an actual end date, format it
+    if (enrollment.date_ended) {
+        return formatDate(enrollment.date_ended);
+    }
+
+    // If training hasn't ended yet, show "-"
+    return "-";
+};
+
 // Handle enrollment submission
 const handleEnrollmentSubmitted = () => {
     showEnrollModal.value = false;
     // Refresh the page to show updated data
     router.reload();
-};
-
-// Edit enrollment (placeholder for future implementation)
-const editEnrollment = (enrollment) => {
-    // You could implement an edit modal here
-    console.log("Edit enrollment:", enrollment);
 };
 </script>

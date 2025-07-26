@@ -54,7 +54,7 @@ class TraineeEnrollmentController extends Controller
             // Get the program
             $program = Program::find($validated['program_id']);
             
-            // Check for prerequisite completion if needed
+            // TODO: Enable prerequisite checking when implemented
             // if ($program->prerequisites && !$this->checkPrerequisites($trainee, $program)) {
             //     return redirect()->back()->with('error', 'Trainee has not completed required prerequisites.');
             // }
@@ -116,6 +116,11 @@ class TraineeEnrollmentController extends Controller
             $updateData['completion_date'] = $validated['completion_date'];
         }
 
+        // Automatically set date_ended when status is changed to "dropped"
+        if ($validated['status'] === 'dropped') {
+            $updateData['date_ended'] = now();
+        }
+
         $enrollment->update($updateData);
 
         return redirect()->back()->with('success', 'Enrollment status updated successfully!');
@@ -170,7 +175,7 @@ class TraineeEnrollmentController extends Controller
     /**
      * Show trainee's enrollment history
      */
-    public function history(Trainee $trainee)
+    public function history(Request $request, Trainee $trainee)
     {
         $enrollments = $trainee->enrollments()
             ->with('program')
@@ -199,13 +204,12 @@ class TraineeEnrollmentController extends Controller
      */
     private function checkPrerequisites(Trainee $trainee, Program $program): bool
     {
-        // This is a placeholder for prerequisite checking logic
-        // You could implement logic like:
-        // - Check if trainee completed required prerequisite programs
-        // - Check if trainee has required certifications
-        // - Check if trainee meets age/education requirements
+        // TODO: Implement prerequisite checking logic:
+        // - Check completed prerequisite programs
+        // - Verify required certifications
+        // - Validate age/education requirements
         
-        return true; // For now, allow all enrollments
+        return true; // Currently allows all enrollments
     }
 
     /**

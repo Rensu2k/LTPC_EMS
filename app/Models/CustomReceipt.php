@@ -26,6 +26,7 @@ class CustomReceipt extends Model
         'enrollment_id',
         'assessment_id',
         'trainee_model_id',
+        'program_id',
     ];
 
     protected $casts = [
@@ -50,5 +51,10 @@ class CustomReceipt extends Model
     public function trainee()
     {
         return $this->belongsTo(Trainee::class, 'trainee_model_id');
+    }
+
+    public function program()
+    {
+        return $this->belongsTo(Program::class, 'program_id', 'program_id');
     }
 }

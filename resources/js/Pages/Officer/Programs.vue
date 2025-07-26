@@ -6,12 +6,14 @@ import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import TrainerAssignmentModal from "@/Components/TrainerAssignmentModal.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
+import { useNotifications } from "@/composables/useNotifications";
 
 const props = defineProps({
     programs: Array,
     trainers: Array,
 });
 
+const notifications = useNotifications();
 const searchQuery = ref("");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
@@ -99,17 +101,28 @@ const confirmDelete = () => {
     if (!selectedProgram.value) return;
 
     processing.value = true;
+    const programName = selectedProgram.value.name; // Store the name before deletion
+    const loadingToast = notifications.loading(
+        `Deleting program "${programName}"...`
+    );
 
     router.delete(route("officer.programs.destroy", selectedProgram.value.id), {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
+            notifications.updateToSuccess(
+                loadingToast,
+                `Program "${programName}" deleted successfully!`
+            );
             // Refresh to show updated list
             window.location.reload();
         },
-        onError: () => {
+        onError: (errors) => {
             processing.value = false;
-            alert("Failed to delete program. Please try again.");
+            notifications.updateToError(
+                loadingToast,
+                "Failed to delete program. Please try again."
+            );
         },
     });
 };

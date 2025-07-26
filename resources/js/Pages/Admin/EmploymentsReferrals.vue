@@ -174,7 +174,7 @@ const getDaysAgo = (date) => {
 };
 
 const exportEmploymentReport = () => {
-    console.log("Exporting employment report...");
+    // TODO: Implement export functionality
 };
 </script>
 
@@ -207,7 +207,7 @@ const exportEmploymentReport = () => {
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                 Add Referral
+                                Add Referral
                             </PrimaryButton>
                             <SecondaryButton
                                 @click="exportEmploymentReport"

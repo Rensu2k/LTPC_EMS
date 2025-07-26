@@ -189,6 +189,8 @@ class Trainee extends Model
             'program_id' => $programId,
             'batch' => $batchNumber,
             'enrollment_date' => now()->toDateString(),
+            'date_started' => $program->start_date,
+            'date_ended' => $program->end_date,
             'status' => $paymentStatus === 'paid' ? 'active' : 'pending', // Active if paid, pending if unpaid
             'payment_status' => $paymentStatus,
             'enrollment_fee' => $enrollmentFee,
@@ -222,7 +224,6 @@ class Trainee extends Model
 
         // Check if already enrolled in this program (prevents duplicates)
         if ($this->isEnrolledInProgram($program->program_id)) {
-            Log::debug("Trainee {$this->id} is already enrolled in program {$program->program_id}");
             return;
         }
 

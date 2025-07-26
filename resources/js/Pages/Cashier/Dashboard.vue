@@ -55,8 +55,7 @@ const formatDate = (dateString) => {
 };
 
 const recordPayment = (paymentId) => {
-    console.log("Recording payment for ID:", paymentId);
-    // Implement payment recording logic
+    // TODO: Implement payment recording logic
 };
 
 const viewDetails = (paymentId) => {
@@ -80,8 +79,7 @@ const viewDetails = (paymentId) => {
 };
 
 const generateReport = (period) => {
-    console.log("Generating report for:", period);
-    // Implement report generation logic
+    // TODO: Implement report generation logic
 };
 </script>
 

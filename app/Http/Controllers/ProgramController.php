@@ -69,7 +69,7 @@ class ProgramController extends Controller
                 'created_at' => $program->created_at,
                 'assigned_trainers' => $program->assigned_trainers,
                 // Additional status counts
-                'enrollments' => $program->enrollment_count, // Active trainees only
+                'enrollments' => $program->total_enrollment_count, // All enrollments (active, completed, dropped, etc.)
                 'total_trainees' => $program->total_trainees_count,
                 'completed_trainees' => $program->completed_trainees_count,
                 'dropped_trainees' => $program->dropped_trainees_count,
@@ -240,6 +240,102 @@ class ProgramController extends Controller
         $program->update($programData);
 
         return redirect()->back()->with('success', 'Program updated successfully!');
+    }
+
+    /**
+     * Display enrollments for a specific program (Admin).
+     */
+    public function adminEnrollments(Program $program)
+    {
+        // Get new system enrollments
+        $newSystemEnrollments = $program->enrollments()
+            ->with('trainee')
+            ->orderBy('enrollment_date', 'desc')
+            ->get()
+            ->map(function ($enrollment) {
+                return [
+                    'id' => $enrollment->id,
+                    'trainee_id' => $enrollment->trainee_id,
+                    'program_id' => $enrollment->program_id,
+                    'batch' => $enrollment->batch,
+                    'enrollment_date' => $enrollment->enrollment_date,
+                    'date_started' => $enrollment->date_started,
+                    'completion_date' => $enrollment->completion_date,
+                    'date_ended' => $enrollment->date_ended,
+                    'status' => $enrollment->status,
+                    'payment_status' => $enrollment->payment_status,
+                    'enrollment_fee' => $enrollment->enrollment_fee,
+                    'payment_method' => $enrollment->payment_method,
+                    'payment_reference' => $enrollment->payment_reference,
+                    'payment_date' => $enrollment->payment_date,
+                    'payment_notes' => $enrollment->payment_notes,
+                    'notes' => $enrollment->notes,
+                    'trainee' => [
+                        'id' => $enrollment->trainee->id,
+                        'full_name' => $enrollment->trainee->full_name,
+                        'email' => $enrollment->trainee->email,
+                        'contact_number' => $enrollment->trainee->contact_number,
+                        'address' => $enrollment->trainee->address,
+                        'status' => $enrollment->trainee->status,
+                    ],
+                    'enrollment_type' => 'new_system',
+                ];
+            });
+
+        // Get legacy trainees (from old system)
+        $enrolledTraineeIds = $newSystemEnrollments->pluck('trainee_id')->toArray();
+        $legacyTrainees = \App\Models\Trainee::where('program_qualification', $program->name)
+            ->whereNotIn('id', $enrolledTraineeIds)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($trainee) {
+                return [
+                    'id' => null, // No enrollment ID for legacy trainees
+                    'trainee_id' => $trainee->id,
+                    'program_id' => null, // No program_id for legacy trainees
+                    'batch' => $trainee->batch,
+                    'enrollment_date' => $trainee->created_at,
+                    'date_started' => $trainee->date_started,
+                    'completion_date' => $trainee->completion_date,
+                    'date_ended' => $trainee->date_ended,
+                    'status' => $trainee->status,
+                    'payment_status' => $trainee->payment_status ?? 'unknown',
+                    'enrollment_fee' => $trainee->enrollment_fee,
+                    'payment_method' => null,
+                    'payment_reference' => null,
+                    'payment_date' => null,
+                    'payment_notes' => null,
+                    'notes' => $trainee->notes,
+                    'trainee' => [
+                        'id' => $trainee->id,
+                        'full_name' => $trainee->full_name,
+                        'email' => $trainee->email,
+                        'contact_number' => $trainee->contact_number,
+                        'address' => $trainee->address,
+                        'status' => $trainee->status,
+                    ],
+                    'enrollment_type' => 'legacy',
+                ];
+            });
+
+        // Combine and sort all enrollments by enrollment date
+        $allEnrollments = $newSystemEnrollments->concat($legacyTrainees)
+            ->sortByDesc('enrollment_date')
+            ->values();
+
+        return Inertia::render('Admin/ProgramEnrollments', [
+            'program' => [
+                'program_id' => $program->program_id,
+                'name' => $program->name,
+                'description' => $program->description,
+                'duration' => $program->duration,
+                'prerequisites' => $program->prerequisites,
+                'enrollment_fee' => $program->enrollment_fee,
+                'status' => $program->status,
+                'created_at' => $program->created_at,
+            ],
+            'enrollments' => $allEnrollments
+        ]);
     }
 
     /**

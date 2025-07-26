@@ -13,7 +13,7 @@ import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 
 const props = defineProps({
     trainees: Array,
-    courses: Array,
+    programs: Array,
     flash: Object,
 });
 
@@ -25,8 +25,31 @@ const showDeleteModal = ref(false);
 const editingTrainee = ref(null);
 const deletingTrainee = ref(null);
 const searchQuery = ref("");
-const selectedCourse = ref("");
+const selectedProgram = ref("");
 const selectedEnrollmentType = ref("");
+const selectedStatus = ref("");
+const dateFrom = ref("");
+const dateTo = ref("");
+
+const clearFilters = () => {
+    searchQuery.value = "";
+    selectedProgram.value = "";
+    selectedEnrollmentType.value = "";
+    selectedStatus.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
+};
+
+const hasActiveFilters = computed(() => {
+    return (
+        searchQuery.value ||
+        selectedProgram.value ||
+        selectedEnrollmentType.value ||
+        selectedStatus.value ||
+        dateFrom.value ||
+        dateTo.value
+    );
+});
 
 const form = useForm({
     first_name: "",
@@ -34,7 +57,9 @@ const form = useForm({
     email: "",
     phone: "",
     address: "",
-    course_id: "",
+    birth_date: "",
+    gender: "",
+    program_id: "",
     date_enrolled: "",
     status: "active",
     enrollment_type: "regular",
@@ -46,10 +71,10 @@ const filteredTrainees = computed(() => {
     if (searchQuery.value) {
         filtered = filtered.filter(
             (trainee) =>
-                trainee.first_name
+                trainee.name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                trainee.last_name
+                trainee.uli_number
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
                 trainee.email
@@ -58,21 +83,65 @@ const filteredTrainees = computed(() => {
         );
     }
 
-    if (selectedCourse.value) {
+    if (selectedProgram.value) {
         filtered = filtered.filter(
-            (trainee) => trainee.course_id == selectedCourse.value
+            (trainee) =>
+                Array.isArray(trainee.enrollments) &&
+                trainee.enrollments.some(
+                    (enrollment) =>
+                        enrollment.program_id == selectedProgram.value
+                )
         );
     }
 
     if (selectedEnrollmentType.value) {
+        filtered = filtered.filter((trainee) => {
+            if (selectedEnrollmentType.value === "regular") {
+                return !trainee.scholarship_package;
+            } else if (selectedEnrollmentType.value === "scholar") {
+                return !!trainee.scholarship_package;
+            }
+            return true;
+        });
+    }
+
+    if (selectedStatus.value) {
         filtered = filtered.filter(
-            (trainee) =>
-                trainee.enrollment_type === selectedEnrollmentType.value
+            (trainee) => trainee.status === selectedStatus.value
         );
+    }
+
+    if (dateFrom.value || dateTo.value) {
+        filtered = filtered.filter((trainee) => {
+            const enrolledDate = trainee.actual_enrollment_date
+                ? new Date(trainee.actual_enrollment_date)
+                : null;
+            const fromDate = dateFrom.value ? new Date(dateFrom.value) : null;
+            const toDate = dateTo.value ? new Date(dateTo.value) : null;
+            if (!enrolledDate) return false;
+            if (fromDate && toDate) {
+                return enrolledDate >= fromDate && enrolledDate <= toDate;
+            } else if (fromDate) {
+                return enrolledDate >= fromDate;
+            } else if (toDate) {
+                return enrolledDate <= toDate;
+            }
+            return true;
+        });
     }
 
     return filtered;
 });
+
+const statusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "active", label: "Active" },
+    { value: "graduated", label: "Graduated" },
+    { value: "dropped", label: "Dropped" },
+    { value: "inactive", label: "Inactive" },
+];
+
+const totalTrainees = computed(() => filteredTrainees.value.length);
 
 const openCreateModal = () => {
     if (!isOfficer.value) return;
@@ -89,7 +158,9 @@ const openEditModal = (trainee) => {
     form.email = trainee.email;
     form.phone = trainee.phone;
     form.address = trainee.address;
-    form.course_id = trainee.course_id;
+    form.birth_date = trainee.birth_date;
+    form.gender = trainee.gender;
+    form.program_id = trainee.program_id;
     form.date_enrolled = trainee.date_enrolled;
     form.status = trainee.status;
     form.enrollment_type = trainee.enrollment_type;
@@ -132,7 +203,13 @@ const deleteTrainee = () => {
 };
 
 const exportEnrollments = () => {
-    console.log("Exporting enrollment report...");
+    // TODO: Implement export functionality
+};
+
+const viewEnrollmentHistory = (trainee) => {
+    // Navigate to trainee enrollment history page based on user role
+    const rolePrefix = isOfficer.value ? "officer" : "admin";
+    router.visit(`/${rolePrefix}/trainees/${trainee.id}/enrollment-history`);
 };
 
 const getStatusColor = (status) => {
@@ -201,7 +278,7 @@ const getEnrollmentTypeColor = (type) => {
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="relative">
                             <InputLabel for="search" value="Search Trainees" />
                             <TextInput
@@ -214,21 +291,21 @@ const getEnrollmentTypeColor = (type) => {
                         </div>
                         <div>
                             <InputLabel
-                                for="course-filter"
+                                for="program-filter"
                                 value="Filter by Program"
                             />
                             <select
-                                id="course-filter"
-                                v-model="selectedCourse"
+                                id="program-filter"
+                                v-model="selectedProgram"
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                             >
                                 <option value="">All Programs</option>
                                 <option
-                                    v-for="course in courses"
-                                    :key="course.course_id"
-                                    :value="course.course_id"
+                                    v-for="program in programs"
+                                    :key="program.program_id"
+                                    :value="program.program_id"
                                 >
-                                    {{ course.name }}
+                                    {{ program.name }}
                                 </option>
                             </select>
                         </div>
@@ -246,6 +323,145 @@ const getEnrollmentTypeColor = (type) => {
                                 <option value="regular">Regular</option>
                                 <option value="scholar">Scholar</option>
                             </select>
+                        </div>
+                        <div>
+                            <InputLabel for="status-filter" value="Status" />
+                            <select
+                                id="status-filter"
+                                v-model="selectedStatus"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            >
+                                <option
+                                    v-for="option in statusOptions"
+                                    :key="option.value"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div>
+                            <InputLabel
+                                for="date-from"
+                                value="Date Enrolled From"
+                            />
+                            <TextInput
+                                id="date-from"
+                                v-model="dateFrom"
+                                type="date"
+                                class="mt-1 block w-full"
+                            />
+                        </div>
+                        <div>
+                            <InputLabel
+                                for="date-to"
+                                value="Date Enrolled To"
+                            />
+                            <TextInput
+                                id="date-to"
+                                v-model="dateTo"
+                                type="date"
+                                class="mt-1 block w-full"
+                            />
+                        </div>
+                        <div class="flex items-end gap-2 mt-6">
+                            <SecondaryButton
+                                v-if="hasActiveFilters"
+                                @click="clearFilters"
+                                class="flex items-center gap-2 text-red-600 hover:text-red-700"
+                            >
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                                Clear Filters
+                            </SecondaryButton>
+                        </div>
+                    </div>
+                    <div
+                        v-if="hasActiveFilters"
+                        class="flex flex-wrap gap-2 pt-2"
+                    >
+                        <span class="text-sm text-gray-600"
+                            >Active filters:</span
+                        >
+                        <span
+                            v-if="searchQuery"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                            Search: "{{ searchQuery }}"
+                        </span>
+                        <span
+                            v-if="selectedProgram"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                            Program:
+                            {{
+                                programs.find(
+                                    (p) => p.program_id == selectedProgram
+                                )?.name || selectedProgram
+                            }}
+                        </span>
+                        <span
+                            v-if="selectedEnrollmentType"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                        >
+                            Type:
+                            {{
+                                selectedEnrollmentType.charAt(0).toUpperCase() +
+                                selectedEnrollmentType.slice(1)
+                            }}
+                        </span>
+                        <span
+                            v-if="selectedStatus"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+                        >
+                            Status:
+                            {{
+                                statusOptions.find(
+                                    (s) => s.value == selectedStatus
+                                )?.label || selectedStatus
+                            }}
+                        </span>
+                        <span
+                            v-if="dateFrom || dateTo"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                        >
+                            Date: {{ dateFrom || "Any" }} -
+                            {{ dateTo || "Any" }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                    <div
+                        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                    >
+                        <div class="flex items-center gap-6">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-600">
+                                    {{ totalTrainees }}
+                                </p>
+                                <p class="text-sm text-gray-600">Trainees</p>
+                            </div>
+                        </div>
+                        <div v-if="hasActiveFilters" class="text-right">
+                            <p class="text-sm text-gray-600">
+                                Showing {{ totalTrainees }} of
+                                {{ props.trainees.length }} trainees
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -291,13 +507,7 @@ const getEnrollmentTypeColor = (type) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Trainee
-                                </th>
-
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                    Contact
+                                    Name
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -307,12 +517,17 @@ const getEnrollmentTypeColor = (type) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
+                                    Trainer
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
                                     Batch
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Type
+                                    Date Enrolled
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -322,7 +537,7 @@ const getEnrollmentTypeColor = (type) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Date Enrolled
+                                    Enrollment History
                                 </th>
                                 <th
                                     v-if="isOfficer"
@@ -338,6 +553,16 @@ const getEnrollmentTypeColor = (type) => {
                                 :key="trainee.id"
                                 class="hover:bg-gray-50 transition-colors duration-200 group"
                             >
+                                <!-- ULI Number -->
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div
+                                        class="text-sm font-medium text-gray-900"
+                                    >
+                                        {{ trainee.uli_number || "N/A" }}
+                                    </div>
+                                </td>
+
+                                <!-- Name -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-10 w-10">
@@ -370,29 +595,35 @@ const getEnrollmentTypeColor = (type) => {
                                             <div
                                                 class="text-sm text-gray-500 group-hover:text-green-500 transition-colors duration-200"
                                             >
-                                                ID: {{ trainee.id }}
+                                                {{ trainee.email }}
                                             </div>
                                         </div>
                                     </div>
                                 </td>
+
+                                <!-- Program -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ trainee.uli_number }}
+                                        {{
+                                            trainee.program?.name ||
+                                            trainee.program_qualification ||
+                                            "N/A"
+                                        }}
                                     </div>
                                 </td>
+
+                                <!-- Trainer -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ trainee.email }}
-                                    </div>
-                                    <div class="text-sm text-gray-500">
-                                        {{ trainee.phone }}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
-                                        {{ trainee.course?.name || "N/A" }}
+                                        {{
+                                            trainee.trainer?.full_name ||
+                                            trainee.assigned_trainer ||
+                                            "Not Assigned"
+                                        }}
                                     </div>
                                 </td>
+
+                                <!-- Batch -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
@@ -400,18 +631,21 @@ const getEnrollmentTypeColor = (type) => {
                                         Batch {{ trainee.batch || 1 }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span
-                                        :class="
-                                            getEnrollmentTypeColor(
-                                                trainee.enrollment_type
-                                            )
-                                        "
-                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
-                                    >
-                                        {{ trainee.enrollment_type }}
-                                    </span>
+
+                                <!-- Date Enrolled -->
+                                <td
+                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                >
+                                    {{
+                                        trainee.actual_enrollment_date
+                                            ? new Date(
+                                                  trainee.actual_enrollment_date
+                                              ).toLocaleDateString()
+                                            : "N/A"
+                                    }}
                                 </td>
+
+                                <!-- Status -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
                                         :class="getStatusColor(trainee.status)"
@@ -420,15 +654,31 @@ const getEnrollmentTypeColor = (type) => {
                                         {{ trainee.status }}
                                     </span>
                                 </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                                >
-                                    {{
-                                        new Date(
-                                            trainee.date_enrolled
-                                        ).toLocaleDateString()
-                                    }}
+
+                                <!-- Enrollment History -->
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <button
+                                        @click="viewEnrollmentHistory(trainee)"
+                                        class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors duration-200"
+                                    >
+                                        <svg
+                                            class="w-3 h-3 mr-1"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            ></path>
+                                        </svg>
+                                        View History
+                                    </button>
                                 </td>
+
+                                <!-- Actions (for officers only) -->
                                 <td
                                     v-if="isOfficer"
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
@@ -604,24 +854,24 @@ const getEnrollmentTypeColor = (type) => {
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <InputLabel for="course_id" value="Program *" />
+                            <InputLabel for="program_id" value="Program *" />
                             <select
-                                id="course_id"
-                                v-model="form.course_id"
+                                id="program_id"
+                                v-model="form.program_id"
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                                 required
                             >
                                 <option value="">Select Program</option>
                                 <option
-                                    v-for="course in courses"
-                                    :key="course.course_id"
-                                    :value="course.course_id"
+                                    v-for="program in programs"
+                                    :key="program.program_id"
+                                    :value="program.program_id"
                                 >
-                                    {{ course.name }}
+                                    {{ program.name }}
                                 </option>
                             </select>
                             <InputError
-                                :message="form.errors.course_id"
+                                :message="form.errors.program_id"
                                 class="mt-2"
                             />
                         </div>

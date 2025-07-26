@@ -8,10 +8,12 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\TraineeEnrollmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CashierController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
     if (Auth::user()) {
@@ -34,40 +36,23 @@ Route::get('/dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {    
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {        
-        Route::get('/dashboard', function () {
-            return Inertia::render('Admin/Dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
         
-            // Program Management Routes
-    Route::get('/programs', [ProgramController::class, 'adminIndex'])->name('programs');
-    Route::post('/programs', [ProgramController::class, 'adminStore'])->name('programs.store');
-    Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
-    Route::put('/programs/{program}', [ProgramController::class, 'adminUpdate'])->name('programs.update');
-    Route::delete('/programs/{program}', [ProgramController::class, 'adminDestroy'])->name('programs.destroy');
+            // Program Management Routes - READ ONLY for Admin
+        Route::get('/programs', [ProgramController::class, 'adminIndex'])->name('programs');
+        Route::get('/programs/{program}/enrollments', [ProgramController::class, 'adminEnrollments'])->name('programs.enrollments');
+        // NOTE: CRUD operations removed - only Officers can create/edit/delete programs
         
+        // Trainee Management Routes - READ ONLY for Admin  
         Route::get('/trainees', [TraineeController::class, 'adminIndex'])->name('trainees');
-        Route::post('/trainees', [TraineeController::class, 'adminStore'])->name('trainees.store');
-        Route::put('/trainees/{trainee}', [TraineeController::class, 'adminUpdate'])->name('trainees.update');
-        Route::delete('/trainees/{trainee}', [TraineeController::class, 'adminDestroy'])->name('trainees.destroy');
-        Route::patch('/trainees/{trainee}/status', [TraineeController::class, 'updateStatus'])->name('trainees.status');
+        // NOTE: CRUD operations removed - only Officers can create/edit/delete trainees
         
+        // Trainer Management Routes - READ ONLY for Admin
         Route::get('/trainers', [TrainerController::class, 'adminIndex'])->name('trainers');
-        Route::post('/trainers', [TrainerController::class, 'adminStore'])->name('trainers.store');
-        Route::get('/trainers/{trainer}/edit', [TrainerController::class, 'edit'])->name('trainers.edit');
-        Route::put('/trainers/{trainer}', [TrainerController::class, 'adminUpdate'])->name('trainers.update');
-        Route::delete('/trainers/{trainer}', [TrainerController::class, 'adminDestroy'])->name('trainers.destroy');
+        // NOTE: CRUD operations removed - only Officers can create/edit/delete trainers
         
-        Route::get('/payments', function () {
-            return Inertia::render('Admin/Payments');
-        })->name('payments');
-        Route::post('/payments', function () {            
-        })->name('payments.store');
-        Route::put('/payments/{id}', function ($id) {            
-        })->name('payments.update');
-        Route::delete('/payments/{id}', function ($id) {            
-        })->name('payments.destroy');
-        Route::patch('/payments/{id}/status', function ($id) {            
-        })->name('payments.status');
+        Route::get('/payments', [PaymentController::class, 'adminIndex'])->name('payments');
+        // CRUD routes removed - admin has read-only access to payments
         
         Route::get('/trainings', function () {
             return Inertia::render('Admin/TrainingResults');
@@ -99,13 +84,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/employments/{id}', function ($id) {            
         })->name('employments.destroy');
         
-        Route::get('/reports', function () {
-            return Inertia::render('Admin/Reports');
-        })->name('reports');
-        Route::post('/reports/generate', function () {            
-        })->name('reports.generate');
-        Route::post('/reports/export', function () {            
-        })->name('reports.export');
+        Route::get('/reports', [App\Http\Controllers\ReportsController::class, 'index'])->name('reports');
+        Route::post('/reports/generate', [App\Http\Controllers\ReportsController::class, 'generate'])->name('reports.generate');
+        Route::post('/reports/export', [App\Http\Controllers\ReportsController::class, 'export'])->name('reports.export');
+        
+        // Trainee Enrollment History - Admins can view enrollment history (read-only)
+        Route::get('/trainees/{trainee}/enrollment-history', [TraineeEnrollmentController::class, 'history'])->name('trainees.enrollment-history');
         
         Route::get('/users', function () {
             return Inertia::render('Admin/Users');
@@ -189,6 +173,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reports/financial', function () {            
         })->name('reports.financial');
     });
+
+
 });
 
 Route::middleware('auth')->group(function () {

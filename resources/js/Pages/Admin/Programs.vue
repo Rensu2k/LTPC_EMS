@@ -133,7 +133,7 @@ const formatCurrency = (amount) => {
 
 const exportProgramReport = () => {
     // Implement export functionality
-    console.log("Exporting program report...");
+    // TODO: Implement export functionality
 };
 
 const getStatusColor = (status) => {
@@ -158,6 +158,10 @@ const closeAssignmentModal = () => {
 const onTrainersAssigned = () => {
     // Refresh the page to show updated trainers
     window.location.reload();
+};
+
+const viewEnrollments = (program) => {
+    router.visit(`/admin/programs/${program.program_id}/enrollments`);
 };
 
 const getAssignedTrainers = (assignedTrainerIds) => {
@@ -208,7 +212,7 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                         </div>
                         <div class="flex space-x-3">
                             <SecondaryButton
-                                v-if="isOfficer || isAdmin"
+                                v-if="isOfficer"
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
@@ -264,8 +268,8 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                         <div class="ml-3">
                             <p class="text-sm text-yellow-700">
                                 You don't have permission to manage programs.
-                                Only Officers and Admins can add, edit, or
-                                delete programs.
+                                Only Officers can add, edit, or delete programs.
+                                Admins have read-only access.
                             </p>
                         </div>
                     </div>
@@ -396,10 +400,39 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ program.enrollments || 0 }}
+                                    <button
+                                        @click="viewEnrollments(program)"
+                                        class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                        :title="`View ${
+                                            program.enrollments || 0
+                                        } enrollments`"
+                                    >
+                                        <svg
+                                            class="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                            ></path>
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                            ></path>
+                                        </svg>
+                                        <span class="text-xs font-medium">{{
+                                            program.enrollments || 0
+                                        }}</span>
+                                    </button>
                                 </td>
                                 <td
-                                    v-if="isOfficer || isAdmin"
+                                    v-if="isOfficer"
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2"
                                 >
                                     <button

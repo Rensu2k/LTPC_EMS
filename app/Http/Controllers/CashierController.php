@@ -119,7 +119,7 @@ class CashierController extends Controller
                 
                 // For scholars, add additional fees even if enrollment fee is $0
                 $additionalFees = 0;
-                $courseName = $trainee->program_qualification . ' (Enrollment Fee)';
+                $courseName = $trainee->program_qualification; // Remove ' (Enrollment Fee)' suffix
                 
                 if ($isScholar && $enrollmentFee == 0) {
                     $additionalFees = 500; // Trainee ID + Certification fees
@@ -203,6 +203,8 @@ class CashierController extends Controller
         
         // Get collections by course
         $collectionsByCourse = $this->getCollectionsByCourse();
+        
+
 
         return Inertia::render('Cashier/Payments', [
             'enrollmentPayments' => $allEnrollmentPayments,
@@ -1026,73 +1028,213 @@ class CashierController extends Controller
      */
     private function calculatePaymentSummaryStats()
     {
-        // Enrollment totals
-        $totalEnrollmentCollections = TraineeEnrollment::where('payment_status', 'paid')->sum('enrollment_fee');
-        $totalEnrollmentCollectionsCount = TraineeEnrollment::where('payment_status', 'paid')->count();
-        
-        // Assessment totals
-        $totalAssessmentCollections = Assessment::where('payment_status', 'paid')->sum('assessment_fee');
-        $totalAssessmentCollectionsCount = Assessment::where('payment_status', 'paid')->count();
-        
-        // Custom receipt totals (additional amounts collected via custom receipts)
+        // Custom receipt totals (primary source of truth for collections)
         $totalCustomReceiptCollections = CustomReceipt::where('status', 'generated')->sum('total_amount');
         
-        // Combined totals (including custom receipts)
-        // Note: Don't add custom receipt count to trainee count since they're additional payments from existing trainees
-        $totalCollections = $totalEnrollmentCollections + $totalAssessmentCollections + $totalCustomReceiptCollections;
-        $totalCollectionsCount = $totalEnrollmentCollectionsCount + $totalAssessmentCollectionsCount;
+        // Get enrollment totals for payments that haven't been processed into custom receipts yet
+        // Only count enrollments that don't have corresponding custom receipts
+        $enrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('enrollment_id')
+            ->pluck('enrollment_id')
+            ->toArray();
+            
+        $totalEnrollmentCollections = TraineeEnrollment::where('payment_status', 'paid')
+            ->whereNotIn('id', $enrollmentsWithReceipts)
+            ->sum('enrollment_fee');
+        $totalEnrollmentCollectionsCount = TraineeEnrollment::where('payment_status', 'paid')
+            ->whereNotIn('id', $enrollmentsWithReceipts)
+            ->count();
+        
+        // Get assessment totals for payments that haven't been processed into custom receipts yet
+        $assessmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('assessment_id')
+            ->pluck('assessment_id')
+            ->toArray();
+            
+        $totalAssessmentCollections = Assessment::where('payment_status', 'paid')
+            ->whereNotIn('id', $assessmentsWithReceipts)
+            ->sum('assessment_fee');
+        $totalAssessmentCollectionsCount = Assessment::where('payment_status', 'paid')
+            ->whereNotIn('id', $assessmentsWithReceipts)
+            ->count();
+        
+        // Registration totals (new trainees who paid but haven't been processed into custom receipts)
+        $traineesWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('trainee_model_id')
+            ->pluck('trainee_model_id')
+            ->toArray();
+            
+        $totalRegistrationCollections = Trainee::where('payment_status', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->whereNotIn('id', $traineesWithReceipts)
+            ->get()
+            ->sum(function ($trainee) {
+                $program = Program::where('name', $trainee->program_qualification)->first();
+                $enrollmentFee = $program ? $program->enrollment_fee : 0;
+                
+                $isScholar = $trainee->scholarship_package && trim($trainee->scholarship_package) !== '';
+                $additionalFees = 0;
+                
+                if ($isScholar && $enrollmentFee == 0) {
+                    $additionalFees = 500; // Trainee ID + Certification fees
+                }
+                
+                return $enrollmentFee + $additionalFees;
+            });
+        $totalRegistrationCollectionsCount = Trainee::where('payment_status', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->whereNotIn('id', $traineesWithReceipts)
+            ->count();
+        
+        // Combined totals (custom receipts are primary, add only unprocessed payments)
+        $totalCollections = $totalCustomReceiptCollections + $totalEnrollmentCollections + $totalAssessmentCollections + $totalRegistrationCollections;
+        $totalCollectionsCount = $totalEnrollmentCollectionsCount + $totalAssessmentCollectionsCount + $totalRegistrationCollectionsCount;
         
         $thisMonth = Carbon::now()->startOfMonth();
         
-        // This month enrollment
-        $thisMonthEnrollmentAmount = TraineeEnrollment::where('payment_status', 'paid')
-            ->where('payment_date', '>=', $thisMonth)
-            ->sum('enrollment_fee');
-        $thisMonthEnrollmentCount = TraineeEnrollment::where('payment_status', 'paid')
-            ->where('payment_date', '>=', $thisMonth)
-            ->count();
-            
-        // This month assessment
-        $thisMonthAssessmentAmount = Assessment::where('payment_status', 'paid')
-            ->where('payment_date', '>=', $thisMonth)
-            ->sum('assessment_fee');
-        $thisMonthAssessmentCount = Assessment::where('payment_status', 'paid')
-            ->where('payment_date', '>=', $thisMonth)
-            ->count();
-            
-        // This month custom receipts
+        // This month custom receipts (primary source)
         $thisMonthCustomReceiptAmount = CustomReceipt::where('status', 'generated')
             ->where('date_generated', '>=', $thisMonth)
             ->sum('total_amount');
             
-        // Combined this month (including custom receipts)
-        // Note: Don't add custom receipt count to trainee count since they're additional payments from existing trainees
-        $thisMonthAmount = $thisMonthEnrollmentAmount + $thisMonthAssessmentAmount + $thisMonthCustomReceiptAmount;
-        $thisMonthCount = $thisMonthEnrollmentCount + $thisMonthAssessmentCount;
+        // This month enrollment (only those not processed into custom receipts)
+        $thisMonthEnrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('enrollment_id')
+            ->where('date_generated', '>=', $thisMonth)
+            ->pluck('enrollment_id')
+            ->toArray();
             
-        // Outstanding enrollment
+        $thisMonthEnrollmentAmount = TraineeEnrollment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthEnrollmentsWithReceipts)
+            ->sum('enrollment_fee');
+        $thisMonthEnrollmentCount = TraineeEnrollment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthEnrollmentsWithReceipts)
+            ->count();
+            
+        // This month assessment (only those not processed into custom receipts)
+        $thisMonthAssessmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('assessment_id')
+            ->where('date_generated', '>=', $thisMonth)
+            ->pluck('assessment_id')
+            ->toArray();
+            
+        $thisMonthAssessmentAmount = Assessment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthAssessmentsWithReceipts)
+            ->sum('assessment_fee');
+        $thisMonthAssessmentCount = Assessment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthAssessmentsWithReceipts)
+            ->count();
+            
+        // This month registration (only those not processed into custom receipts)
+        $thisMonthTraineesWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('trainee_model_id')
+            ->where('date_generated', '>=', $thisMonth)
+            ->pluck('trainee_model_id')
+            ->toArray();
+            
+        $thisMonthRegistrationAmount = Trainee::where('payment_status', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthTraineesWithReceipts)
+            ->get()
+            ->sum(function ($trainee) {
+                $program = Program::where('name', $trainee->program_qualification)->first();
+                $enrollmentFee = $program ? $program->enrollment_fee : 0;
+                
+                $isScholar = $trainee->scholarship_package && trim($trainee->scholarship_package) !== '';
+                $additionalFees = 0;
+                
+                if ($isScholar && $enrollmentFee == 0) {
+                    $additionalFees = 500; // Trainee ID + Certification fees
+                }
+                
+                return $enrollmentFee + $additionalFees;
+            });
+        $thisMonthRegistrationCount = Trainee::where('payment_status', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->where('payment_date', '>=', $thisMonth)
+            ->whereNotIn('id', $thisMonthTraineesWithReceipts)
+            ->count();
+            
+        // Combined this month (custom receipts are primary, add only unprocessed payments)
+        $thisMonthAmount = $thisMonthCustomReceiptAmount + $thisMonthEnrollmentAmount + $thisMonthAssessmentAmount + $thisMonthRegistrationAmount;
+        $thisMonthCount = $thisMonthEnrollmentCount + $thisMonthAssessmentCount + $thisMonthRegistrationCount;
+            
+        // Outstanding enrollment (only those not processed into custom receipts)
+        $outstandingEnrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('enrollment_id')
+            ->pluck('enrollment_id')
+            ->toArray();
+            
         $outstandingEnrollmentAmount = TraineeEnrollment::where('payment_status', '!=', 'paid')
             ->whereNotNull('enrollment_fee')
             ->where('enrollment_fee', '>', 0)
+            ->whereNotIn('id', $outstandingEnrollmentsWithReceipts)
             ->sum('enrollment_fee');
         $outstandingEnrollmentCount = TraineeEnrollment::where('payment_status', '!=', 'paid')
             ->whereNotNull('enrollment_fee')
             ->where('enrollment_fee', '>', 0)
+            ->whereNotIn('id', $outstandingEnrollmentsWithReceipts)
             ->count();
             
-        // Outstanding assessment
+        // Outstanding assessment (only those not processed into custom receipts)
+        $outstandingAssessmentsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('assessment_id')
+            ->pluck('assessment_id')
+            ->toArray();
+            
         $outstandingAssessmentAmount = Assessment::where('payment_status', '!=', 'paid')
             ->whereNotNull('assessment_fee')
             ->where('assessment_fee', '>', 0)
+            ->whereNotIn('id', $outstandingAssessmentsWithReceipts)
             ->sum('assessment_fee');
         $outstandingAssessmentCount = Assessment::where('payment_status', '!=', 'paid')
             ->whereNotNull('assessment_fee')
             ->where('assessment_fee', '>', 0)
+            ->whereNotIn('id', $outstandingAssessmentsWithReceipts)
+            ->count();
+            
+        // Outstanding registration (only those not processed into custom receipts)
+        $outstandingTraineesWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereNotNull('trainee_model_id')
+            ->pluck('trainee_model_id')
+            ->toArray();
+            
+        $outstandingRegistrationAmount = Trainee::where('payment_status', '!=', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->whereNotIn('id', $outstandingTraineesWithReceipts)
+            ->get()
+            ->sum(function ($trainee) {
+                $program = Program::where('name', $trainee->program_qualification)->first();
+                $enrollmentFee = $program ? $program->enrollment_fee : 0;
+                
+                $isScholar = $trainee->scholarship_package && trim($trainee->scholarship_package) !== '';
+                $additionalFees = 0;
+                
+                if ($isScholar && $enrollmentFee == 0) {
+                    $additionalFees = 500; // Trainee ID + Certification fees
+                }
+                
+                return $enrollmentFee + $additionalFees;
+            });
+        $outstandingRegistrationCount = Trainee::where('payment_status', '!=', 'paid')
+            ->where('status', 'pending')
+            ->whereDoesntHave('enrollments')
+            ->whereNotIn('id', $outstandingTraineesWithReceipts)
             ->count();
             
         // Combined outstanding
-        $outstandingAmount = $outstandingEnrollmentAmount + $outstandingAssessmentAmount;
-        $outstandingCount = $outstandingEnrollmentCount + $outstandingAssessmentCount;
+        $outstandingAmount = $outstandingEnrollmentAmount + $outstandingAssessmentAmount + $outstandingRegistrationAmount;
+        $outstandingCount = $outstandingEnrollmentCount + $outstandingAssessmentCount + $outstandingRegistrationCount;
 
         return [
             'totalCollections' => [
@@ -1135,6 +1277,28 @@ class CashierController extends Controller
                 $assessmentUnpaid = $assessments->where('payment_status', 'unpaid')->count();
                 $assessmentAmount = $assessments->where('payment_status', 'paid')->sum('assessment_fee');
 
+                // Get registration data for this program (new trainees who haven't been enrolled yet)
+                $registrations = Trainee::where('program_qualification', $program->name)
+                    ->where('status', 'pending')
+                    ->whereDoesntHave('enrollments')
+                    ->get();
+                    
+                $registrationCount = $registrations->count();
+                $registrationPaid = $registrations->where('payment_status', 'paid')->count();
+                $registrationUnpaid = $registrations->where('payment_status', 'unpaid')->count();
+                $registrationAmount = $registrations->where('payment_status', 'paid')
+                    ->sum(function ($trainee) use ($program) {
+                        $enrollmentFee = $program->enrollment_fee;
+                        $isScholar = $trainee->scholarship_package && trim($trainee->scholarship_package) !== '';
+                        $additionalFees = 0;
+                        
+                        if ($isScholar && $enrollmentFee == 0) {
+                            $additionalFees = 500; // Trainee ID + Certification fees
+                        }
+                        
+                        return $enrollmentFee + $additionalFees;
+                    });
+
                 // Get custom receipt data for this program (match by course name in fees array)
                 $customReceiptAmount = CustomReceipt::where('status', 'generated')
                     ->get()
@@ -1152,26 +1316,20 @@ class CashierController extends Controller
                     ->sum('total_amount');
 
                 // Combined totals (including custom receipts)
-                $totalPayments = $enrollmentCount + $assessmentCount;
-                $totalPaid = $enrollmentPaid + $assessmentPaid;
-                $totalUnpaid = $enrollmentUnpaid + $assessmentUnpaid;
-                $totalCollectionAmount = $enrollmentAmount + $assessmentAmount + $customReceiptAmount;
-                
-                // Skip programs with no payments and no custom receipts
-                if ($totalPayments === 0 && $customReceiptAmount == 0) {
-                    return null;
-                }
+                $totalPayments = $enrollmentCount + $assessmentCount + $registrationCount;
+                $totalPaid = $enrollmentPaid + $assessmentPaid + $registrationPaid;
+                $totalUnpaid = $enrollmentUnpaid + $assessmentUnpaid + $registrationUnpaid;
+                $totalCollectionAmount = $enrollmentAmount + $assessmentAmount + $registrationAmount + $customReceiptAmount;
 
                 return [
                     'course' => $program->name,
-                    'totalTrainees' => $totalPayments, // Changed to total payments (enrollments + assessments)
+                    'totalTrainees' => $totalPayments, // Total payments (enrollments + assessments)
                     'fullyPaid' => $totalPaid,
                     'partiallyPaid' => 0, // We don't have partial payments yet
                     'unpaid' => $totalUnpaid,
                     'collectionAmount' => $totalCollectionAmount,
                 ];
             })
-            ->filter() // Remove null entries
             ->sortByDesc('collectionAmount')
             ->values();
     }

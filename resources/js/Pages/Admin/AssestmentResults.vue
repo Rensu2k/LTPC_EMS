@@ -190,7 +190,7 @@ const getPassingPercentage = (assessment) => {
 };
 
 const exportAssessmentResults = () => {
-    console.log("Exporting assessment results...");
+    // TODO: Implement export functionality
 };
 </script>
 

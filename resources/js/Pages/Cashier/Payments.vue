@@ -2,9 +2,11 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, usePage, router } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
+import { useNotifications } from "@/composables/useNotifications";
 
 // Get URL parameters
 const page = usePage();
+const notifications = useNotifications();
 
 // Active tab state - now separates by payment type
 const activeTab = ref("registrations");
@@ -96,13 +98,11 @@ const setActiveTab = (tab) => {
 };
 
 const exportReport = () => {
-    console.log("Exporting report...");
-    // Implement export functionality
+    // TODO: Implement export functionality
 };
 
 const recordPayment = () => {
-    console.log("Recording new payment...");
-    // Implement record payment functionality
+    // TODO: Implement payment recording
 };
 
 const viewPayment = (paymentId) => {
@@ -168,7 +168,9 @@ const markAsPaid = (paymentId) => {
             },
             onError: (errors) => {
                 console.error("Payment processing failed:", errors);
-                alert("Failed to process payment. Please try again.");
+                notifications.error(
+                    "Failed to process payment. Please try again."
+                );
             },
         });
     } else {
@@ -200,7 +202,9 @@ const markAsPaid = (paymentId) => {
             },
             onError: (errors) => {
                 console.error("Payment processing failed:", errors);
-                alert("Failed to process payment. Please try again.");
+                notifications.error(
+                    "Failed to process payment. Please try again."
+                );
             },
         });
     }
@@ -248,7 +252,9 @@ const generateReceipt = (paymentId) => {
     if (payment && payment.status === "paid") {
         generateReceiptForPaidPayment(payment);
     } else {
-        alert("Receipt can only be generated for paid payments.");
+        notifications.warning(
+            "Receipt can only be generated for paid payments."
+        );
     }
 };
 
@@ -273,7 +279,7 @@ const generateReceiptForPaidPayment = (payment) => {
                         ? "Enrollment Fee"
                         : payment.type === "assessment"
                         ? "Assessment Fee"
-                        : "Registration Fee",
+                        : "Enrollment Fee",
                 course: payment.course,
                 accountCode: "EDU-001",
                 amount: payment.amount,
@@ -304,6 +310,13 @@ const closeReceiptModal = (isSuccessfulSave = false) => {
         saveCancelledReceipt();
     }
 
+    showReceiptModal.value = false;
+    selectedReceiptData.value = null;
+    editableReceiptData.value = {};
+};
+
+// Function to simply close the modal without any confirmation (for X button)
+const closeReceiptModalDirectly = () => {
     showReceiptModal.value = false;
     selectedReceiptData.value = null;
     editableReceiptData.value = {};
@@ -346,24 +359,15 @@ const saveCancelledReceipt = () => {
     // Save the cancelled receipt
     router.post(route("cashier.receipts.save"), cancelledReceiptData, {
         onSuccess: () => {
-            alert(
+            notifications.success(
                 `Receipt ${cancelledReceiptData.receiptNo} has been cancelled and saved for audit purposes.`
             );
         },
         onError: (errors) => {
-            let errorMessage = "Error saving cancelled receipt:\n\n";
-            if (typeof errors === "object" && errors !== null) {
-                for (const [field, messages] of Object.entries(errors)) {
-                    if (Array.isArray(messages)) {
-                        errorMessage += `${field}: ${messages.join(", ")}\n`;
-                    } else {
-                        errorMessage += `${field}: ${messages}\n`;
-                    }
-                }
-            } else {
-                errorMessage += errors;
-            }
-            alert(errorMessage);
+            notifications.handleValidationErrors(
+                errors,
+                "Error saving cancelled receipt:"
+            );
         },
     });
 };
@@ -419,11 +423,11 @@ const saveReceipt = () => {
         onSuccess: (page) => {
             // Show appropriate success message
             if (isRegistrationPayment) {
-                alert(
+                notifications.success(
                     `Receipt ${receiptData.receiptNo} has been saved successfully! The trainee has been officially enrolled and will now appear in the Additional Fees - Enrolled Trainees tab.`
                 );
             } else {
-                alert(
+                notifications.success(
                     `Receipt ${receiptData.receiptNo} has been saved successfully and is now available in the Receipts page!`
                 );
             }
@@ -436,11 +440,10 @@ const saveReceipt = () => {
         },
         onError: (errors) => {
             console.error("Error saving receipt:", errors);
-            const errorMessage =
-                errors.message ||
-                Object.values(errors)[0] ||
-                "Failed to save receipt";
-            alert("Error saving receipt: " + errorMessage);
+            notifications.handleValidationErrors(
+                errors,
+                "Error saving receipt:"
+            );
         },
     });
 };
@@ -1525,7 +1528,7 @@ const convertNumberToWords = (num) => {
                             Generate New Receipt
                         </h3>
                         <button
-                            @click="closeReceiptModal(false)"
+                            @click="closeReceiptModalDirectly"
                             class="text-gray-400 hover:text-gray-600"
                         >
                             <svg
@@ -1735,7 +1738,7 @@ const convertNumberToWords = (num) => {
                                             <div>
                                                 <label
                                                     class="block text-sm font-medium text-gray-700"
-                                                    >Course/Program</label
+                                                    >Program</label
                                                 >
                                                 <input
                                                     v-model="fee.course"
@@ -2074,7 +2077,7 @@ const convertNumberToWords = (num) => {
                             @click="closeReceiptModal(false)"
                             class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
-                            Cancel
+                            Cancel Receipt
                         </button>
                         <button
                             @click="saveReceipt"

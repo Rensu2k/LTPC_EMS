@@ -1,3 +1,158 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Toast Styles */
+.custom-toast {
+    @apply rounded-lg shadow-lg border-l-4 !important;
+}
+
+.custom-toast.Vue-Toastification__toast--success {
+    @apply bg-green-50 border-green-400 !important;
+}
+
+.custom-toast.Vue-Toastification__toast--error {
+    @apply bg-red-50 border-red-400 !important;
+}
+
+.custom-toast.Vue-Toastification__toast--warning {
+    @apply bg-yellow-50 border-yellow-400 !important;
+}
+
+.custom-toast.Vue-Toastification__toast--info {
+    @apply bg-blue-50 border-blue-400 !important;
+}
+
+.custom-toast-body {
+    @apply text-sm font-medium !important;
+}
+
+.Vue-Toastification__toast--success .custom-toast-body {
+    @apply text-green-800 !important;
+}
+
+.Vue-Toastification__toast--error .custom-toast-body {
+    @apply text-red-800 !important;
+}
+
+.Vue-Toastification__toast--warning .custom-toast-body {
+    @apply text-yellow-800 !important;
+}
+
+.Vue-Toastification__toast--info .custom-toast-body {
+    @apply text-blue-800 !important;
+}
+
+/* Custom progress bar colors */
+.Vue-Toastification__toast--success .Vue-Toastification__progress-bar {
+    @apply bg-green-400 !important;
+}
+
+.Vue-Toastification__toast--error .Vue-Toastification__progress-bar {
+    @apply bg-red-400 !important;
+}
+
+.Vue-Toastification__toast--warning .Vue-Toastification__progress-bar {
+    @apply bg-yellow-400 !important;
+}
+
+.Vue-Toastification__toast--info .Vue-Toastification__progress-bar {
+    @apply bg-blue-400 !important;
+}
+
+/* Close button styling */
+.Vue-Toastification__close-button {
+    @apply text-gray-400 hover:text-gray-600 !important;
+}
+
+/* Container positioning */
+.Vue-Toastification__container {
+    @apply z-50 !important;
+}
+
+/* Animation improvements */
+.Vue-Toastification__bounce-enter-active {
+    animation: Vue-Toastification__bounceIn 0.75s;
+}
+
+.Vue-Toastification__bounce-leave-active {
+    animation: Vue-Toastification__bounceOut 0.75s;
+}
+
+@keyframes Vue-Toastification__bounceIn {
+    0%,
+    20%,
+    40%,
+    60%,
+    80% {
+        animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+    0% {
+        opacity: 0;
+        transform: scale3d(0.3, 0.3, 0.3);
+    }
+    20% {
+        transform: scale3d(1.1, 1.1, 1.1);
+    }
+    40% {
+        transform: scale3d(0.9, 0.9, 0.9);
+    }
+    60% {
+        opacity: 1;
+        transform: scale3d(1.03, 1.03, 1.03);
+    }
+    80% {
+        transform: scale3d(0.97, 0.97, 0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale3d(1, 1, 1);
+    }
+}
+
+@keyframes Vue-Toastification__bounceOut {
+    20% {
+        transform: scale3d(0.9, 0.9, 0.9);
+    }
+    50%,
+    55% {
+        opacity: 1;
+        transform: scale3d(1.1, 1.1, 1.1);
+    }
+    to {
+        opacity: 0;
+        transform: scale3d(0.3, 0.3, 0.3);
+    }
+}
+
+/* Loading states */
+.loading-spinner {
+    @apply inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite];
+}
+
+/* Fade animations for in-page alerts */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+/* Alert animation classes */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

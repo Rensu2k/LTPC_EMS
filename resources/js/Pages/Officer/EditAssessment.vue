@@ -78,7 +78,7 @@ const submit = () => {
             router.visit(route("officer.assessments"));
         },
         onError: (errors) => {
-            console.log("Assessment update errors:", errors);
+            // Handle validation errors
         },
     });
 };

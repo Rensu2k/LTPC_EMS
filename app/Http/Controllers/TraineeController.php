@@ -234,7 +234,7 @@ class TraineeController extends Controller
      */
     public function adminIndex()
     {
-        $trainees = Trainee::latest()->get()->map(function ($trainee) {
+        $trainees = Trainee::with('enrollments')->latest()->get()->map(function ($trainee) {
             // Get the program for this trainee to find assigned trainers
             $program = Program::where('name', $trainee->program_qualification)->first();
             $assignedTrainerNames = [];
@@ -245,8 +245,15 @@ class TraineeController extends Controller
                 $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
             }
             
-            // Add trainer information to the trainee data
+            // Get the most recent enrollment date from the new enrollment system
+            $latestEnrollment = $trainee->enrollments->sortByDesc('enrollment_date')->first();
+            
+            // Use the enrollment date from the new system if available, otherwise fall back to the old system
+            $actualEnrollmentDate = $latestEnrollment ? $latestEnrollment->enrollment_date : $trainee->date_enrolled;
+            
+            // Add trainer information and actual enrollment date to the trainee data
             $trainee->assigned_trainers = $assignedTrainerNames;
+            $trainee->actual_enrollment_date = $actualEnrollmentDate;
             
             return $trainee;
         });

@@ -66,8 +66,7 @@ const traineesList = ref(
 );
 
 const exportData = () => {
-    // Export functionality
-    console.log("Exporting data...");
+    // TODO: Implement export functionality
 };
 
 const registerTrainee = () => {

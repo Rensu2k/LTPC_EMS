@@ -52,9 +52,6 @@ const form = useForm({
 });
 
 const submit = () => {
-    // Add some debugging
-    console.log("Submitting assessment form with data:", form.data());
-
     // Transform data to ensure proper types for backend
     form.transform((data) => ({
         ...data,
@@ -63,16 +60,12 @@ const submit = () => {
 
     form.post(route("officer.assessments.store"), {
         onSuccess: () => {
-            console.log("Assessment created successfully");
             form.reset();
             emit("submitted");
             emit("close");
         },
         onError: (errors) => {
-            console.error("Assessment creation failed:", errors);
-        },
-        onFinish: () => {
-            console.log("Assessment creation request finished");
+            // Handle assessment creation errors
         },
     });
 };

@@ -161,10 +161,10 @@ const isScholar = computed(() => {
                                 >Previous Result:</span
                             >
                             <span
-                                :class="assessment.competency_color"
+                                :class="assessment.result_color"
                                 class="ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full"
                             >
-                                {{ assessment.competency_status }}
+                                {{ assessment.result_status }}
                             </span>
                         </div>
                         <div>

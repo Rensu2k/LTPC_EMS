@@ -189,6 +189,20 @@ const reassessment = () => {
                                 }}
                             </span>
                         </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-500"
+                                >Status:</span
+                            >
+                            <span
+                                :class="statusColor"
+                                class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                            >
+                                {{
+                                    assessment.status?.charAt(0).toUpperCase() +
+                                    assessment.status?.slice(1)
+                                }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -262,10 +276,19 @@ const reassessment = () => {
                                     class="flex items-center justify-center gap-3 mb-2"
                                 >
                                     <span
-                                        :class="assessment.competency_color"
+                                        :class="
+                                            assessment.result_color ||
+                                            statusColor
+                                        "
                                         class="inline-flex px-3 py-1 text-lg font-semibold rounded-full"
                                     >
-                                        {{ assessment.competency_status }}
+                                        {{
+                                            assessment.result_status ||
+                                            assessment.status
+                                                ?.charAt(0)
+                                                .toUpperCase() +
+                                                assessment.status?.slice(1)
+                                        }}
                                     </span>
                                 </div>
                                 <div class="text-sm text-gray-600">

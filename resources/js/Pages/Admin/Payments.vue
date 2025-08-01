@@ -7,6 +7,9 @@ import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import Dropdown from "@/Components/Dropdown.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const props = defineProps({
     groupedReceipts: Array,
@@ -214,8 +217,161 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
+const formatDate = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("en-PH");
+};
+
+const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Payments Report", 14, 22);
+
+    // Add subtitle with date range if filters are applied
+    doc.setFontSize(12);
+    let subtitle = "All Payments";
+    if (dateFrom.value || dateTo.value) {
+        subtitle = `Payments from ${dateFrom.value || "beginning"} to ${
+            dateTo.value || "present"
+        }`;
+    }
+    doc.text(subtitle, 14, 32);
+
+    // Add summary statistics
+    doc.setFontSize(10);
+    doc.text(`Total Trainees: ${filteredTrainees.value.length}`, 14, 42);
+    doc.text(`Total Receipts: ${totalFilteredReceipts.value}`, 14, 50);
+    doc.text(
+        `Total Amount: ${formatCurrency(totalFilteredAmount.value)}`,
+        14,
+        58
+    );
+
+    // Create a simple table without autotable
+    let yPosition = 75;
+    const lineHeight = 8;
+    const pageHeight = 280;
+    let currentPage = 1;
+
+    // Add headers
+    doc.setFontSize(8);
+    doc.setFillColor(34, 139, 34);
+    doc.rect(14, yPosition - 5, 180, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.text("Trainee", 16, yPosition);
+    doc.text("Program", 60, yPosition);
+    doc.text("Receipts", 100, yPosition);
+    doc.text("Total Amount", 130, yPosition);
+    doc.text("Latest Payment", 160, yPosition);
+
+    yPosition += 10;
+    doc.setTextColor(0, 0, 0);
+
+    // Add data rows
+    filteredTrainees.value.forEach((trainee, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight) {
+            doc.addPage();
+            currentPage++;
+            yPosition = 20;
+        }
+
+        const traineeName = (trainee.trainee_name || "N/A").substring(0, 25);
+        const program = (trainee.program || "N/A").substring(0, 20);
+        const receipts = trainee.receipts.length;
+        const totalAmount = formatCurrency(trainee.total_amount);
+        const latestPayment =
+            trainee.receipts.length > 0
+                ? formatDate(trainee.receipts[0].payment_date)
+                : "N/A";
+
+        doc.text(traineeName, 16, yPosition);
+        doc.text(program, 60, yPosition);
+        doc.text(receipts.toString(), 100, yPosition);
+        doc.text(totalAmount, 130, yPosition);
+        doc.text(latestPayment, 160, yPosition);
+
+        yPosition += lineHeight;
+    });
+
+    // Add page numbers
+    for (let i = 1; i <= currentPage; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Page ${i} of ${currentPage}`, 14, pageHeight + 10);
+    }
+
+    // Generate filename
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `payments_report_${timestamp}.pdf`;
+
+    // Save the PDF
+    doc.save(filename);
+};
+
+const exportToExcel = () => {
+    // Prepare data for Excel
+    const excelData = filteredTrainees.value.map((trainee) => ({
+        "Trainee Name": trainee.trainee_name || "N/A",
+        "ULI Number": trainee.uli_number || "N/A",
+        Program: trainee.program || "N/A",
+        "Total Receipts": trainee.receipts.length,
+        "Total Amount": trainee.total_amount,
+        "Latest Payment Date":
+            trainee.receipts.length > 0
+                ? formatDate(trainee.receipts[0].payment_date)
+                : "N/A",
+        "Payment Status": trainee.receipts.some((r) => r.status === "paid")
+            ? "Paid"
+            : "Pending",
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Add summary information at the top
+    const summaryData = [
+        ["Report Date:", new Date().toLocaleDateString()],
+        [""],
+        ["Summary Statistics:"],
+        ["Total Trainees:", filteredTrainees.value.length],
+        ["Total Receipts:", totalFilteredReceipts.value],
+        ["Total Amount:", totalFilteredAmount.value],
+        [""],
+    ];
+
+    // Insert summary data at the beginning
+    XLSX.utils.sheet_add_aoa(ws, summaryData, { origin: "A1" });
+
+    // Adjust column widths
+    const colWidths = [
+        { wch: 25 }, // Trainee Name
+        { wch: 15 }, // ULI Number
+        { wch: 25 }, // Program
+        { wch: 15 }, // Total Receipts
+        { wch: 15 }, // Total Amount
+        { wch: 20 }, // Latest Payment Date
+        { wch: 15 }, // Payment Status
+    ];
+    ws["!cols"] = colWidths;
+
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+
+    // Generate filename
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `payments_report_${timestamp}.xlsx`;
+
+    // Save the Excel file
+    XLSX.writeFile(wb, filename);
+};
+
 const exportPaymentReport = () => {
-    // TODO: Implement export functionality
+    // Default to PDF export for backward compatibility
+    exportToPDF();
 };
 </script>
 
@@ -245,27 +401,6 @@ const exportPaymentReport = () => {
                             <p class="text-sm text-green-700 mt-1">
                                 Centralized payment tracking by trainee
                             </p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <SecondaryButton
-                                @click="exportPaymentReport"
-                                class="flex items-center gap-2 text-sm"
-                            >
-                                <svg
-                                    class="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                    />
-                                </svg>
-                                Export Report
-                            </SecondaryButton>
                         </div>
                     </div>
                 </div>
@@ -497,7 +632,10 @@ const exportPaymentReport = () => {
                 </div>
 
                 <!-- Results Summary -->
-                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div
+                    v-if="hasActiveFilters"
+                    class="p-4 border-b border-gray-200 bg-gray-50"
+                >
                     <div
                         class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                     >
@@ -525,16 +663,58 @@ const exportPaymentReport = () => {
                                 </p>
                             </div>
                         </div>
-                        <div v-if="hasActiveFilters" class="text-right">
-                            <p class="text-sm text-gray-600">
-                                Showing {{ filteredTrainees.length }} of
-                                {{ props.groupedReceipts?.length || 0 }}
-                                trainees
-                            </p>
-                            <p class="text-xs text-gray-500">
-                                {{ totalFilteredReceipts }} of
-                                {{ totalAllReceipts }} receipts
-                            </p>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <p class="text-sm text-gray-600">
+                                    Showing {{ filteredTrainees.length }} of
+                                    {{ props.groupedReceipts?.length || 0 }}
+                                    trainees
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    {{ totalFilteredReceipts }} of
+                                    {{ totalAllReceipts }} receipts
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button
+                                    @click="exportToPDF"
+                                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors duration-200 flex items-center gap-2"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        />
+                                    </svg>
+                                    Export PDF
+                                </button>
+                                <button
+                                    @click="exportToExcel"
+                                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors duration-200 flex items-center gap-2"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        />
+                                    </svg>
+                                    Export Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

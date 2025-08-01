@@ -5,21 +5,20 @@ import { ref, computed } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
-import DangerButton from "@/Components/DangerButton.vue";
+
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 
 const props = defineProps({
     employment_referrals: Array,
+    trainees: Array,
     flash: Object,
 });
 
 const showModal = ref(false);
-const showDeleteModal = ref(false);
 const showDetailsModal = ref(false);
 const editingReferral = ref(null);
-const deletingReferral = ref(null);
 const viewingReferral = ref(null);
 const searchQuery = ref("");
 const selectedStatus = ref("");
@@ -27,16 +26,17 @@ const selectedCompany = ref("");
 
 const form = useForm({
     trainee_id: "",
-    company_id: "",
+    company_name: "",
     position_title: "",
     job_description: "",
-    referral_date: "",
-    interview_date: "",
-    status: "referred",
+    employment_date: "",
+    status: "not_yet_employed",
     notes: "",
     contact_person: "",
     contact_email: "",
     contact_phone: "",
+    salary_range: "",
+    employment_type: "",
 });
 
 const filteredReferrals = computed(() => {
@@ -51,7 +51,7 @@ const filteredReferrals = computed(() => {
                 referral.trainee?.last_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                referral.company?.name
+                referral.company_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
                 referral.position_title
@@ -68,7 +68,7 @@ const filteredReferrals = computed(() => {
 
     if (selectedCompany.value) {
         filtered = filtered.filter(
-            (referral) => referral.company_id == selectedCompany.value
+            (referral) => referral.company_name === selectedCompany.value
         );
     }
 
@@ -79,7 +79,7 @@ const companies = computed(() => {
     const uniqueCompanies = [
         ...new Set(
             props.employment_referrals
-                ?.map((referral) => referral.company)
+                ?.map((referral) => referral.company_name)
                 .filter(Boolean)
         ),
     ];
@@ -88,7 +88,7 @@ const companies = computed(() => {
 
 const openCreateModal = () => {
     form.reset();
-    form.referral_date = new Date().toISOString().split("T")[0];
+    form.employment_date = new Date().toISOString().split("T")[0];
     editingReferral.value = null;
     showModal.value = true;
 };
@@ -96,16 +96,17 @@ const openCreateModal = () => {
 const openEditModal = (referral) => {
     editingReferral.value = referral;
     form.trainee_id = referral.trainee_id;
-    form.company_id = referral.company_id;
+    form.company_name = referral.company_name;
     form.position_title = referral.position_title;
     form.job_description = referral.job_description;
-    form.referral_date = referral.referral_date;
-    form.interview_date = referral.interview_date;
+    form.employment_date = referral.employment_date;
     form.status = referral.status;
     form.notes = referral.notes;
     form.contact_person = referral.contact_person;
     form.contact_email = referral.contact_email;
     form.contact_phone = referral.contact_phone;
+    form.salary_range = referral.salary_range;
+    form.employment_type = referral.employment_type;
     showModal.value = true;
 };
 
@@ -114,21 +115,16 @@ const openDetailsModal = (referral) => {
     showDetailsModal.value = true;
 };
 
-const openDeleteModal = (referral) => {
-    deletingReferral.value = referral;
-    showDeleteModal.value = true;
-};
-
 const submitForm = () => {
     if (editingReferral.value) {
-        form.put(`/admin/employment-referrals/${editingReferral.value.id}`, {
+        form.put(`/admin/employments/${editingReferral.value.id}`, {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
             },
         });
     } else {
-        form.post("/admin/employment-referrals", {
+        form.post("/admin/employments", {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
@@ -137,22 +133,10 @@ const submitForm = () => {
     }
 };
 
-const deleteReferral = () => {
-    router.delete(`/admin/employment-referrals/${deletingReferral.value.id}`, {
-        onSuccess: () => {
-            showDeleteModal.value = false;
-            deletingReferral.value = null;
-        },
-    });
-};
-
 const getStatusColor = (status) => {
     const colors = {
-        hired: "bg-green-100 text-green-800",
-        endorsed: "bg-blue-100 text-blue-800",
-        referred: "bg-yellow-100 text-yellow-800",
-        interview_scheduled: "bg-purple-100 text-purple-800",
-        rejected: "bg-red-100 text-red-800",
+        employed: "bg-green-100 text-green-800",
+        not_yet_employed: "bg-blue-100 text-blue-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
 };
@@ -179,7 +163,7 @@ const exportEmploymentReport = () => {
 </script>
 
 <template>
-    <Head title="Employment Referrals Management" />
+    <Head title="Employment Management" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
             <div
@@ -199,7 +183,7 @@ const exportEmploymentReport = () => {
                             <h3
                                 class="text-lg font-semibold text-green-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
-                                Employment Endorsements Monitoring
+                                Employment Monitoring
                             </h3>
                         </div>
                         <div class="flex space-x-3">
@@ -207,13 +191,13 @@ const exportEmploymentReport = () => {
                                 @click="openCreateModal"
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
-                                Add Referral
+                                Add Employment
                             </PrimaryButton>
                             <SecondaryButton
                                 @click="exportEmploymentReport"
                                 class="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:border-gray-400 transition-all duration-300"
                             >
-                                📄 Export Employment Report
+                                📄 Export Report
                             </SecondaryButton>
                         </div>
                     </div>
@@ -225,12 +209,15 @@ const exportEmploymentReport = () => {
                 >
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="relative">
-                            <InputLabel for="search" value="Search Referrals" />
+                            <InputLabel
+                                for="search"
+                                value="Search Employment"
+                            />
                             <TextInput
                                 id="search"
                                 v-model="searchQuery"
                                 type="text"
-                                placeholder="Search by trainee name"
+                                placeholder="Search by trainee name, company, or position"
                                 class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
                             />
                         </div>
@@ -245,13 +232,10 @@ const exportEmploymentReport = () => {
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                             >
                                 <option value="">All Statuses</option>
-                                <option value="referred">Referred</option>
-                                <option value="interview_scheduled">
-                                    Interview Scheduled
+                                <option value="employed">Employed</option>
+                                <option value="not_yet_employed">
+                                    Not Yet Employed
                                 </option>
-                                <option value="hired">Hired</option>
-                                <option value="endorsed">Endorsed</option>
-                                <option value="rejected">Rejected</option>
                             </select>
                         </div>
                         <div>
@@ -267,10 +251,10 @@ const exportEmploymentReport = () => {
                                 <option value="">All Companies</option>
                                 <option
                                     v-for="company in companies"
-                                    :key="company.id"
-                                    :value="company.id"
+                                    :key="company"
+                                    :value="company"
                                 >
-                                    {{ company.name }}
+                                    {{ company }}
                                 </option>
                             </select>
                         </div>
@@ -279,7 +263,7 @@ const exportEmploymentReport = () => {
 
                 <!-- Statistics Cards -->
                 <div class="p-6 border-b border-gray-200">
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div
                             class="bg-green-50 p-4 rounded-lg border border-green-200"
                         >
@@ -297,14 +281,14 @@ const exportEmploymentReport = () => {
                                     <p
                                         class="text-xs font-medium text-green-600"
                                     >
-                                        Hired
+                                        Employed
                                     </p>
                                     <p
                                         class="text-lg font-semibold text-green-900"
                                     >
                                         {{
                                             filteredReferrals.filter(
-                                                (r) => r.status === "hired"
+                                                (r) => r.status === "employed"
                                             ).length
                                         }}
                                     </p>
@@ -329,80 +313,16 @@ const exportEmploymentReport = () => {
                                     <p
                                         class="text-xs font-medium text-blue-600"
                                     >
-                                        Endorsed
+                                        Not Yet Employed
                                     </p>
                                     <p
                                         class="text-lg font-semibold text-blue-900"
                                     >
                                         {{
                                             filteredReferrals.filter(
-                                                (r) => r.status === "endorsed"
-                                            ).length
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            class="bg-yellow-50 p-4 rounded-lg border border-yellow-200"
-                        >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >⏳</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p
-                                        class="text-xs font-medium text-yellow-600"
-                                    >
-                                        Referred
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-yellow-900"
-                                    >
-                                        {{
-                                            filteredReferrals.filter(
-                                                (r) => r.status === "referred"
-                                            ).length
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            class="bg-purple-50 p-4 rounded-lg border border-purple-200"
-                        >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >📅</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p
-                                        class="text-xs font-medium text-purple-600"
-                                    >
-                                        Interview
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-purple-900"
-                                    >
-                                        {{
-                                            filteredReferrals.filter(
                                                 (r) =>
                                                     r.status ===
-                                                    "interview_scheduled"
+                                                    "not_yet_employed"
                                             ).length
                                         }}
                                     </p>
@@ -463,7 +383,7 @@ const exportEmploymentReport = () => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Dates
+                                    Employment Date
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -529,7 +449,7 @@ const exportEmploymentReport = () => {
                                         {{ referral.position_title }}
                                     </div>
                                     <div class="text-sm text-gray-500">
-                                        {{ referral.company?.name || "N/A" }}
+                                        {{ referral.company_name || "N/A" }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -538,9 +458,11 @@ const exportEmploymentReport = () => {
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
                                     >
                                         {{
-                                            referral.status ===
-                                            "interview_scheduled"
-                                                ? "Interview Scheduled"
+                                            referral.status === "employed"
+                                                ? "Employed"
+                                                : referral.status ===
+                                                  "not_yet_employed"
+                                                ? "Not Yet Employed"
                                                 : referral.status
                                                       .charAt(0)
                                                       .toUpperCase() +
@@ -549,15 +471,22 @@ const exportEmploymentReport = () => {
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
-                                        Referred: {{ referral.referral_date }}
-                                    </div>
-                                    <div class="text-sm text-gray-500">
+                                    <div
+                                        v-if="referral.status === 'employed'"
+                                        class="text-sm text-gray-900"
+                                    >
                                         {{
-                                            referral.interview_date
-                                                ? `Interview: ${referral.interview_date}`
-                                                : "No interview scheduled"
+                                            new Date(
+                                                referral.employment_date
+                                            ).toLocaleDateString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })
                                         }}
+                                    </div>
+                                    <div v-else class="text-sm text-gray-500">
+                                        Not yet employed
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -586,12 +515,6 @@ const exportEmploymentReport = () => {
                                         >
                                             Edit
                                         </button>
-                                        <button
-                                            @click="openDeleteModal(referral)"
-                                            class="px-3 py-1 text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-all duration-300 font-medium"
-                                        >
-                                            Delete
-                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -617,13 +540,13 @@ const exportEmploymentReport = () => {
                                 />
                             </svg>
                             <h3 class="mt-2 text-sm font-medium text-gray-900">
-                                No employment referrals found
+                                No employment records found
                             </h3>
                             <p class="mt-1 text-sm text-gray-500">
                                 {{
                                     searchQuery
                                         ? "Try adjusting your filters."
-                                        : "Get started by adding your first employment referral."
+                                        : "Get started by adding your first employment record."
                                 }}
                             </p>
                         </div>
@@ -649,43 +572,26 @@ const exportEmploymentReport = () => {
                     <h3 class="text-lg font-semibold text-green-900">
                         {{
                             editingReferral
-                                ? "Edit Employment Referral"
-                                : "Create Employment Referral"
+                                ? "Edit Employment Record"
+                                : "Create Employment Record"
                         }}
                     </h3>
                 </div>
 
                 <form @submit.prevent="submitForm" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <InputLabel for="trainee_id" value="Trainee ID *" />
-                            <TextInput
-                                id="trainee_id"
-                                v-model="form.trainee_id"
-                                type="text"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.trainee_id"
-                                class="mt-2"
-                            />
-                        </div>
-
-                        <div>
-                            <InputLabel for="company_id" value="Company ID *" />
-                            <TextInput
-                                id="company_id"
-                                v-model="form.company_id"
-                                type="text"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.company_id"
-                                class="mt-2"
-                            />
-                        </div>
+                    <div>
+                        <InputLabel for="company_name" value="Company Name *" />
+                        <TextInput
+                            id="company_name"
+                            v-model="form.company_name"
+                            type="text"
+                            class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            required
+                        />
+                        <InputError
+                            :message="form.errors.company_name"
+                            class="mt-2"
+                        />
                     </div>
 
                     <div>
@@ -727,35 +633,41 @@ const exportEmploymentReport = () => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <InputLabel
-                                for="referral_date"
-                                value="Referral Date *"
+                                for="employment_date"
+                                value="Employment Date *"
                             />
                             <TextInput
-                                id="referral_date"
-                                v-model="form.referral_date"
+                                id="employment_date"
+                                v-model="form.employment_date"
                                 type="date"
                                 class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                                 required
                             />
                             <InputError
-                                :message="form.errors.referral_date"
+                                :message="form.errors.employment_date"
                                 class="mt-2"
                             />
                         </div>
 
                         <div>
                             <InputLabel
-                                for="interview_date"
-                                value="Interview Date"
+                                for="employment_type"
+                                value="Employment Type"
                             />
-                            <TextInput
-                                id="interview_date"
-                                v-model="form.interview_date"
-                                type="date"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            />
+                            <select
+                                id="employment_type"
+                                v-model="form.employment_type"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            >
+                                <option value="">Select Type</option>
+                                <option value="full-time">Full-time</option>
+                                <option value="part-time">Part-time</option>
+                                <option value="contract">Contract</option>
+                                <option value="temporary">Temporary</option>
+                                <option value="internship">Internship</option>
+                            </select>
                             <InputError
-                                :message="form.errors.interview_date"
+                                :message="form.errors.employment_type"
                                 class="mt-2"
                             />
                         </div>
@@ -769,13 +681,10 @@ const exportEmploymentReport = () => {
                             class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
                             required
                         >
-                            <option value="referred">Referred</option>
-                            <option value="interview_scheduled">
-                                Interview Scheduled
+                            <option value="employed">Employed</option>
+                            <option value="not_yet_employed">
+                                Not Yet Employed
                             </option>
-                            <option value="hired">Hired</option>
-                            <option value="endorsed">Endorsed</option>
-                            <option value="rejected">Rejected</option>
                         </select>
                         <InputError
                             :message="form.errors.status"
@@ -836,18 +745,6 @@ const exportEmploymentReport = () => {
                         </div>
                     </div>
 
-                    <div>
-                        <InputLabel for="notes" value="Notes" />
-                        <textarea
-                            id="notes"
-                            v-model="form.notes"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            rows="3"
-                            placeholder="Additional notes about the referral..."
-                        ></textarea>
-                        <InputError :message="form.errors.notes" class="mt-2" />
-                    </div>
-
                     <div class="flex justify-end space-x-3 pt-4">
                         <SecondaryButton
                             @click="showModal = false"
@@ -886,7 +783,7 @@ const exportEmploymentReport = () => {
                         class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded"
                     ></div>
                     <h3 class="text-lg font-semibold text-blue-900">
-                        Employment Referral Details
+                        Employment Record Details
                     </h3>
                 </div>
 
@@ -940,8 +837,11 @@ const exportEmploymentReport = () => {
                                     >
                                         {{
                                             viewingReferral.status ===
-                                            "interview_scheduled"
-                                                ? "Interview Scheduled"
+                                            "employed"
+                                                ? "Employed"
+                                                : viewingReferral.status ===
+                                                  "not_yet_employed"
+                                                ? "Not Yet Employed"
                                                 : viewingReferral.status
                                                       .charAt(0)
                                                       .toUpperCase() +
@@ -959,24 +859,24 @@ const exportEmploymentReport = () => {
                         <h4 class="text-sm font-medium text-gray-900 mb-3">
                             Timeline
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <span class="text-sm font-medium"
-                                    >Referral Date:</span
-                                >
-                                <span class="ml-2 text-sm">{{
-                                    viewingReferral.referral_date
-                                }}</span>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium"
-                                    >Interview Date:</span
-                                >
-                                <span class="ml-2 text-sm">{{
-                                    viewingReferral.interview_date ||
-                                    "Not scheduled"
-                                }}</span>
-                            </div>
+                        <div v-if="viewingReferral.status === 'employed'">
+                            <span class="text-sm font-medium"
+                                >Employment Date:
+                            </span>
+                            <span class="text-sm">{{
+                                new Date(
+                                    viewingReferral.employment_date
+                                ).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                })
+                            }}</span>
+                        </div>
+                        <div v-else>
+                            <span class="text-sm text-gray-500"
+                                >Not yet employed</span
+                            >
                         </div>
                     </div>
 
@@ -1040,40 +940,6 @@ const exportEmploymentReport = () => {
                     >
                         Close
                     </SecondaryButton>
-                </div>
-            </div>
-        </Modal>
-
-        <!-- Delete Confirmation Modal -->
-        <Modal :show="showDeleteModal" @close="showDeleteModal = false">
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-red-500 to-pink-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-red-900">
-                        Delete Employment Referral
-                    </h3>
-                </div>
-                <p class="text-sm text-gray-500 mb-4">
-                    Are you sure you want to delete this employment referral?
-                    This action cannot be undone.
-                </p>
-                <div class="flex justify-end space-x-3">
-                    <SecondaryButton
-                        @click="showDeleteModal = false"
-                        class="border-2 border-gray-300 hover:border-red-500 hover:text-red-600 transition-all duration-300"
-                    >
-                        Cancel
-                    </SecondaryButton>
-                    <DangerButton
-                        @click="deleteReferral"
-                        class="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 transition-all duration-300"
-                    >
-                        Delete
-                    </DangerButton>
                 </div>
             </div>
         </Modal>

@@ -10,6 +10,7 @@ use App\Models\Trainer;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\EmploymentController;
 
 
 class AssessmentController extends Controller
@@ -97,7 +98,7 @@ class AssessmentController extends Controller
                 'description' => 'nullable|string',
                 'type' => 'required|in:practical',
                 'status' => 'required|in:pending,completed',
-                'result' => 'nullable|in:pass,fail,absent',
+                'result' => 'nullable|in:competent,not_yet_competent,absent',
                 'program_id' => 'required|exists:programs,program_id',
                 'trainer_id' => 'required|exists:trainers,id',
                 'assessment_date' => 'required|date',
@@ -233,7 +234,7 @@ class AssessmentController extends Controller
             'description' => 'nullable|string',
             'type' => 'required|in:practical',
             'status' => 'required|in:pending,completed',
-            'result' => 'nullable|in:pass,fail,absent',
+            'result' => 'nullable|in:competent,not_yet_competent,absent',
             'program_id' => 'required|exists:programs,program_id',
             'trainer_id' => 'required|exists:trainers,id',
             'assessment_date' => 'required|date',
@@ -282,6 +283,18 @@ class AssessmentController extends Controller
         }
 
         $assessment->update($validated);
+
+        // Create employment record if assessment is marked as competent
+        if (isset($validated['result']) && $validated['result'] === 'competent') {
+            try {
+                EmploymentController::createFromCompetentAssessment($assessment);
+            } catch (\Exception $e) {
+                Log::error('Failed to create employment record from assessment', [
+                    'assessment_id' => $assessment->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         return redirect()->back()->with('success', 'Assessment updated successfully!');
     }

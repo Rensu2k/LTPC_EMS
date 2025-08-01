@@ -122,7 +122,7 @@ const editAssessment = (assessment) => {
 const reassessment = (assessment) => {
     if (!assessment.can_be_reassessed) {
         notifications.warning(
-            "This assessment cannot be re-assessed. Only assessments with 'Fail' or 'Absent' results can be re-assessed."
+            "This assessment cannot be re-assessed. Only assessments with 'Not Yet Competent' or 'Absent' results can be re-assessed."
         );
         return;
     }
@@ -338,8 +338,10 @@ const exportData = () => {
                             <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
                             <option value="graded">Graded</option>
-                            <option value="pass">Pass</option>
-                            <option value="fail">Fail</option>
+                            <option value="competent">Competent</option>
+                            <option value="not_yet_competent">
+                                Not Yet Competent
+                            </option>
                         </select>
                     </div>
                 </div>

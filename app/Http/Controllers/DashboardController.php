@@ -95,6 +95,7 @@ class DashboardController extends Controller
                     'details' => $trainee ? trim($trainee->first_name . ' ' . $trainee->last_name) . ' enrolled in ' . ($program ? $program->name : 'Unknown Program') : 'Unknown trainee',
                     'officer' => 'Enrollment Officer',
                     'time' => $enrollment->created_at->diffForHumans(),
+                    'timestamp' => $enrollment->created_at,
                 ];
             });
 
@@ -111,6 +112,7 @@ class DashboardController extends Controller
                     'details' => $assessment->applicant_name . ' - ' . ($assessment->program ? $assessment->program->name : 'Unknown Program'),
                     'officer' => 'Assessment Officer',
                     'time' => $assessment->created_at->diffForHumans(),
+                    'timestamp' => $assessment->created_at,
                 ];
             });
 
@@ -127,12 +129,13 @@ class DashboardController extends Controller
                     'details' => ($receipt->trainee ? trim($receipt->trainee->first_name . ' ' . $receipt->trainee->last_name) : 'Unknown') . ' - ₱' . number_format($receipt->total_amount, 2),
                     'officer' => 'Cashier',
                     'time' => Carbon::parse($receipt->date_generated)->diffForHumans(),
+                    'timestamp' => Carbon::parse($receipt->date_generated),
                 ];
             });
 
-        // Combine and sort all recent activities
+        // Combine and sort all recent activities by actual timestamp
         $recentActivities = $recentEnrollments->concat($recentAssessments)->concat($recentPayments)
-            ->sortByDesc('time')
+            ->sortByDesc('timestamp')
             ->take(10)
             ->values();
 

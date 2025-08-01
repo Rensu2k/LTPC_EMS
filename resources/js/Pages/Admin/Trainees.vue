@@ -10,6 +10,9 @@ import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const props = defineProps({
     trainees: Array,
@@ -136,12 +139,21 @@ const filteredTrainees = computed(() => {
 const statusOptions = [
     { value: "", label: "All Statuses" },
     { value: "active", label: "Active" },
-    { value: "graduated", label: "Graduated" },
+    { value: "completed", label: "Completed" },
     { value: "dropped", label: "Dropped" },
-    { value: "inactive", label: "Inactive" },
 ];
 
 const totalTrainees = computed(() => filteredTrainees.value.length);
+
+const summaryStats = computed(() => {
+    const trainees = filteredTrainees.value;
+    return {
+        total: trainees.length,
+        active: trainees.filter((t) => t.status === "active").length,
+        completed: trainees.filter((t) => t.status === "completed").length,
+        dropped: trainees.filter((t) => t.status === "dropped").length,
+    };
+});
 
 const openCreateModal = () => {
     if (!isOfficer.value) return;
@@ -202,21 +214,180 @@ const deleteTrainee = () => {
     });
 };
 
-const exportEnrollments = () => {
-    // TODO: Implement export functionality
-};
-
 const viewEnrollmentHistory = (trainee) => {
     // Navigate to trainee enrollment history page based on user role
     const rolePrefix = isOfficer.value ? "officer" : "admin";
     router.visit(`/${rolePrefix}/trainees/${trainee.id}/enrollment-history`);
 };
 
+const formatDate = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("en-PH");
+};
+
+const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Trainees Report", 14, 22);
+
+    // Add subtitle with date range if filters are applied
+    doc.setFontSize(12);
+    let subtitle = "All Trainees";
+    if (dateFrom.value || dateTo.value) {
+        subtitle = `Trainees enrolled from ${
+            dateFrom.value || "beginning"
+        } to ${dateTo.value || "present"}`;
+    }
+    doc.text(subtitle, 14, 32);
+
+    // Add summary statistics
+    doc.setFontSize(10);
+    doc.text(`Total Trainees: ${summaryStats.value.total}`, 14, 42);
+    doc.text(`Active: ${summaryStats.value.active}`, 14, 50);
+    doc.text(`Completed: ${summaryStats.value.completed}`, 14, 58);
+    doc.text(`Dropped: ${summaryStats.value.dropped}`, 14, 66);
+
+    // Create a simple table without autotable
+    let yPosition = 80;
+    const lineHeight = 8;
+    const pageHeight = 280;
+    let currentPage = 1;
+
+    // Add headers
+    doc.setFontSize(8);
+    doc.setFillColor(34, 139, 34);
+    doc.rect(14, yPosition - 5, 180, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.text("Name", 16, yPosition);
+    doc.text("ULI Number", 50, yPosition);
+    doc.text("Program", 90, yPosition);
+    doc.text("Trainer", 130, yPosition);
+    doc.text("Status", 150, yPosition);
+    doc.text("Date Enrolled", 170, yPosition);
+
+    yPosition += 10;
+    doc.setTextColor(0, 0, 0);
+
+    // Add data rows
+    filteredTrainees.value.forEach((trainee, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight) {
+            doc.addPage();
+            currentPage++;
+            yPosition = 20;
+        }
+
+        const name = `${trainee.first_name || ""} ${
+            trainee.last_name || ""
+        }`.substring(0, 20);
+        const uliNumber = (trainee.uli_number || "N/A").substring(0, 15);
+        const program = (trainee.program_qualification || "N/A").substring(
+            0,
+            20
+        );
+        const trainer =
+            trainee.assigned_trainers && trainee.assigned_trainers.length > 0
+                ? trainee.assigned_trainers.join(", ").substring(0, 20)
+                : "Not Assigned";
+        const status = trainee.status;
+        const enrollmentDate = formatDate(trainee.actual_enrollment_date);
+
+        doc.text(name, 16, yPosition);
+        doc.text(uliNumber, 50, yPosition);
+        doc.text(program, 90, yPosition);
+        doc.text(trainer, 130, yPosition);
+        doc.text(status, 150, yPosition);
+        doc.text(enrollmentDate, 170, yPosition);
+
+        yPosition += lineHeight;
+    });
+
+    // Add page numbers
+    for (let i = 1; i <= currentPage; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Page ${i} of ${currentPage}`, 14, pageHeight + 10);
+    }
+
+    // Generate filename
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `trainees_report_${timestamp}.pdf`;
+
+    // Save the PDF
+    doc.save(filename);
+};
+
+const exportToExcel = () => {
+    // Prepare data for Excel
+    const excelData = filteredTrainees.value.map((trainee) => ({
+        "Full Name": `${trainee.first_name || ""} ${trainee.last_name || ""}`,
+        "ULI Number": trainee.uli_number || "N/A",
+        Email: trainee.email || "N/A",
+        "Contact Number": trainee.phone || "N/A",
+        Program: trainee.program_qualification || "N/A",
+        "Assigned Trainer(s)":
+            trainee.assigned_trainers && trainee.assigned_trainers.length > 0
+                ? trainee.assigned_trainers.join(", ")
+                : "Not Assigned",
+        Status: trainee.status,
+        "Date Enrolled": trainee.actual_enrollment_date
+            ? formatDate(trainee.actual_enrollment_date)
+            : "N/A",
+        "Enrollment Type": trainee.scholarship_package ? "Scholar" : "Regular",
+        Address: trainee.address || "N/A",
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Add summary information at the top
+    const summaryData = [
+        ["Report Date:", new Date().toLocaleDateString()],
+        [""],
+        ["Summary Statistics:"],
+        ["Total Trainees:", summaryStats.value.total],
+        ["Active:", summaryStats.value.active],
+        ["Completed:", summaryStats.value.completed],
+        ["Dropped:", summaryStats.value.dropped],
+        [""],
+    ];
+
+    // Insert summary data at the beginning
+    XLSX.utils.sheet_add_aoa(ws, summaryData, { origin: "A1" });
+
+    // Adjust column widths
+    const colWidths = [
+        { wch: 25 }, // Full Name
+        { wch: 15 }, // ULI Number
+        { wch: 30 }, // Email
+        { wch: 15 }, // Contact Number
+        { wch: 25 }, // Program
+        { wch: 30 }, // Assigned Trainer(s)
+        { wch: 12 }, // Status
+        { wch: 15 }, // Date Enrolled
+        { wch: 15 }, // Enrollment Type
+        { wch: 40 }, // Address
+    ];
+    ws["!cols"] = colWidths;
+
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Trainees");
+
+    // Generate filename
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `trainees_report_${timestamp}.xlsx`;
+
+    // Save the Excel file
+    XLSX.writeFile(wb, filename);
+};
+
 const getStatusColor = (status) => {
     const colors = {
         active: "bg-green-100 text-green-800",
-        inactive: "bg-gray-100 text-gray-800",
-        graduated: "bg-blue-100 text-blue-800",
+        completed: "bg-blue-100 text-blue-800",
         dropped: "bg-red-100 text-red-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
@@ -263,12 +434,6 @@ const getEnrollmentTypeColor = (type) => {
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
                                 Add New Trainee
-                            </SecondaryButton>
-                            <SecondaryButton
-                                @click="exportEnrollments"
-                                class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
-                            >
-                                📄 Export Enrollment Report
                             </SecondaryButton>
                         </div>
                     </div>
@@ -445,51 +610,88 @@ const getEnrollmentTypeColor = (type) => {
                 </div>
 
                 <!-- Results Summary -->
-                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div
+                    v-if="hasActiveFilters"
+                    class="p-4 border-b border-gray-200 bg-gray-50"
+                >
                     <div
                         class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                     >
                         <div class="flex items-center gap-6">
                             <div class="text-center">
                                 <p class="text-2xl font-bold text-green-600">
-                                    {{ totalTrainees }}
+                                    {{ summaryStats.total }}
                                 </p>
-                                <p class="text-sm text-gray-600">Trainees</p>
+                                <p class="text-sm text-gray-600">
+                                    Total Trainees
+                                </p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-600">
+                                    {{ summaryStats.active }}
+                                </p>
+                                <p class="text-sm text-gray-600">Active</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-600">
+                                    {{ summaryStats.completed }}
+                                </p>
+                                <p class="text-sm text-gray-600">Completed</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-red-600">
+                                    {{ summaryStats.dropped }}
+                                </p>
+                                <p class="text-sm text-gray-600">Dropped</p>
                             </div>
                         </div>
-                        <div v-if="hasActiveFilters" class="text-right">
-                            <p class="text-sm text-gray-600">
-                                Showing {{ totalTrainees }} of
-                                {{ props.trainees.length }} trainees
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Role-based notification -->
-                <div
-                    v-if="!isOfficer"
-                    class="p-4 bg-yellow-50 border-l-4 border-yellow-400"
-                >
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg
-                                class="h-5 w-5 text-yellow-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-yellow-700">
-                                Only officers can add, edit, or delete trainees.
-                                You have view-only access.
-                            </p>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <p class="text-sm text-gray-600">
+                                    Showing {{ summaryStats.total }} of
+                                    {{ props.trainees.length }} trainees
+                                </p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button
+                                    @click="exportToPDF"
+                                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors duration-200 flex items-center gap-2"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        ></path>
+                                    </svg>
+                                    Export PDF
+                                </button>
+                                <button
+                                    @click="exportToExcel"
+                                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors duration-200 flex items-center gap-2"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                        ></path>
+                                    </svg>
+                                    Export Excel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -615,11 +817,20 @@ const getEnrollmentTypeColor = (type) => {
                                 <!-- Trainer -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{
-                                            trainee.trainer?.full_name ||
-                                            trainee.assigned_trainer ||
-                                            "Not Assigned"
-                                        }}
+                                        <span
+                                            v-if="
+                                                trainee.assigned_trainers &&
+                                                trainee.assigned_trainers
+                                                    .length > 0
+                                            "
+                                        >
+                                            {{
+                                                trainee.assigned_trainers.join(
+                                                    ", "
+                                                )
+                                            }}
+                                        </span>
+                                        <span v-else> Not Assigned </span>
                                     </div>
                                 </td>
 

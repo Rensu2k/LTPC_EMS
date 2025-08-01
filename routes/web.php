@@ -5,10 +5,13 @@ use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\TrainerController;
 use App\Http\Controllers\TraineeController;
 use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\AssessmentResultsController;
+use App\Http\Controllers\EmploymentController;
 use App\Http\Controllers\TraineeEnrollmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -64,44 +67,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/trainings/{id}', function ($id) {            
         })->name('trainings.destroy');
         
-        Route::get('/assessments', function () {
-            return Inertia::render('Admin/AssestmentResults');
-        })->name('assessments');
-        Route::post('/assessments', function () {            
-        })->name('assessments.store');
-        Route::put('/assessments/{id}', function ($id) {            
-        })->name('assessments.update');
-        Route::delete('/assessments/{id}', function ($id) {            
-        })->name('assessments.destroy');
+        Route::get('/assessments', [AssessmentResultsController::class, 'index'])->name('assessments');
+        Route::post('/assessments', [AssessmentResultsController::class, 'store'])->name('assessments.store');
+        Route::put('/assessments/{assessment}', [AssessmentResultsController::class, 'update'])->name('assessments.update');
+        Route::delete('/assessments/{assessment}', [AssessmentResultsController::class, 'destroy'])->name('assessments.destroy');
         
-        Route::get('/employments', function () {
-            return Inertia::render('Admin/EmploymentsReferrals');
-        })->name('employments');
-        Route::post('/employments', function () {            
-        })->name('employments.store');
-        Route::put('/employments/{id}', function ($id) {            
-        })->name('employments.update');
-        Route::delete('/employments/{id}', function ($id) {            
-        })->name('employments.destroy');
+        Route::get('/employments', [EmploymentController::class, 'index'])->name('employments');
+        Route::post('/employments', [EmploymentController::class, 'store'])->name('employments.store');
+        Route::put('/employments/{id}', [EmploymentController::class, 'update'])->name('employments.update');
+        Route::delete('/employments/{id}', [EmploymentController::class, 'destroy'])->name('employments.destroy');
         
-        Route::get('/reports', [App\Http\Controllers\ReportsController::class, 'index'])->name('reports');
-        Route::post('/reports/generate', [App\Http\Controllers\ReportsController::class, 'generate'])->name('reports.generate');
-        Route::post('/reports/export', [App\Http\Controllers\ReportsController::class, 'export'])->name('reports.export');
+
         
         // Trainee Enrollment History - Admins can view enrollment history (read-only)
         Route::get('/trainees/{trainee}/enrollment-history', [TraineeEnrollmentController::class, 'history'])->name('trainees.enrollment-history');
         
-        Route::get('/users', function () {
-            return Inertia::render('Admin/Users');
-        })->name('users');
-        Route::post('/users', function () {            
-        })->name('users.store');
-        Route::put('/users/{id}', function ($id) {            
-        })->name('users.update');
-        Route::delete('/users/{id}', function ($id) {            
-        })->name('users.destroy');
-        Route::patch('/users/{id}/status', function ($id) {            
-        })->name('users.status');
+        Route::get('/users', [UserController::class, 'index'])->name('users');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+        Route::patch('/users/{id}/status', [UserController::class, 'updateStatus'])->name('users.status');
         
         Route::get('/analytics', function () {            
         })->name('analytics');

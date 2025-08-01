@@ -235,14 +235,25 @@ class TraineeController extends Controller
     public function adminIndex()
     {
         $trainees = Trainee::with('enrollments')->latest()->get()->map(function ($trainee) {
-            // Get the program for this trainee to find assigned trainers
-            $program = Program::where('name', $trainee->program_qualification)->first();
-            $assignedTrainerNames = [];
+            // Get trainer information from the trainee's enrollments
+            $trainerNames = [];
             
-            if ($program && $program->assigned_trainers) {
-                // Get trainer names from the assigned trainer IDs
-                $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
-                $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
+            // Check if trainee has enrollments with programs that have assigned trainers
+            foreach ($trainee->enrollments as $enrollment) {
+                $program = Program::where('program_id', $enrollment->program_id)->first();
+                if ($program && $program->assigned_trainers) {
+                    $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                    $trainerNames = array_merge($trainerNames, $trainers->pluck('full_name')->toArray());
+                }
+            }
+            
+            // If no trainers found from enrollments, try to get from program_qualification (legacy)
+            if (empty($trainerNames)) {
+                $program = Program::where('name', $trainee->program_qualification)->first();
+                if ($program && $program->assigned_trainers) {
+                    $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                    $trainerNames = $trainers->pluck('full_name')->toArray();
+                }
             }
             
             // Get the most recent enrollment date from the new enrollment system
@@ -252,7 +263,7 @@ class TraineeController extends Controller
             $actualEnrollmentDate = $latestEnrollment ? $latestEnrollment->enrollment_date : $trainee->date_enrolled;
             
             // Add trainer information and actual enrollment date to the trainee data
-            $trainee->assigned_trainers = $assignedTrainerNames;
+            $trainee->assigned_trainers = array_unique($trainerNames);
             $trainee->actual_enrollment_date = $actualEnrollmentDate;
             
             return $trainee;

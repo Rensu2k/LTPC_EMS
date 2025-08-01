@@ -580,20 +580,20 @@ const filteredTrainers = computed(() => {
                                         }}
                                     </option>
                                     <option
-                                        value="pass"
+                                        value="competent"
                                         :disabled="
                                             form.payment_status !== 'paid'
                                         "
                                     >
-                                        Pass
+                                        Competent
                                     </option>
                                     <option
-                                        value="fail"
+                                        value="not_yet_competent"
                                         :disabled="
                                             form.payment_status !== 'paid'
                                         "
                                     >
-                                        Fail
+                                        Not Yet Competent
                                     </option>
                                     <option
                                         value="absent"
@@ -635,9 +635,10 @@ const filteredTrainers = computed(() => {
                                             class="w-4 h-4 rounded-full"
                                             :class="{
                                                 'bg-green-500':
-                                                    form.result === 'pass',
+                                                    form.result === 'competent',
                                                 'bg-red-500':
-                                                    form.result === 'fail',
+                                                    form.result ===
+                                                    'not_yet_competent',
                                                 'bg-gray-500':
                                                     form.result === 'absent',
                                             }"
@@ -646,27 +647,30 @@ const filteredTrainers = computed(() => {
                                             class="text-lg font-semibold"
                                             :class="{
                                                 'text-green-700':
-                                                    form.result === 'pass',
+                                                    form.result === 'competent',
                                                 'text-red-700':
-                                                    form.result === 'fail',
+                                                    form.result ===
+                                                    'not_yet_competent',
                                                 'text-gray-700':
                                                     form.result === 'absent',
                                             }"
                                         >
                                             {{
-                                                form.result === "pass"
-                                                    ? "Pass"
-                                                    : form.result === "fail"
-                                                    ? "Fail"
+                                                form.result === "competent"
+                                                    ? "Competent"
+                                                    : form.result ===
+                                                      "not_yet_competent"
+                                                    ? "Not Yet Competent"
                                                     : "Absent"
                                             }}
                                         </span>
                                     </div>
                                     <p class="text-sm text-gray-600 mt-2">
                                         {{
-                                            form.result === "pass"
-                                                ? "The applicant has successfully passed the assessment."
-                                                : form.result === "fail"
+                                            form.result === "competent"
+                                                ? "The applicant has demonstrated competency in the assessment."
+                                                : form.result ===
+                                                  "not_yet_competent"
                                                 ? "The applicant needs additional training or reassessment."
                                                 : "The applicant was absent for the assessment."
                                         }}

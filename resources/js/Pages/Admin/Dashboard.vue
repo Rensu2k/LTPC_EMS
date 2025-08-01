@@ -148,38 +148,6 @@ const getActivityTypeLabel = (type) => {
     <Head title="Admin Dashboard - LTPC EMS" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
-            <!-- Welcome Section -->
-            <div class="mb-8 animate-fade-in">
-                <div
-                    class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-8 text-white relative overflow-hidden"
-                >
-                    <div class="relative z-10">
-                        <h1 class="text-3xl font-bold mb-2">
-                            LTPC EMTS Admin Monitoring
-                        </h1>
-                        <p class="text-indigo-100 text-lg">
-                            Monitor enrollment activities, track training
-                            progress, and oversee payment transactions handled
-                            by officers and cashiers.
-                        </p>
-                        <div class="mt-6 flex space-x-4">
-                            <Link
-                                :href="route('admin.reports')"
-                                class="bg-white text-indigo-600 px-6 py-2 rounded-lg font-semibold hover:bg-indigo-50 transition-colors"
-                            >
-                                Generate Reports
-                            </Link>
-                            <Link
-                                :href="route('admin.trainees')"
-                                class="border border-white text-white px-6 py-2 rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition-colors"
-                            >
-                                Monitor Enrollments
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Monitoring Overview -->
             <div class="mb-8 animate-fade-in">
                 <h3
@@ -215,7 +183,7 @@ const getActivityTypeLabel = (type) => {
                                     {{ stat.subtitle }}
                                 </p>
                             </div>
-                            <div class="text-4xl animate-bounce">
+                            <div class="text-4xl">
                                 {{ stat.icon }}
                             </div>
                         </div>
@@ -315,12 +283,6 @@ const getActivityTypeLabel = (type) => {
                                         officers and cashiers
                                     </p>
                                 </div>
-                                <Link
-                                    :href="route('admin.reports')"
-                                    class="text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors"
-                                >
-                                    View All Activities
-                                </Link>
                             </div>
                         </div>
                         <div class="divide-y divide-gray-200">

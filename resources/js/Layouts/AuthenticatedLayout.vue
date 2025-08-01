@@ -21,7 +21,7 @@ const pageTitle = computed(() => {
     if (currentRoute === "admin.trainings") return "Trainings Results";
     if (currentRoute === "admin.assessments") return "Assessments Results";
     if (currentRoute === "admin.employments") return "Employments Referrals";
-    if (currentRoute === "admin.reports") return "Reports";
+
     if (currentRoute === "admin.users") return "Manage Users";
 
     // Officer routes
@@ -353,44 +353,11 @@ function logout() {
                                         ? 'font-semibold text-lg text-white'
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
-                                >Employment Referrals</span
+                                >Employment</span
                             >
                         </span>
                     </NavLink>
-                    <NavLink
-                        :href="route('admin.reports')"
-                        :active="route().current('admin.reports')"
-                        class="group py-3 px-2 rounded-lg"
-                    >
-                        <span class="flex items-center gap-4">
-                            <svg
-                                class="h-6 w-6"
-                                :class="
-                                    route().current('admin.reports')
-                                        ? 'text-white'
-                                        : 'text-white/70 group-hover:text-white'
-                                "
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 17v-2a4 4 0 014-4h4"
-                                />
-                            </svg>
-                            <span
-                                :class="
-                                    route().current('admin.reports')
-                                        ? 'font-semibold text-lg text-white'
-                                        : 'text-lg text-white/80 group-hover:text-white'
-                                "
-                                >Reports</span
-                            >
-                        </span>
-                    </NavLink>
+
                     <NavLink
                         :href="route('admin.users')"
                         :active="route().current('admin.users')"

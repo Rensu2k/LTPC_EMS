@@ -15,6 +15,10 @@ const props = defineProps({
     flash: Object,
 });
 
+// Handle flash messages
+import { usePage } from "@inertiajs/vue3";
+const page = usePage();
+
 const showModal = ref(false);
 const showDeleteModal = ref(false);
 const editingUser = ref(null);
@@ -83,12 +87,18 @@ const submitForm = () => {
                 showModal.value = false;
                 form.reset();
             },
+            onError: () => {
+                // Form errors will be displayed automatically
+            },
         });
     } else {
         form.post("/admin/users", {
             onSuccess: () => {
                 showModal.value = false;
                 form.reset();
+            },
+            onError: () => {
+                // Form errors will be displayed automatically
             },
         });
     }
@@ -117,6 +127,24 @@ const getRoleColor = (role) => {
     <Head title="User Management" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
+            <!-- Flash Messages -->
+            <div
+                v-if="page.props.flash && page.props.flash.success"
+                class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+            >
+                <span class="block sm:inline">{{
+                    page.props.flash.success
+                }}</span>
+            </div>
+            <div
+                v-if="page.props.flash && page.props.flash.error"
+                class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+            >
+                <span class="block sm:inline">{{
+                    page.props.flash.error
+                }}</span>
+            </div>
+
             <div
                 class="bg-white rounded-xl shadow-sm overflow-hidden animate-fade-in border border-gray-100"
             >

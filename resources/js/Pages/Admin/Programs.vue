@@ -9,7 +9,6 @@ import DangerButton from "@/Components/DangerButton.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
-import TrainerAssignmentModal from "@/Components/TrainerAssignmentModal.vue";
 
 const props = defineProps({
     programs: Array,
@@ -33,10 +32,8 @@ const apiEndpoint = computed(() => {
 
 const showModal = ref(false);
 const showDeleteModal = ref(false);
-const showAssignmentModal = ref(false);
 const editingProgram = ref(null);
 const deletingProgram = ref(null);
-const selectedProgram = ref(null);
 const searchQuery = ref("");
 
 const form = useForm({
@@ -131,33 +128,12 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-const exportProgramReport = () => {
-    // Implement export functionality
-    // TODO: Implement export functionality
-};
-
 const getStatusColor = (status) => {
     const colors = {
         active: "bg-green-100 text-green-800",
         completed: "bg-blue-100 text-blue-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
-};
-
-const assignTrainers = (program) => {
-    if (!isOfficer.value && !isAdmin.value) return;
-    selectedProgram.value = program;
-    showAssignmentModal.value = true;
-};
-
-const closeAssignmentModal = () => {
-    showAssignmentModal.value = false;
-    selectedProgram.value = null;
-};
-
-const onTrainersAssigned = () => {
-    // Refresh the page to show updated trainers
-    window.location.reload();
 };
 
 const viewEnrollments = (program) => {
@@ -217,12 +193,6 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                 class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                             >
                                 Add New Program
-                            </SecondaryButton>
-                            <SecondaryButton
-                                @click="exportProgramReport"
-                                class="bg-gradient-to-r from-green-600 to-emerald-600 text-white border-none hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
-                            >
-                                📄 Export Program Report
                             </SecondaryButton>
                         </div>
                     </div>
@@ -365,14 +335,12 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                                 )
                                             }}
                                         </div>
-                                        <button
-                                            v-else-if="isOfficer || isAdmin"
-                                            @click="assignTrainers(program)"
-                                            class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-                                            title="Assign Trainers"
+                                        <div
+                                            v-else
+                                            class="text-gray-500 italic"
                                         >
-                                            Assign
-                                        </button>
+                                            No trainer assigned
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -671,16 +639,6 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                 </div>
             </div>
         </Modal>
-
-        <!-- Trainer Assignment Modal -->
-        <TrainerAssignmentModal
-            :show="showAssignmentModal"
-            :program="selectedProgram"
-            :trainers="trainers"
-            :isAdmin="true"
-            @close="closeAssignmentModal"
-            @assigned="onTrainersAssigned"
-        />
     </AuthenticatedLayout>
 </template>
 

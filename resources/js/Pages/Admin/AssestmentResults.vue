@@ -1,42 +1,24 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import Modal from "@/Components/Modal.vue";
-import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
-import DangerButton from "@/Components/DangerButton.vue";
-import TextInput from "@/Components/TextInput.vue";
-import InputLabel from "@/Components/InputLabel.vue";
-import InputError from "@/Components/InputError.vue";
 
 const props = defineProps({
     assessments: Array,
+    programs: Array,
+    trainers: Array,
     flash: Object,
 });
 
-const showModal = ref(false);
-const showDeleteModal = ref(false);
 const showResultsModal = ref(false);
-const editingAssessment = ref(null);
-const deletingAssessment = ref(null);
 const viewingAssessment = ref(null);
 const searchQuery = ref("");
 const selectedCourse = ref("");
 const selectedStatus = ref("");
-
-const form = useForm({
-    title: "",
-    description: "",
-    course_id: "",
-    trainer_id: "",
-    assessment_date: "",
-    duration_minutes: "",
-    total_marks: "",
-    passing_marks: "",
-    assessment_type: "written",
-    status: "scheduled",
-});
+const dateFrom = ref("");
+const dateTo = ref("");
 
 const filteredAssessments = computed(() => {
     let filtered = props.assessments || [];
@@ -47,13 +29,13 @@ const filteredAssessments = computed(() => {
                 assessment.title
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                assessment.course?.name
+                assessment.program_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                assessment.trainer?.first_name
+                assessment.trainer_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase()) ||
-                assessment.trainer?.last_name
+                assessment.applicant_name
                     ?.toLowerCase()
                     .includes(searchQuery.value.toLowerCase())
         );
@@ -61,7 +43,7 @@ const filteredAssessments = computed(() => {
 
     if (selectedCourse.value) {
         filtered = filtered.filter(
-            (assessment) => assessment.course_id == selectedCourse.value
+            (assessment) => assessment.program_id == selectedCourse.value
         );
     }
 
@@ -71,84 +53,52 @@ const filteredAssessments = computed(() => {
         );
     }
 
+    if (dateFrom.value) {
+        filtered = filtered.filter(
+            (assessment) => assessment.assessment_date >= dateFrom.value
+        );
+    }
+
+    if (dateTo.value) {
+        filtered = filtered.filter(
+            (assessment) => assessment.assessment_date <= dateTo.value
+        );
+    }
+
     return filtered;
 });
 
-const courses = computed(() => {
-    const uniqueCourses = [
-        ...new Set(
-            props.assessments
-                ?.map((assessment) => assessment.course)
-                .filter(Boolean)
-        ),
-    ];
-    return uniqueCourses;
+const programs = computed(() => {
+    return props.programs || [];
 });
 
-const openCreateModal = () => {
-    form.reset();
-    form.assessment_date = new Date().toISOString().split("T")[0];
-    editingAssessment.value = null;
-    showModal.value = true;
-};
-
-const openEditModal = (assessment) => {
-    editingAssessment.value = assessment;
-    form.title = assessment.title;
-    form.description = assessment.description;
-    form.course_id = assessment.course_id;
-    form.trainer_id = assessment.trainer_id;
-    form.assessment_date = assessment.assessment_date;
-    form.duration_minutes = assessment.duration_minutes;
-    form.total_marks = assessment.total_marks;
-    form.passing_marks = assessment.passing_marks;
-    form.assessment_type = assessment.assessment_type;
-    form.status = assessment.status;
-    showModal.value = true;
-};
+const hasActiveFilters = computed(() => {
+    return (
+        searchQuery.value ||
+        selectedCourse.value ||
+        selectedStatus.value ||
+        dateFrom.value ||
+        dateTo.value
+    );
+});
 
 const openResultsModal = (assessment) => {
     viewingAssessment.value = assessment;
     showResultsModal.value = true;
 };
 
-const openDeleteModal = (assessment) => {
-    deletingAssessment.value = assessment;
-    showDeleteModal.value = true;
-};
-
-const submitForm = () => {
-    if (editingAssessment.value) {
-        form.put(`/admin/assessments/${editingAssessment.value.id}`, {
-            onSuccess: () => {
-                showModal.value = false;
-                form.reset();
-            },
-        });
-    } else {
-        form.post("/admin/assessments", {
-            onSuccess: () => {
-                showModal.value = false;
-                form.reset();
-            },
-        });
-    }
-};
-
-const deleteAssessment = () => {
-    router.delete(`/admin/assessments/${deletingAssessment.value.id}`, {
-        onSuccess: () => {
-            showDeleteModal.value = false;
-            deletingAssessment.value = null;
-        },
-    });
+const clearFilters = () => {
+    searchQuery.value = "";
+    selectedCourse.value = "";
+    selectedStatus.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
 };
 
 const getStatusColor = (status) => {
     const colors = {
-        competent: "bg-green-100 text-green-800",
-        incompetent: "bg-red-100 text-red-800",
-        no_assessment: "bg-gray-100 text-gray-800",
+        pending: "bg-yellow-100 text-yellow-800",
+        completed: "bg-blue-100 text-blue-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
 };
@@ -182,20 +132,13 @@ const formatDuration = (minutes) => {
     return `${mins}m`;
 };
 
-const getPassingPercentage = (assessment) => {
-    if (!assessment.total_marks || !assessment.passing_marks) return 0;
-    return Math.round(
-        (assessment.passing_marks / assessment.total_marks) * 100
-    );
-};
-
 const exportAssessmentResults = () => {
     // TODO: Implement export functionality
 };
 </script>
 
 <template>
-    <Head title="Assessment Management" />
+    <Head title="Assessment Results Management" />
     <AuthenticatedLayout>
         <div class="py-8 px-8 bg-gray-50 min-h-screen">
             <div
@@ -233,60 +176,108 @@ const exportAssessmentResults = () => {
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div class="relative">
-                            <InputLabel
-                                for="search"
-                                value="Search Assessments"
-                            />
-                            <TextInput
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Search Assessments
+                            </label>
+                            <input
                                 id="search"
                                 v-model="searchQuery"
                                 type="text"
-                                placeholder="Search by trainer name"
-                                class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
+                                placeholder="Search by title, program, trainer, or applicant"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
                             />
                         </div>
                         <div>
-                            <InputLabel
-                                for="course-filter"
-                                value="Filter by Course"
-                            />
-                            <select
-                                id="course-filter"
-                                v-model="selectedCourse"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
                             >
-                                <option value="">All Courses</option>
+                                Filter by Program
+                            </label>
+                            <select
+                                id="program-filter"
+                                v-model="selectedCourse"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                            >
+                                <option value="">All Programs</option>
                                 <option
-                                    v-for="course in courses"
-                                    :key="course.course_id"
-                                    :value="course.course_id"
+                                    v-for="program in programs"
+                                    :key="program.program_id"
+                                    :value="program.program_id"
                                 >
-                                    {{ course.name }}
+                                    {{ program.name }}
                                 </option>
                             </select>
                         </div>
                         <div>
-                            <InputLabel
-                                for="status-filter"
-                                value="Filter by Status"
-                            />
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Filter by Status
+                            </label>
                             <select
                                 id="status-filter"
                                 v-model="selectedStatus"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
                             >
                                 <option value="">All Statuses</option>
-                                <option value="competent">Competent</option>
-                                <option value="incompetent">
-                                    Not Yet Competent
-                                </option>
-                                <option value="no_assessment">
-                                    No Assessment
-                                </option>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
                             </select>
                         </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Date From
+                            </label>
+                            <input
+                                id="date-from"
+                                v-model="dateFrom"
+                                type="date"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Date To
+                            </label>
+                            <input
+                                id="date-to"
+                                v-model="dateTo"
+                                type="date"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters Button -->
+                    <div class="mt-4 flex justify-end">
+                        <button
+                            v-if="hasActiveFilters"
+                            @click="clearFilters"
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300"
+                        >
+                            <svg
+                                class="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                ></path>
+                            </svg>
+                            Clear Filters
+                        </button>
                     </div>
                 </div>
 
@@ -317,7 +308,7 @@ const exportAssessmentResults = () => {
                                     >
                                         {{
                                             filteredAssessments.filter(
-                                                (a) => a.status === "competent"
+                                                (a) => a.result === "competent"
                                             ).length
                                         }}
                                     </p>
@@ -348,7 +339,8 @@ const exportAssessmentResults = () => {
                                         {{
                                             filteredAssessments.filter(
                                                 (a) =>
-                                                    a.status === "incompetent"
+                                                    a.result ===
+                                                    "not_yet_competent"
                                             ).length
                                         }}
                                     </p>
@@ -373,15 +365,14 @@ const exportAssessmentResults = () => {
                                     <p
                                         class="text-xs font-medium text-gray-600"
                                     >
-                                        No Assessment
+                                        Absent
                                     </p>
                                     <p
                                         class="text-lg font-semibold text-gray-900"
                                     >
                                         {{
                                             filteredAssessments.filter(
-                                                (a) =>
-                                                    a.status === "no_assessment"
+                                                (a) => a.result === "absent"
                                             ).length
                                         }}
                                     </p>
@@ -432,17 +423,17 @@ const exportAssessmentResults = () => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Course/Trainer
+                                    Program/Trainer
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Type
+                                    Applicant
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Duration
+                                    Result
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -471,7 +462,7 @@ const exportAssessmentResults = () => {
                                                 <span class="relative z-10">
                                                     {{
                                                         getAssessmentIcon(
-                                                            assessment.assessment_type
+                                                            assessment.type
                                                         )
                                                     }}
                                                 </span>
@@ -496,33 +487,46 @@ const exportAssessmentResults = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
-                                        {{ assessment.course?.name || "N/A" }}
+                                        {{ assessment.program_name || "N/A" }}
                                     </div>
                                     <div class="text-sm text-gray-500">
-                                        {{ assessment.trainer?.first_name }}
-                                        {{ assessment.trainer?.last_name }}
+                                        {{ assessment.trainer_name || "N/A" }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                        {{ assessment.applicant_name || "N/A" }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{
+                                            assessment.applicant_type ===
+                                            "enrolled_trainee"
+                                                ? "Enrolled Trainee"
+                                                : "External Applicant"
+                                        }}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
+                                        v-if="assessment.result"
+                                        :class="assessment.result_color"
+                                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
+                                    >
+                                        {{ assessment.result_status }}
+                                    </span>
+                                    <span
+                                        v-else
                                         :class="
-                                            getTypeColor(
-                                                assessment.assessment_type
-                                            )
+                                            getStatusColor(assessment.status)
                                         "
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
                                     >
-                                        {{ assessment.assessment_type }}
+                                        {{
+                                            assessment.status === "pending"
+                                                ? "Pending"
+                                                : "Completed"
+                                        }}
                                     </span>
-                                </td>
-                                <td
-                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                                >
-                                    {{
-                                        formatDuration(
-                                            assessment.duration_minutes
-                                        )
-                                    }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span
@@ -532,12 +536,9 @@ const exportAssessmentResults = () => {
                                         class="inline-flex px-2 py-1 text-xs font-semibold rounded-full border"
                                     >
                                         {{
-                                            assessment.status === "competent"
-                                                ? "Competent"
-                                                : assessment.status ===
-                                                  "incompetent"
-                                                ? "Not Yet Competent"
-                                                : "No Assessment"
+                                            assessment.status === "pending"
+                                                ? "Pending"
+                                                : "Completed"
                                         }}
                                     </span>
                                 </td>
@@ -552,18 +553,6 @@ const exportAssessmentResults = () => {
                                             class="px-3 py-1 text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-600 rounded transition-all duration-300 font-medium"
                                         >
                                             Results
-                                        </button>
-                                        <button
-                                            @click="openEditModal(assessment)"
-                                            class="px-3 py-1 text-green-600 hover:text-white hover:bg-green-600 border border-green-600 rounded transition-all duration-300 font-medium"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            @click="openDeleteModal(assessment)"
-                                            class="px-3 py-1 text-red-600 hover:text-white hover:bg-red-600 border border-red-600 rounded transition-all duration-300 font-medium"
-                                        >
-                                            Delete
                                         </button>
                                     </div>
                                 </td>
@@ -605,381 +594,301 @@ const exportAssessmentResults = () => {
             </div>
         </div>
 
-        <!-- Create/Edit Modal -->
-        <Modal
-            :show="showModal"
-            @close="showModal = false"
-            max-width="lg"
-            :close-on-click-outside="false"
-        >
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-green-900">
-                        {{
-                            editingAssessment
-                                ? "Edit Assessment"
-                                : "Create Assessment"
-                        }}
-                    </h3>
-                </div>
-
-                <form @submit.prevent="submitForm" class="space-y-4">
-                    <div>
-                        <InputLabel for="title" value="Assessment Title *" />
-                        <TextInput
-                            id="title"
-                            v-model="form.title"
-                            type="text"
-                            class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            required
-                        />
-                        <InputError :message="form.errors.title" class="mt-2" />
-                    </div>
-
-                    <div>
-                        <InputLabel for="description" value="Description" />
-                        <textarea
-                            id="description"
-                            v-model="form.description"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            rows="3"
-                            placeholder="Assessment description..."
-                        ></textarea>
-                        <InputError
-                            :message="form.errors.description"
-                            class="mt-2"
-                        />
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <InputLabel for="course_id" value="Course *" />
-                            <select
-                                id="course_id"
-                                v-model="form.course_id"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            >
-                                <option value="">Select Course</option>
-                                <option
-                                    v-for="course in courses"
-                                    :key="course.course_id"
-                                    :value="course.course_id"
-                                >
-                                    {{ course.name }}
-                                </option>
-                            </select>
-                            <InputError
-                                :message="form.errors.course_id"
-                                class="mt-2"
-                            />
-                        </div>
-
-                        <div>
-                            <InputLabel
-                                for="assessment_type"
-                                value="Assessment Type *"
-                            />
-                            <select
-                                id="assessment_type"
-                                v-model="form.assessment_type"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            >
-                                <option value="written">Written</option>
-                                <option value="practical">Practical</option>
-                                <option value="oral">Oral</option>
-                                <option value="project">Project</option>
-                            </select>
-                            <InputError
-                                :message="form.errors.assessment_type"
-                                class="mt-2"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <InputLabel
-                                for="assessment_date"
-                                value="Assessment Date *"
-                            />
-                            <TextInput
-                                id="assessment_date"
-                                v-model="form.assessment_date"
-                                type="date"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.assessment_date"
-                                class="mt-2"
-                            />
-                        </div>
-
-                        <div>
-                            <InputLabel
-                                for="duration_minutes"
-                                value="Duration (minutes) *"
-                            />
-                            <TextInput
-                                id="duration_minutes"
-                                v-model="form.duration_minutes"
-                                type="number"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.duration_minutes"
-                                class="mt-2"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <InputLabel
-                                for="total_marks"
-                                value="Total Marks *"
-                            />
-                            <TextInput
-                                id="total_marks"
-                                v-model="form.total_marks"
-                                type="number"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.total_marks"
-                                class="mt-2"
-                            />
-                        </div>
-
-                        <div>
-                            <InputLabel
-                                for="passing_marks"
-                                value="Passing Marks *"
-                            />
-                            <TextInput
-                                id="passing_marks"
-                                v-model="form.passing_marks"
-                                type="number"
-                                class="mt-1 block w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                                required
-                            />
-                            <InputError
-                                :message="form.errors.passing_marks"
-                                class="mt-2"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <InputLabel for="status" value="Status *" />
-                        <select
-                            id="status"
-                            v-model="form.status"
-                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
-                            required
-                        >
-                            <option value="scheduled">Scheduled</option>
-                            <option value="competent">Competent</option>
-                            <option value="incompetent">
-                                Not Yet Competent
-                            </option>
-                            <option value="no_assessment">No Assessment</option>
-                        </select>
-                        <InputError
-                            :message="form.errors.status"
-                            class="mt-2"
-                        />
-                    </div>
-
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <SecondaryButton
-                            @click="showModal = false"
-                            class="border-2 border-gray-300 hover:border-green-500 hover:text-green-600 transition-all duration-300"
-                        >
-                            Cancel
-                        </SecondaryButton>
-                        <PrimaryButton
-                            :disabled="form.processing"
-                            class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
-                        >
-                            {{
-                                form.processing
-                                    ? "Saving..."
-                                    : editingAssessment
-                                    ? "Update"
-                                    : "Create"
-                            }}
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </div>
-        </Modal>
-
         <!-- Results Modal -->
         <Modal
             :show="showResultsModal"
             @close="showResultsModal = false"
-            max-width="xl"
+            custom-width="80vw"
         >
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-blue-900">
-                        Assessment Results
-                    </h3>
-                </div>
-
-                <div v-if="viewingAssessment" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">
-                                Assessment Information
-                            </h4>
-                            <div class="space-y-2">
-                                <p class="text-sm">
-                                    <span class="font-medium">Title:</span>
-                                    {{ viewingAssessment.title }}
-                                </p>
-                                <p class="text-sm">
-                                    <span class="font-medium">Type:</span>
-                                    {{ viewingAssessment.assessment_type }}
-                                </p>
-                                <p class="text-sm">
-                                    <span class="font-medium">Date:</span>
-                                    {{ viewingAssessment.assessment_date }}
-                                </p>
-                                <p class="text-sm">
-                                    <span class="font-medium">Duration:</span>
+            <div class="p-6" v-if="viewingAssessment">
+                <!-- Header -->
+                <div class="flex items-start justify-between mb-6">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-blue-100 rounded-lg">
+                            <svg
+                                class="h-8 w-8 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 12l2 2 4-4M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">
+                                {{ viewingAssessment.title }}
+                            </h2>
+                            <p
+                                class="text-gray-600 mt-1"
+                                v-if="viewingAssessment.description"
+                            >
+                                {{ viewingAssessment.description }}
+                            </p>
+                            <div class="flex items-center gap-3 mt-3">
+                                <span
+                                    :class="
+                                        getTypeColor(viewingAssessment.type)
+                                    "
+                                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                >
                                     {{
-                                        formatDuration(
-                                            viewingAssessment.duration_minutes
-                                        )
+                                        viewingAssessment.type
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                        viewingAssessment.type?.slice(1)
                                     }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-medium text-gray-900 mb-3">
-                                Course & Trainer
-                            </h4>
-                            <div class="space-y-2">
-                                <p class="text-sm">
-                                    <span class="font-medium">Course:</span>
+                                </span>
+                                <span
+                                    :class="
+                                        getStatusColor(viewingAssessment.status)
+                                    "
+                                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                >
                                     {{
-                                        viewingAssessment.course?.name || "N/A"
+                                        viewingAssessment.status
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                        viewingAssessment.status?.slice(1)
                                     }}
-                                </p>
-                                <p class="text-sm">
-                                    <span class="font-medium">Trainer:</span>
-                                    {{ viewingAssessment.trainer?.first_name }}
-                                    {{ viewingAssessment.trainer?.last_name }}
-                                </p>
+                                </span>
                             </div>
                         </div>
                     </div>
-
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="text-sm font-medium text-gray-900 mb-3">
-                            Scoring Information
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-blue-600">
-                                    {{ viewingAssessment.total_marks }}
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    Total Marks
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-green-600">
-                                    {{ viewingAssessment.passing_marks }}
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    Passing Marks
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-purple-600">
-                                    {{
-                                        getPassingPercentage(viewingAssessment)
-                                    }}%
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    Pass Percentage
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        v-if="viewingAssessment.description"
-                        class="bg-gray-50 p-4 rounded-lg"
-                    >
-                        <h4 class="text-sm font-medium text-gray-900 mb-2">
-                            Description
-                        </h4>
-                        <p class="text-sm text-gray-700">
-                            {{ viewingAssessment.description }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-4">
-                    <SecondaryButton
+                    <button
                         @click="showResultsModal = false"
-                        class="border-2 border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-all duration-300"
+                        class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
                     >
+                        <svg
+                            class="h-6 w-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Assessment Information -->
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-5 h-5 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                            </svg>
+                            Assessment Details
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Program:</span
+                                >
+                                <span
+                                    class="text-sm text-gray-900 font-semibold"
+                                >
+                                    {{
+                                        viewingAssessment.program_name || "N/A"
+                                    }}
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Assessment Date:</span
+                                >
+                                <span class="text-sm text-gray-900">{{
+                                    new Date(
+                                        viewingAssessment.assessment_date
+                                    ).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                    })
+                                }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Type:</span
+                                >
+                                <span class="text-sm text-gray-900">
+                                    {{
+                                        viewingAssessment.type
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                        viewingAssessment.type?.slice(1)
+                                    }}
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Status:</span
+                                >
+                                <span
+                                    :class="
+                                        getStatusColor(viewingAssessment.status)
+                                    "
+                                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                >
+                                    {{
+                                        viewingAssessment.status
+                                            ?.charAt(0)
+                                            .toUpperCase() +
+                                        viewingAssessment.status?.slice(1)
+                                    }}
+                                </span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center"
+                                v-if="viewingAssessment.result"
+                            >
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Result:</span
+                                >
+                                <span
+                                    :class="viewingAssessment.result_color"
+                                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                >
+                                    {{ viewingAssessment.result.toUpperCase() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Participants Information -->
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-5 h-5 text-green-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"
+                                />
+                            </svg>
+                            Participants
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Applicant:</span
+                                >
+                                <span
+                                    class="text-sm text-gray-900 font-semibold"
+                                >
+                                    {{
+                                        viewingAssessment.applicant_name ||
+                                        "N/A"
+                                    }}
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-500"
+                                    >Trainer/Assessor:</span
+                                >
+                                <span class="text-sm text-gray-900">
+                                    {{
+                                        viewingAssessment.trainer_name || "N/A"
+                                    }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Status Information -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-blue-50 rounded-lg p-6">
+                            <h3
+                                class="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2"
+                            >
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                Assessment Status
+                            </h3>
+
+                            <div class="flex justify-center">
+                                <div
+                                    class="text-center bg-white rounded-lg p-6 border-2"
+                                >
+                                    <div
+                                        class="flex items-center justify-center gap-3 mb-2"
+                                    >
+                                        <span
+                                            :class="
+                                                viewingAssessment.result_color ||
+                                                getStatusColor(
+                                                    viewingAssessment.status
+                                                )
+                                            "
+                                            class="inline-flex px-3 py-1 text-lg font-semibold rounded-full"
+                                        >
+                                            {{
+                                                viewingAssessment.result_status ||
+                                                viewingAssessment.status
+                                                    ?.charAt(0)
+                                                    .toUpperCase() +
+                                                    viewingAssessment.status?.slice(
+                                                        1
+                                                    )
+                                            }}
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-600">
+                                        Assessment status based on current
+                                        progress
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div
+                    class="flex items-center justify-end gap-3 pt-6 border-t mt-6"
+                >
+                    <SecondaryButton @click="showResultsModal = false">
                         Close
                     </SecondaryButton>
-                </div>
-            </div>
-        </Modal>
-
-        <!-- Delete Confirmation Modal -->
-        <Modal :show="showDeleteModal" @close="showDeleteModal = false">
-            <div
-                class="p-6 bg-white rounded-xl shadow-2xl border border-gray-100"
-            >
-                <div class="border-b border-gray-200 pb-4 mb-6 relative">
-                    <div
-                        class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-red-500 to-pink-500 rounded"
-                    ></div>
-                    <h3 class="text-lg font-semibold text-red-900">
-                        Delete Assessment
-                    </h3>
-                </div>
-                <p class="text-sm text-gray-500 mb-4">
-                    Are you sure you want to delete this assessment? This action
-                    cannot be undone.
-                </p>
-                <div class="flex justify-end space-x-3">
-                    <SecondaryButton
-                        @click="showDeleteModal = false"
-                        class="border-2 border-gray-300 hover:border-red-500 hover:text-red-600 transition-all duration-300"
-                    >
-                        Cancel
-                    </SecondaryButton>
-                    <DangerButton
-                        @click="deleteAssessment"
-                        class="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 transition-all duration-300"
-                    >
-                        Delete
-                    </DangerButton>
                 </div>
             </div>
         </Modal>

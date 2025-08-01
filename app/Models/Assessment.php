@@ -79,19 +79,19 @@ class Assessment extends Model
     }
 
     /**
-     * Check if the assessment is passed
+     * Check if the assessment is competent
      */
-    public function isPassed()
+    public function isCompetent()
     {
-        return $this->result === 'pass';
+        return $this->result === 'competent';
     }
 
     /**
-     * Check if the assessment is failed
+     * Check if the assessment is not yet competent
      */
-    public function isFailed()
+    public function isNotYetCompetent()
     {
-        return $this->result === 'fail';
+        return $this->result === 'not_yet_competent';
     }
 
     /**
@@ -107,7 +107,7 @@ class Assessment extends Model
      */
     public function canBeReassessed()
     {
-        return $this->result === 'fail' || $this->result === 'absent';
+        return $this->result === 'not_yet_competent' || $this->result === 'absent';
     }
 
     /**
@@ -132,10 +132,10 @@ class Assessment extends Model
     public function getResultStatusAttribute()
     {
         switch ($this->result) {
-            case 'pass':
-                return 'Pass';
-            case 'fail':
-                return 'Fail';
+            case 'competent':
+                return 'Competent';
+            case 'not_yet_competent':
+                return 'Not Yet Competent';
             case 'absent':
                 return 'Absent';
             default:
@@ -149,9 +149,9 @@ class Assessment extends Model
     public function getResultColorAttribute()
     {
         switch ($this->result) {
-            case 'pass':
+            case 'competent':
                 return 'bg-green-100 text-green-800';
-            case 'fail':
+            case 'not_yet_competent':
                 return 'bg-red-100 text-red-800';
             case 'absent':
                 return 'bg-gray-100 text-gray-800';

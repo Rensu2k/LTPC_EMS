@@ -259,13 +259,9 @@ const generateReceipt = (paymentId) => {
 };
 
 const generateReceiptForPaidPayment = (payment) => {
-    // Generate a unique receipt number with timestamp
-    const timestamp = Date.now();
-    const uniqueReceiptNo = `${payment.receiptNo}-${timestamp}`;
-
     // Prepare editable receipt data
     editableReceiptData.value = {
-        receiptNo: uniqueReceiptNo,
+        receiptNo: "",
         trainee: {
             name: payment.trainee.name,
             uli_number: payment.trainee.uli_number || "Not assigned",

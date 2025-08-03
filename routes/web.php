@@ -41,21 +41,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {        
         Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
         
-            // Program Management Routes - READ ONLY for Admin
         Route::get('/programs', [ProgramController::class, 'adminIndex'])->name('programs');
         Route::get('/programs/{program}/enrollments', [ProgramController::class, 'adminEnrollments'])->name('programs.enrollments');
-        // NOTE: CRUD operations removed - only Officers can create/edit/delete programs
         
-        // Trainee Management Routes - READ ONLY for Admin  
         Route::get('/trainees', [TraineeController::class, 'adminIndex'])->name('trainees');
-        // NOTE: CRUD operations removed - only Officers can create/edit/delete trainees
         
-        // Trainer Management Routes - READ ONLY for Admin
         Route::get('/trainers', [TrainerController::class, 'adminIndex'])->name('trainers');
-        // NOTE: CRUD operations removed - only Officers can create/edit/delete trainers
         
         Route::get('/payments', [PaymentController::class, 'adminIndex'])->name('payments');
-        // CRUD routes removed - admin has read-only access to payments
         
         Route::get('/trainings', function () {
             return Inertia::render('Admin/TrainingResults');
@@ -79,7 +72,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
 
         
-        // Trainee Enrollment History - Admins can view enrollment history (read-only)
         Route::get('/trainees/{trainee}/enrollment-history', [TraineeEnrollmentController::class, 'history'])->name('trainees.enrollment-history');
         
         Route::get('/users', [UserController::class, 'index'])->name('users');
@@ -99,14 +91,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('officer')->name('officer.')->middleware('role:officer')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'officer'])->name('dashboard');
         
-            // Programs Management - Officers can create, update, delete programs
     Route::get('/programs', [ProgramController::class, 'index'])->name('programs');
     Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
     Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
     Route::put('/programs/{program}', [ProgramController::class, 'update'])->name('programs.update');
     Route::delete('/programs/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
         
-        // Trainees Management - Officers can manage trainees
         Route::get('/trainees', [TraineeController::class, 'index'])->name('trainees');
         Route::post('/trainees', [TraineeController::class, 'store'])->name('trainees.store');
         Route::get('/trainees/{trainee}/edit', [TraineeController::class, 'edit'])->name('trainees.edit');
@@ -114,7 +104,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/trainees/{trainee}', [TraineeController::class, 'destroy'])->name('trainees.destroy');
         Route::patch('/trainees/{trainee}/status', [TraineeController::class, 'updateStatus'])->name('trainees.status');
         
-        // Trainers Management - Officers can manage trainers
         Route::get('/trainers', [TrainerController::class, 'index'])->name('trainers');
         Route::post('/trainers', [TrainerController::class, 'store'])->name('trainers.store');
         Route::get('/trainers/{trainer}/edit', [TrainerController::class, 'edit'])->name('trainers.edit');
@@ -122,7 +111,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/trainers/{trainer}', [TrainerController::class, 'destroy'])->name('trainers.destroy');
 
         
-        // Assessments Management - Officers can manage assessments
         Route::get('/assessments', [AssessmentController::class, 'index'])->name('assessments');
         Route::post('/assessments', [AssessmentController::class, 'store'])->name('assessments.store');
         Route::get('/assessments/{assessment}/edit', [AssessmentController::class, 'edit'])->name('assessments.edit');
@@ -130,7 +118,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])->name('assessments.destroy');
         Route::post('/assessments/{assessment}/reassessment', [AssessmentController::class, 'reassessment'])->name('assessments.reassessment');
 
-        // Trainee Enrollments - Officers can manage multiple program enrollments
         Route::get('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'create'])->name('trainees.enroll');
         Route::post('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'store'])->name('trainees.enroll.store');
         Route::get('/trainees/{trainee}/enrollment-history', [TraineeEnrollmentController::class, 'history'])->name('trainees.enrollment-history');

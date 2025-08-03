@@ -86,13 +86,6 @@ const companies = computed(() => {
     return uniqueCompanies;
 });
 
-const openCreateModal = () => {
-    form.reset();
-    form.employment_date = new Date().toISOString().split("T")[0];
-    editingReferral.value = null;
-    showModal.value = true;
-};
-
 const openEditModal = (referral) => {
     editingReferral.value = referral;
     form.trainee_id = referral.trainee_id;
@@ -116,21 +109,12 @@ const openDetailsModal = (referral) => {
 };
 
 const submitForm = () => {
-    if (editingReferral.value) {
-        form.put(`/admin/employments/${editingReferral.value.id}`, {
-            onSuccess: () => {
-                showModal.value = false;
-                form.reset();
-            },
-        });
-    } else {
-        form.post("/admin/employments", {
-            onSuccess: () => {
-                showModal.value = false;
-                form.reset();
-            },
-        });
-    }
+    form.put(`/admin/employments/${editingReferral.value.id}`, {
+        onSuccess: () => {
+            showModal.value = false;
+            form.reset();
+        },
+    });
 };
 
 const getStatusColor = (status) => {
@@ -187,12 +171,6 @@ const exportEmploymentReport = () => {
                             </h3>
                         </div>
                         <div class="flex space-x-3">
-                            <PrimaryButton
-                                @click="openCreateModal"
-                                class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
-                            >
-                                Add Employment
-                            </PrimaryButton>
                             <SecondaryButton
                                 @click="exportEmploymentReport"
                                 class="bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200 hover:border-gray-400 transition-all duration-300"
@@ -546,7 +524,7 @@ const exportEmploymentReport = () => {
                                 {{
                                     searchQuery
                                         ? "Try adjusting your filters."
-                                        : "Get started by adding your first employment record."
+                                        : "Employment records are automatically created when trainees are marked as competent in assessments."
                                 }}
                             </p>
                         </div>
@@ -570,11 +548,7 @@ const exportEmploymentReport = () => {
                         class="absolute bottom-0 left-0 w-20 h-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded"
                     ></div>
                     <h3 class="text-lg font-semibold text-green-900">
-                        {{
-                            editingReferral
-                                ? "Edit Employment Record"
-                                : "Create Employment Record"
-                        }}
+                        Edit Employment Record
                     </h3>
                 </div>
 
@@ -756,13 +730,7 @@ const exportEmploymentReport = () => {
                             :disabled="form.processing"
                             class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
                         >
-                            {{
-                                form.processing
-                                    ? "Saving..."
-                                    : editingReferral
-                                    ? "Update"
-                                    : "Create"
-                            }}
+                            {{ form.processing ? "Saving..." : "Update" }}
                         </PrimaryButton>
                     </div>
                 </form>

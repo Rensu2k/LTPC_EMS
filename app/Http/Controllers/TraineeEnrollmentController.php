@@ -15,6 +15,12 @@ class TraineeEnrollmentController extends Controller
      */
     public function create(Trainee $trainee)
     {
+        // Block enrollment form if trainee already has any active enrollment
+        $hasActiveEnrollment = $trainee->enrollments()->where('status', 'active')->exists();
+        if ($hasActiveEnrollment) {
+            return redirect()->back()->with('error', 'Trainee already has an active enrollment and cannot enroll in a new program. Complete or drop the active enrollment first.');
+        }
+
         // Get available programs (exclude programs trainee is already enrolled in)
         $enrolledProgramIds = $trainee->enrollments()
             ->where('status', 'active')
@@ -43,6 +49,11 @@ class TraineeEnrollmentController extends Controller
      */
     public function store(Request $request, Trainee $trainee)
     {
+        // Server-side guard: prevent enrolling while any active enrollment exists
+        if ($trainee->enrollments()->where('status', 'active')->exists()) {
+            return redirect()->back()->with('error', 'Trainee already has an active enrollment and cannot enroll in a new program.');
+        }
+
         $validated = $request->validate([
             'program_id' => 'required|string|exists:programs,program_id',
             'batch' => 'nullable|integer|min:1',

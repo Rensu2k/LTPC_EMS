@@ -66,7 +66,18 @@ class AssessmentController extends Controller
             });
 
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
+        
+        // Get trainees who have completed at least one enrollment (modern system)
+        // OR trainees with completed status (legacy system)
+        $trainees = Trainee::with(['enrollments.program' => function($query) {
+            $query->select('program_id', 'name');
+        }])->where(function($query) {
+            $query->where('status', 'completed')
+                  ->orWhereHas('enrollments', function($enrollmentQuery) {
+                      $enrollmentQuery->where('status', 'completed');
+                  });
+        })->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
+        
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/Assessments', [
@@ -199,7 +210,18 @@ class AssessmentController extends Controller
         }
 
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
-        $trainees = Trainee::where('status', 'completed')->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
+        
+        // Get trainees who have completed at least one enrollment (modern system)
+        // OR trainees with completed status (legacy system)
+        $trainees = Trainee::with(['enrollments.program' => function($query) {
+            $query->select('program_id', 'name');
+        }])->where(function($query) {
+            $query->where('status', 'completed')
+                  ->orWhereHas('enrollments', function($enrollmentQuery) {
+                      $enrollmentQuery->where('status', 'completed');
+                  });
+        })->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
+        
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Officer/EditAssessment', [

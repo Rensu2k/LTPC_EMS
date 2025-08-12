@@ -77,7 +77,7 @@ const filteredGroupedReceipts = computed(() => {
         const receiptMatch = group.receipts.some(
             (receipt) =>
                 receipt.id.toLowerCase().includes(query) ||
-                receipt.course.toLowerCase().includes(query) ||
+                receipt.program.toLowerCase().includes(query) ||
                 receipt.type.toLowerCase().includes(query)
         );
 
@@ -97,7 +97,7 @@ const filteredCancelledReceipts = computed(() => {
             receipt.id.toLowerCase().includes(query) ||
             receipt.trainee.name.toLowerCase().includes(query) ||
             receipt.trainee.id.toLowerCase().includes(query) ||
-            receipt.course.toLowerCase().includes(query) ||
+            receipt.program.toLowerCase().includes(query) ||
             (receipt.cancellation_reason &&
                 receipt.cancellation_reason.toLowerCase().includes(query))
         );
@@ -326,7 +326,7 @@ const generateReceiptContent = (receipt) => {
                     : receipt.type === "assessment"
                     ? "Assessment Fee"
                     : "Enrollment Fee",
-            course: receipt.course,
+            program: receipt.program,
             accountCode: "EDU-001",
             amount: receipt.amount,
         });
@@ -338,13 +338,13 @@ const generateReceiptContent = (receipt) => {
         const natureText = (fee.natureOfCollection || "Fee")
             .substring(0, 23)
             .padEnd(23);
-        const courseText = (fee.course || "").substring(0, 23).padEnd(23);
+        const programText = (fee.program || "").substring(0, 23).padEnd(23);
         const amountText = formatCurrency(safeNumber(fee.amount)).padStart(23);
         const accountCode = (fee.accountCode || "EDU-001").padEnd(14);
 
         feeRows += `│ ${natureText} │ ${accountCode} │ ${amountText} │\n`;
-        if (fee.course) {
-            feeRows += `│ ${courseText} │                │                         │\n`;
+        if (fee.program) {
+            feeRows += `│ ${programText} │                │                         │\n`;
         }
         feeRows += `├─────────────────────────┼────────────────┼─────────────────────────┤\n`;
     });
@@ -429,7 +429,7 @@ const generateReceiptHTML = (receipt) => {
                     : receipt.type === "assessment"
                     ? "Assessment Fee"
                     : "Enrollment Fee",
-            course: receipt.course,
+            program: receipt.program,
             accountCode: "EDU-001",
             amount: receipt.amount,
         });
@@ -447,10 +447,10 @@ const generateReceiptHTML = (receipt) => {
             )}</div>
         </div>`;
 
-        if (fee.course) {
+        if (fee.program) {
             feeRowsHTML += `
         <div class="table-row">
-            <div class="col-nature">${fee.course}</div>
+            <div class="col-nature">${fee.program}</div>
             <div class="col-account"></div>
             <div class="col-amount"></div>
         </div>`;
@@ -1057,6 +1057,13 @@ onUnmounted(() => {
                                             {{ group.trainee_uli_number }}</span
                                         >
                                     </div>
+                                    <!-- Program names under trainee name -->
+                                    <div
+                                        v-if="group.program_names"
+                                        class="text-sm text-blue-600 mt-1"
+                                    >
+                                        {{ group.program_names }}
+                                    </div>
                                 </div>
                             </div>
                             <div class="flex items-center space-x-6">
@@ -1140,7 +1147,10 @@ onUnmounted(() => {
                                             {{ receipt.id }}
                                         </div>
                                         <div class="text-sm text-gray-600">
-                                            {{ receipt.course }}
+                                            {{
+                                                receipt.natureOfCollection ||
+                                                receipt.program
+                                            }}
                                         </div>
                                         <div
                                             class="flex items-center space-x-4 text-xs text-gray-500 mt-1"
@@ -1363,7 +1373,7 @@ onUnmounted(() => {
                                         }})
                                     </div>
                                     <div class="text-sm text-gray-500">
-                                        {{ receipt.course }}
+                                        {{ receipt.program }}
                                     </div>
                                 </div>
                             </div>

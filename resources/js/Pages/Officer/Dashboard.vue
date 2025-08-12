@@ -670,15 +670,15 @@ const navigateToStats = (section) => {
                                         {{ enrollment.payment }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 flex gap-2">
+                                <td class="px-6 py-4 flex gap-3">
                                     <button
                                         @click="viewTrainee(enrollment)"
-                                        class="text-gray-500 hover:text-blue-600 p-1 rounded"
+                                        class="text-gray-500 hover:text-blue-600 p-2 rounded"
                                         title="View Trainee"
                                     >
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            class="h-4 w-4"
+                                            class="h-5 w-5 md:h-6 md:w-6"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -701,12 +701,12 @@ const navigateToStats = (section) => {
                                         @click="
                                             viewEnrollmentHistory(enrollment)
                                         "
-                                        class="text-gray-500 hover:text-green-600 p-1 rounded"
+                                        class="text-gray-500 hover:text-green-600 p-2 rounded"
                                         title="Enrollment History"
                                     >
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            class="h-4 w-4"
+                                            class="h-5 w-5 md:h-6 md:w-6"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"

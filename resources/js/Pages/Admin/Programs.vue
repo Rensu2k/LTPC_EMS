@@ -370,13 +370,13 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                 >
                                     <button
                                         @click="viewEnrollments(program)"
-                                        class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                                        class="inline-flex items-center gap-2 p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors duration-200"
                                         :title="`View ${
                                             program.enrollments || 0
                                         } enrollments`"
                                     >
                                         <svg
-                                            class="w-5 h-5"
+                                            class="w-6 h-6 md:w-7 md:h-7"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"

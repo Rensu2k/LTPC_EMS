@@ -138,6 +138,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', [CashierController::class, 'dashboard'])->name('dashboard');
         Route::get('/payments', [CashierController::class, 'payments'])->name('payments');
         Route::get('/receipts', [CashierController::class, 'receipts'])->name('receipts');
+        Route::get('/reports', [CashierController::class, 'reports'])->name('reports');
         Route::post('/payments/process', [CashierController::class, 'processPayment'])->name('payments.process');
         Route::post('/receipts/save', [CashierController::class, 'saveCustomReceipt'])->name('receipts.save');
         Route::put('/receipts/{customReceipt}', [CashierController::class, 'updateCustomReceipt'])->name('receipts.update');

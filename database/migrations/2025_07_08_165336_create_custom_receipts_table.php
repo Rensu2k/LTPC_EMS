@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('trainee_uli_number')->nullable();
             
             // Receipt details that can be customized
-            $table->json('fees'); // Array of fees with course, amount, account_code
+            $table->json('fees'); // Array of fees with program, amount, account_code
             $table->decimal('total_amount', 10, 2);
             $table->date('date_generated');
             $table->time('time_generated');

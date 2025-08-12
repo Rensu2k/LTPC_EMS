@@ -61,8 +61,8 @@ class PaymentController extends Controller
                         $natureOfCollection = $firstFee['natureOfCollection'];
                     } elseif ($firstFee && isset($firstFee['accountCode'])) {
                         $natureOfCollection = $firstFee['accountCode'];
-                    } elseif ($firstFee && isset($firstFee['course'])) {
-                        $natureOfCollection = $firstFee['course'];
+                    } elseif ($firstFee && isset($firstFee['program'])) {
+                        $natureOfCollection = $firstFee['program'];
                     }
                 } elseif ($receipt->fees && is_array($receipt->fees) && !empty($receipt->fees)) {
                     $firstFee = $receipt->fees[0] ?? null;
@@ -70,8 +70,8 @@ class PaymentController extends Controller
                         $natureOfCollection = $firstFee['natureOfCollection'];
                     } elseif ($firstFee && isset($firstFee['accountCode'])) {
                         $natureOfCollection = $firstFee['accountCode'];
-                    } elseif ($firstFee && isset($firstFee['course'])) {
-                        $natureOfCollection = $firstFee['course'];
+                    } elseif ($firstFee && isset($firstFee['program'])) {
+                        $natureOfCollection = $firstFee['program'];
                     }
                 }
                 return [
@@ -119,7 +119,7 @@ class PaymentController extends Controller
     {
         $validated = $request->validate([
             'trainee_id' => 'required|exists:trainees,id',
-            'course_id' => 'required|exists:programs,program_id',
+            'program_id' => 'required|exists:programs,program_id',
             'amount' => 'required|numeric|min:0',
             'payment_method' => 'required|in:cash,card,bank_transfer,online,check',
             'payment_date' => 'required|date',
@@ -132,7 +132,7 @@ class PaymentController extends Controller
         // Create a custom receipt for this payment
         $receipt = CustomReceipt::create([
             'trainee_model_id' => $validated['trainee_id'],
-            'program_id' => $validated['course_id'],
+            'program_id' => $validated['program_id'],
             'receipt_number' => $validated['reference_number'],
             'total_amount' => $validated['amount'],
             'date_generated' => $validated['payment_date'],
@@ -142,7 +142,7 @@ class PaymentController extends Controller
             'trainee_name' => Trainee::find($validated['trainee_id'])->full_name ?? '',
             'trainee_id_number' => Trainee::find($validated['trainee_id'])->uli_number ?? '',
             'trainee_uli_number' => Trainee::find($validated['trainee_id'])->uli_number ?? '',
-            'fees' => json_encode([['course' => Program::find($validated['course_id'])->name ?? '', 'amount' => $validated['amount'], 'account_code' => 'ADMIN']]),
+            'fees' => json_encode([['program' => Program::find($validated['program_id'])->name ?? '', 'amount' => $validated['amount'], 'account_code' => 'ADMIN']]),
         ]);
 
         return redirect()->back()->with('success', 'Payment created successfully!');
@@ -155,7 +155,7 @@ class PaymentController extends Controller
     {
         $validated = $request->validate([
             'trainee_id' => 'required|exists:trainees,id',
-            'course_id' => 'required|exists:programs,program_id',
+            'program_id' => 'required|exists:programs,program_id',
             'amount' => 'required|numeric|min:0',
             'payment_method' => 'required|in:cash,card,bank_transfer,online,check',
             'payment_date' => 'required|date',
@@ -186,7 +186,7 @@ class PaymentController extends Controller
             if ($receipt) {
                 $receipt->update([
                     'trainee_model_id' => $validated['trainee_id'],
-                    'program_id' => $validated['course_id'],
+                    'program_id' => $validated['program_id'],
                     'receipt_number' => $validated['reference_number'],
                     'total_amount' => $validated['amount'],
                     'date_generated' => $validated['payment_date'],
@@ -194,7 +194,7 @@ class PaymentController extends Controller
                     'trainee_name' => Trainee::find($validated['trainee_id'])->full_name ?? '',
                     'trainee_id_number' => Trainee::find($validated['trainee_id'])->uli_number ?? '',
                     'trainee_uli_number' => Trainee::find($validated['trainee_id'])->uli_number ?? '',
-                    'fees' => json_encode([['course' => Program::find($validated['course_id'])->name ?? '', 'amount' => $validated['amount'], 'account_code' => 'ADMIN']]),
+                    'fees' => json_encode([['program' => Program::find($validated['program_id'])->name ?? '', 'amount' => $validated['amount'], 'account_code' => 'ADMIN']]),
                 ]);
             }
         }

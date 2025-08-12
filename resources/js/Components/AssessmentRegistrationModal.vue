@@ -212,8 +212,20 @@ const filteredTrainees = computed(() => {
                 return true;
             }
 
-            // TODO: When new enrollment system data is available, also check completed enrollments
-            // For now, we'll use the legacy program_qualification field
+            // Modern enrollment system: Check if trainee has completed enrollments for this program
+            // Note: Backend should provide enrollment data for this to work
+            if (trainee.enrollments && Array.isArray(trainee.enrollments)) {
+                const hasCompletedThisProgram = trainee.enrollments.some(
+                    (enrollment) =>
+                        enrollment.status === "completed" &&
+                        enrollment.program &&
+                        enrollment.program.name === selectedProgram.name
+                );
+                if (hasCompletedThisProgram) {
+                    return true;
+                }
+            }
+
             return false;
         })
         .map((trainee) => ({

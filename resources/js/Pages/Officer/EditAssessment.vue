@@ -87,17 +87,7 @@ const cancel = () => {
     router.visit(route("officer.assessments"));
 };
 
-// Watch for program selection changes to filter trainees and trainers
-watch(
-    () => form.program_id,
-    (newProgramId) => {
-        // Don't reset if it's the initial load with existing values
-        if (newProgramId && newProgramId !== props.assessment.program_id) {
-            form.trainee_id = "";
-            form.trainer_id = "";
-        }
-    }
-);
+// Program and applicant are read-only in edit mode, so no need to watch for changes
 
 // Computed property for filtered trainees based on selected program
 const filteredTrainees = computed(() => {
@@ -121,8 +111,19 @@ const filteredTrainees = computed(() => {
                 return true;
             }
 
-            // TODO: When new enrollment system data is available, also check completed enrollments
-            // For now, we'll use the legacy program_qualification field
+            // Modern enrollment system: Check if trainee has completed enrollments for this program
+            if (trainee.enrollments && Array.isArray(trainee.enrollments)) {
+                const hasCompletedThisProgram = trainee.enrollments.some(
+                    (enrollment) =>
+                        enrollment.status === "completed" &&
+                        enrollment.program &&
+                        enrollment.program.name === selectedProgram.name
+                );
+                if (hasCompletedThisProgram) {
+                    return true;
+                }
+            }
+
             return false;
         })
         .map((trainee) => ({
@@ -314,19 +315,22 @@ const filteredTrainers = computed(() => {
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <!-- Program Selection -->
+                            <!-- Program Display (Read-only) -->
                             <div>
-                                <SearchableSelect
-                                    v-model="form.program_id"
-                                    :options="programs"
-                                    label="Program *"
-                                    placeholder="Type to search programs..."
-                                    display-key="name"
-                                    value-key="program_id"
-                                    :required="true"
-                                    :error="form.errors.program_id"
-                                    empty-message="No programs available"
-                                />
+                                <InputLabel value="Program" />
+                                <div
+                                    class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
+                                >
+                                    <span class="text-sm font-medium">
+                                        {{
+                                            programs.find(
+                                                (p) =>
+                                                    p.program_id ===
+                                                    form.program_id
+                                            )?.name || "Unknown Program"
+                                        }}
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- Applicant Type Display -->
@@ -347,38 +351,35 @@ const filteredTrainers = computed(() => {
                                         }}
                                     </span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Applicant type cannot be changed during
-                                    editing
-                                </p>
                             </div>
 
-                            <!-- Enrolled Trainee Selection -->
+                            <!-- Enrolled Trainee Display (Read-only) -->
                             <div
                                 v-if="
                                     form.applicant_type === 'enrolled_trainee'
                                 "
                             >
-                                <SearchableSelect
-                                    v-model="form.trainee_id"
-                                    :options="filteredTrainees"
-                                    label="Applicant *"
-                                    placeholder="Type trainee name..."
-                                    display-key="full_name"
-                                    value-key="id"
-                                    secondary-key="status"
-                                    :required="true"
-                                    :error="form.errors.trainee_id"
-                                    :disabled="!form.program_id"
-                                    :empty-message="
-                                        !form.program_id
-                                            ? 'Please select a program first'
-                                            : 'No eligible applicants for this program'
-                                    "
-                                />
+                                <InputLabel value="Applicant" />
+                                <div
+                                    class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
+                                >
+                                    <span class="text-sm font-medium">
+                                        {{
+                                            trainees.find(
+                                                (t) => t.id == form.trainee_id
+                                            )?.first_name +
+                                                " " +
+                                                trainees.find(
+                                                    (t) =>
+                                                        t.id == form.trainee_id
+                                                )?.last_name ||
+                                            "Unknown Trainee"
+                                        }}
+                                    </span>
+                                </div>
                             </div>
 
-                            <!-- External Applicant Information -->
+                            <!-- External Applicant Information (Read-only) -->
                             <div
                                 v-if="
                                     form.applicant_type === 'external_applicant'
@@ -395,88 +396,53 @@ const filteredTrainers = computed(() => {
                                 >
                                     <!-- Full Name -->
                                     <div>
-                                        <InputLabel
-                                            for="external_applicant_name"
-                                            value="Full Name *"
-                                        />
-                                        <TextInput
-                                            id="external_applicant_name"
-                                            v-model="
-                                                form.external_applicant_name
-                                            "
-                                            type="text"
-                                            class="mt-1 block w-full"
-                                            placeholder="Enter full name"
-                                            :required="
-                                                form.applicant_type ===
-                                                'external_applicant'
-                                            "
-                                        />
-                                        <InputError
-                                            class="mt-2"
-                                            :message="
-                                                form.errors
-                                                    .external_applicant_name
-                                            "
-                                        />
+                                        <InputLabel value="Full Name" />
+                                        <div
+                                            class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
+                                        >
+                                            <span class="text-sm font-medium">
+                                                {{
+                                                    form.external_applicant_name ||
+                                                    "N/A"
+                                                }}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <!-- Email -->
                                     <div>
-                                        <InputLabel
-                                            for="external_applicant_email"
-                                            value="Email Address *"
-                                        />
-                                        <TextInput
-                                            id="external_applicant_email"
-                                            v-model="
-                                                form.external_applicant_email
-                                            "
-                                            type="email"
-                                            class="mt-1 block w-full"
-                                            placeholder="Enter email address"
-                                            :required="
-                                                form.applicant_type ===
-                                                'external_applicant'
-                                            "
-                                        />
-                                        <InputError
-                                            class="mt-2"
-                                            :message="
-                                                form.errors
-                                                    .external_applicant_email
-                                            "
-                                        />
+                                        <InputLabel value="Email Address" />
+                                        <div
+                                            class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
+                                        >
+                                            <span class="text-sm font-medium">
+                                                {{
+                                                    form.external_applicant_email ||
+                                                    "N/A"
+                                                }}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <!-- Phone -->
                                     <div>
-                                        <InputLabel
-                                            for="external_applicant_phone"
-                                            value="Phone Number *"
-                                        />
-                                        <TextInput
-                                            id="external_applicant_phone"
-                                            v-model="
-                                                form.external_applicant_phone
-                                            "
-                                            type="text"
-                                            class="mt-1 block w-full"
-                                            placeholder="Enter phone number"
-                                            :required="
-                                                form.applicant_type ===
-                                                'external_applicant'
-                                            "
-                                        />
-                                        <InputError
-                                            class="mt-2"
-                                            :message="
-                                                form.errors
-                                                    .external_applicant_phone
-                                            "
-                                        />
+                                        <InputLabel value="Phone Number" />
+                                        <div
+                                            class="mt-1 p-3 bg-gray-50 border border-gray-300 rounded-md"
+                                        >
+                                            <span class="text-sm font-medium">
+                                                {{
+                                                    form.external_applicant_phone ||
+                                                    "N/A"
+                                                }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    External applicant information cannot be
+                                    changed during editing
+                                </p>
                             </div>
 
                             <!-- Trainer Selection -->

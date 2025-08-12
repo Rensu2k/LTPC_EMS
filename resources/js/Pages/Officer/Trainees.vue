@@ -201,14 +201,17 @@ const canChangeStatus = (trainee) => {
     const paymentStatus =
         actualTrainee?.payment_status || trainee.payment_status || "unpaid";
 
+    // Once completed or dropped, do not allow any further status changes
+    if (status === "completed" || status === "dropped") {
+        return false;
+    }
+
     // Officers can change status if:
     // 1. Trainee is active and paid (can mark as completed or dropped)
-    // 2. Trainee is pending (can activate if paid)
+    // 2. Trainee is pending and paid (can activate)
     return (
         (status === "active" && paymentStatus === "paid") ||
-        (status === "pending" && paymentStatus === "paid") ||
-        status === "completed" ||
-        status === "dropped"
+        (status === "pending" && paymentStatus === "paid")
     );
 };
 
@@ -514,14 +517,14 @@ const filteredTrainees = computed(() => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                 >
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <button
                                             @click="viewTrainee(trainee)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded"
                                             title="View"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -544,11 +547,11 @@ const filteredTrainees = computed(() => {
                                             @click="
                                                 viewEnrollmentHistory(trainee)
                                             "
-                                            class="text-green-600 hover:text-green-900 p-1 rounded"
+                                            class="text-green-600 hover:text-green-900 p-2 rounded"
                                             title="Enrollment History"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -564,11 +567,11 @@ const filteredTrainees = computed(() => {
                                         <button
                                             v-if="canChangeStatus(trainee)"
                                             @click="changeStatus(trainee)"
-                                            class="text-purple-600 hover:text-purple-900 p-1 rounded"
+                                            class="text-purple-600 hover:text-purple-900 p-2 rounded"
                                             title="Change Status"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -583,11 +586,11 @@ const filteredTrainees = computed(() => {
                                         </button>
                                         <button
                                             @click="editTrainee(trainee)"
-                                            class="text-yellow-600 hover:text-yellow-900 p-1 rounded"
+                                            class="text-yellow-600 hover:text-yellow-900 p-2 rounded"
                                             title="Edit"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -603,11 +606,11 @@ const filteredTrainees = computed(() => {
                                         <button
                                             v-if="canDeleteTrainee(trainee)"
                                             @click="deleteTrainee(trainee)"
-                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            class="text-red-600 hover:text-red-900 p-2 rounded"
                                             title="Delete"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -622,13 +625,13 @@ const filteredTrainees = computed(() => {
                                         </button>
                                         <span
                                             v-else
-                                            class="text-gray-400 p-1 rounded cursor-not-allowed"
+                                            class="text-gray-400 p-2 rounded cursor-not-allowed"
                                             :title="`Cannot delete trainee with ${getTraineeStatus(
                                                 trainee
                                             )} status`"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"

@@ -33,6 +33,8 @@ const programsList = ref(
         enrollment_fee: program.enrollment_fee || 0,
         status: program.status,
         enrollments: program.enrollments || 0,
+        current_batch: program.current_batch || 1,
+        current_batch_count: program.current_batch_count || 0,
         assigned_trainers: program.assigned_trainers || [],
         start_date: program.start_date,
         end_date: program.end_date,
@@ -395,14 +397,14 @@ const getStatusColor = (status) => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                 >
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <button
                                             @click="viewProgram(program)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded"
                                             title="View Details"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -423,11 +425,11 @@ const getStatusColor = (status) => {
                                         </button>
                                         <button
                                             @click="editProgram(program)"
-                                            class="text-yellow-600 hover:text-yellow-900 p-1 rounded"
+                                            class="text-yellow-600 hover:text-yellow-900 p-2 rounded"
                                             title="Edit Program"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -442,11 +444,11 @@ const getStatusColor = (status) => {
                                         </button>
                                         <button
                                             @click="deleteProgram(program)"
-                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            class="text-red-600 hover:text-red-900 p-2 rounded"
                                             title="Delete Program"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"

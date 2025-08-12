@@ -11,22 +11,71 @@ class TraineeController extends Controller
 {
     public function index()
     {
-        $trainees = Trainee::latest()->get()->map(function ($trainee) {
-            // Get the program for this trainee to find assigned trainers
-            $program = Program::where('name', $trainee->program_qualification)->first();
-            $assignedTrainerNames = [];
-            
-            if ($program && $program->assigned_trainers) {
-                // Get trainer names from the assigned trainer IDs
-                $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
-                $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
-            }
-            
-            // Add trainer information to the trainee data
-            $trainee->assigned_trainers = $assignedTrainerNames;
-            
-            return $trainee;
-        });
+        // Eager-load enrollments and related programs so we can reflect the current/most recent program in the list
+        $trainees = Trainee::with(['enrollments.program'])
+            ->latest()
+            ->get()
+            ->map(function ($trainee) {
+                // Determine current active enrollment; if none, use the most recent enrollment
+                $activeEnrollment = $trainee->enrollments
+                    ->where('status', 'active')
+                    ->sortByDesc('created_at')
+                    ->first();
+
+                $latestEnrollment = $trainee->enrollments
+                    ->sortByDesc('created_at')
+                    ->first();
+
+                $selectedEnrollment = $activeEnrollment ?: $latestEnrollment;
+
+                // Compute display program name based on enrollment, fallback to legacy field
+                $displayProgramName = $selectedEnrollment && $selectedEnrollment->program
+                    ? $selectedEnrollment->program->name
+                    : $trainee->program_qualification;
+
+                // Assigned trainers should come from the selected enrollment's program when available
+                $assignedTrainerNames = [];
+                if ($selectedEnrollment && $selectedEnrollment->program && $selectedEnrollment->program->assigned_trainers) {
+                    $trainers = \App\Models\Trainer::whereIn('id', $selectedEnrollment->program->assigned_trainers)->get();
+                    $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
+                } else {
+                    // Fallback to legacy program_qualification mapping
+                    $legacyProgram = Program::where('name', $trainee->program_qualification)->first();
+                    if ($legacyProgram && $legacyProgram->assigned_trainers) {
+                        $trainers = \App\Models\Trainer::whereIn('id', $legacyProgram->assigned_trainers)->get();
+                        $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
+                    }
+                }
+
+                // Mutate properties used by the frontend list for display
+                // Frontend reads trainee.program_qualification to show Program column
+                $trainee->program_qualification = $displayProgramName;
+
+                // Frontend shows Batch from trainee.batch; use enrollment batch when present
+                if ($selectedEnrollment) {
+                    $trainee->batch = $selectedEnrollment->batch;
+                }
+
+                // Frontend shows Enrollment Date from trainee.entry_date; prefer enrollment_date
+                if ($selectedEnrollment && $selectedEnrollment->enrollment_date) {
+                    $trainee->entry_date = $selectedEnrollment->enrollment_date;
+                }
+
+                // Frontend shows Payment pill from trainee.payment_status; prefer enrollment payment_status
+                if ($selectedEnrollment && $selectedEnrollment->payment_status) {
+                    $trainee->payment_status = $selectedEnrollment->payment_status;
+                }
+
+                // Frontend shows Status from trainee.status; prefer enrollment status for current program
+                if ($selectedEnrollment && $selectedEnrollment->status) {
+                    $trainee->status = $selectedEnrollment->status;
+                }
+
+                // Attach trainer names for display
+                $trainee->assigned_trainers = array_values(array_unique($assignedTrainerNames));
+
+                return $trainee;
+            });
         
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
@@ -454,34 +503,53 @@ class TraineeController extends Controller
             'status' => 'required|in:active,completed,dropped,pending'
         ]);
 
-        // Store the old status to check for changes
-        $oldStatus = $trainee->status;
-        
-        $trainee->update($validated);
+        // Get the current/latest enrollment to operate on
+        $currentEnrollment = $trainee->enrollments()
+            ->with('program')
+            ->orderBy('created_at', 'desc')
+            ->first();
 
-        // Update enrollment status in the new enrollment system if trainee has enrollments
-        $activeEnrollments = $trainee->enrollments()->where('status', 'active')->get();
-        if ($activeEnrollments->count() > 0) {
-            foreach ($activeEnrollments as $enrollment) {
-                $enrollmentData = ['status' => $validated['status']];
-                
-                // Set completion date if status is completed
-                if ($validated['status'] === 'completed') {
-                    $enrollmentData['completion_date'] = now()->toDateString();
-                }
-                
-                $enrollment->update($enrollmentData);
+        if (!$currentEnrollment) {
+            // Fallback to legacy behavior if no enrollments exist
+            if (in_array($trainee->status, ['completed', 'dropped'])) {
+                return redirect()->back()->with('error', 'This trainee\'s status can no longer be changed after being marked as completed or dropped.');
+            }
+        } else {
+            // New enrollment system: check the current enrollment status instead of overall trainee status
+            if (in_array($currentEnrollment->status, ['completed', 'dropped'])) {
+                return redirect()->back()->with('error', 'This enrollment\'s status can no longer be changed after being marked as completed or dropped.');
             }
         }
 
-        // Check if auto-enrollment occurred
-        if ($oldStatus !== 'active' && $validated['status'] === 'active' && $trainee->payment_status === 'paid') {
-            $program = \App\Models\Program::where('name', $trainee->program_qualification)->first();
-            if ($program && $trainee->isEnrolledInProgram($program->program_id)) {
-                return redirect()->back()->with('success', 'Trainee status updated and automatically enrolled in program!');
-            }
+        // Guard: cannot set to active unless payment is paid (check current enrollment if available)
+        $paymentStatus = $currentEnrollment ? $currentEnrollment->payment_status : $trainee->payment_status;
+        if ($validated['status'] === 'active' && $paymentStatus !== 'paid') {
+            return redirect()->back()->with('error', 'Trainee cannot be set to Active until payment is completed. Current payment status: ' . ucfirst($paymentStatus));
         }
 
-        return redirect()->back()->with('success', 'Trainee status updated successfully!');
+        // Update the appropriate enrollment and trainee records
+        if ($currentEnrollment) {
+            // New enrollment system: update the current enrollment
+            $enrollmentData = ['status' => $validated['status']];
+            
+            // Set completion date if status is completed
+            if ($validated['status'] === 'completed') {
+                $enrollmentData['completion_date'] = now()->toDateString();
+            }
+            
+            $currentEnrollment->update($enrollmentData);
+
+            // Also update the trainee's overall status to match current enrollment
+            $trainee->update([
+                'status' => $validated['status'],
+                'payment_status' => $currentEnrollment->payment_status
+            ]);
+
+            return redirect()->back()->with('success', 'Trainee enrollment status updated successfully for ' . ($currentEnrollment->program ? $currentEnrollment->program->name : 'current program') . '!');
+        } else {
+            // Legacy system: update trainee directly
+            $trainee->update($validated);
+            return redirect()->back()->with('success', 'Trainee status updated successfully!');
+        }
     }
 }

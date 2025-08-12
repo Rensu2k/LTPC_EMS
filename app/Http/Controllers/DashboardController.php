@@ -122,14 +122,39 @@ class DashboardController extends Controller
             ->limit(5)
             ->get()
             ->map(function ($receipt) {
+                // Combine date_generated and time_generated into a single timestamp
+                $generatedDate = $receipt->date_generated
+                    ? \Carbon\Carbon::parse($receipt->date_generated)->format('Y-m-d')
+                    : ($receipt->created_at ? $receipt->created_at->format('Y-m-d') : now()->format('Y-m-d'));
+
+                $generatedTime = '00:00:00';
+                if (!empty($receipt->time_generated)) {
+                    if ($receipt->time_generated instanceof \Carbon\Carbon) {
+                        $generatedTime = $receipt->time_generated->format('H:i:s');
+                    } elseif (is_string($receipt->time_generated)) {
+                        // Accept HH:MM or HH:MM:SS
+                        if (preg_match('/^\d{2}:\d{2}(?::\d{2})?$/', $receipt->time_generated)) {
+                            $generatedTime = strlen($receipt->time_generated) === 5
+                                ? $receipt->time_generated . ':00'
+                                : $receipt->time_generated;
+                        }
+                    }
+                }
+
+                $generatedAt = \Carbon\Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    $generatedDate . ' ' . $generatedTime,
+                    config('app.timezone')
+                );
+
                 return [
                     'id' => $receipt->id,
                     'type' => 'payment',
                     'message' => 'Payment received',
                     'details' => ($receipt->trainee ? trim($receipt->trainee->first_name . ' ' . $receipt->trainee->last_name) : 'Unknown') . ' - ₱' . number_format($receipt->total_amount, 2),
                     'officer' => 'Cashier',
-                    'time' => Carbon::parse($receipt->date_generated)->diffForHumans(),
-                    'timestamp' => Carbon::parse($receipt->date_generated),
+                    'time' => $generatedAt->diffForHumans(),
+                    'timestamp' => $generatedAt,
                 ];
             });
 

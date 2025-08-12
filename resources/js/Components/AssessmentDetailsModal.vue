@@ -121,10 +121,10 @@ const reassessment = () => {
                 </div>
                 <button
                     @click="close"
-                    class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                    class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100"
                 >
                     <svg
-                        class="h-6 w-6"
+                        class="h-7 w-7"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -301,7 +301,7 @@ const reassessment = () => {
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center justify-end gap-3 pt-6 border-t mt-6">
+            <div class="flex items-center justify-end gap-4 pt-6 border-t mt-6">
                 <SecondaryButton @click="close"> Close </SecondaryButton>
                 <PrimaryButton
                     v-if="assessment.can_be_reassessed"
@@ -309,7 +309,7 @@ const reassessment = () => {
                     class="bg-orange-600 hover:bg-orange-700"
                 >
                     <svg
-                        class="-ml-1 mr-2 h-4 w-4"
+                        class="-ml-1 mr-2 h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -328,7 +328,7 @@ const reassessment = () => {
                     class="bg-blue-600 hover:bg-blue-700"
                 >
                     <svg
-                        class="-ml-1 mr-2 h-4 w-4"
+                        class="-ml-1 mr-2 h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"

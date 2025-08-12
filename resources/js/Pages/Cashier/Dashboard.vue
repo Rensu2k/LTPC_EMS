@@ -326,7 +326,7 @@ const generateReport = (period) => {
                                     }}
                                 </p>
                                 <p class="text-sm text-gray-500">
-                                    Enrolled trainees in 25-trainee batches
+                                    Additional fees from enrolled trainees
                                 </p>
                             </div>
                             <div class="p-3 bg-blue-100 rounded-lg">
@@ -528,7 +528,13 @@ const generateReport = (period) => {
                                         </span>
                                     </div>
                                     <p class="text-sm text-gray-600">
-                                        {{ payment.course }}
+                                        {{ payment.program }}
+                                    </p>
+                                    <p
+                                        v-if="payment.is_scholarship"
+                                        class="text-xs text-purple-600 font-medium"
+                                    >
+                                        🎓 Scholar
                                     </p>
                                 </div>
                             </div>

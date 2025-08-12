@@ -15,7 +15,7 @@ const props = defineProps({
 const showResultsModal = ref(false);
 const viewingAssessment = ref(null);
 const searchQuery = ref("");
-const selectedCourse = ref("");
+const selectedProgram = ref("");
 const selectedStatus = ref("");
 const dateFrom = ref("");
 const dateTo = ref("");
@@ -41,9 +41,9 @@ const filteredAssessments = computed(() => {
         );
     }
 
-    if (selectedCourse.value) {
+    if (selectedProgram.value) {
         filtered = filtered.filter(
-            (assessment) => assessment.program_id == selectedCourse.value
+            (assessment) => assessment.program_id == selectedProgram.value
         );
     }
 
@@ -75,7 +75,7 @@ const programs = computed(() => {
 const hasActiveFilters = computed(() => {
     return (
         searchQuery.value ||
-        selectedCourse.value ||
+        selectedProgram.value ||
         selectedStatus.value ||
         dateFrom.value ||
         dateTo.value
@@ -89,7 +89,7 @@ const openResultsModal = (assessment) => {
 
 const clearFilters = () => {
     searchQuery.value = "";
-    selectedCourse.value = "";
+    selectedProgram.value = "";
     selectedStatus.value = "";
     dateFrom.value = "";
     dateTo.value = "";
@@ -199,7 +199,7 @@ const exportAssessmentResults = () => {
                             </label>
                             <select
                                 id="program-filter"
-                                v-model="selectedCourse"
+                                v-model="selectedProgram"
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
                             >
                                 <option value="">All Programs</option>

@@ -559,14 +559,14 @@ const exportData = () => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                 >
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <button
                                             @click="viewAssessment(assessment)"
-                                            class="text-green-600 hover:text-green-900 p-1 rounded"
+                                            class="text-green-600 hover:text-green-900 p-2 rounded"
                                             title="View"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -599,10 +599,10 @@ const exportData = () => {
                                                     ? 'Cannot edit finalized assessment'
                                                     : 'Edit'
                                             "
-                                            class="p-1 rounded"
+                                            class="p-2 rounded"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -618,11 +618,11 @@ const exportData = () => {
                                         <button
                                             v-if="assessment.can_be_reassessed"
                                             @click="reassessment(assessment)"
-                                            class="text-orange-600 hover:text-orange-900 p-1 rounded"
+                                            class="text-orange-600 hover:text-orange-900 p-2 rounded"
                                             title="Schedule Re-assessment"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -651,10 +651,10 @@ const exportData = () => {
                                                     ? 'Cannot delete finalized assessment'
                                                     : 'Delete'
                                             "
-                                            class="p-1 rounded"
+                                            class="p-2 rounded"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"

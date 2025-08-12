@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -18,6 +17,7 @@ class UserController extends Controller
                 'username' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'status' => $user->status,
                 'created_at' => $user->created_at,
                 'updated_at' => $user->updated_at,
             ];
@@ -31,14 +31,15 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'username' => 'required|string|max:255|unique:users,name',
+            'username' => 'required|string|max:255|unique:users,username|unique:users,name',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed'],
             'role' => 'required|in:admin,officer,cashier',
         ]);
 
         User::create([
             'name' => $request->username,
+            'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
@@ -52,14 +53,15 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'username' => 'required|string|max:255|unique:users,name,' . $id,
+            'username' => 'required|string|max:255|unique:users,username,' . $id . '|unique:users,name,' . $id,
             'email' => 'required|string|email|max:255|unique:users,email,' . $id,
-            'password' => $request->password ? ['confirmed', Rules\Password::defaults()] : '',
+            'password' => $request->password ? ['confirmed'] : '',
             'role' => 'required|in:admin,officer,cashier',
         ]);
 
         $user->update([
             'name' => $request->username,
+            'username' => $request->username,
             'email' => $request->email,
             'role' => $request->role,
         ]);

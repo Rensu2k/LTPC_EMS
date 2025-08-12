@@ -356,14 +356,14 @@ const handleEditFromDetails = (trainer) => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"
                                 >
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <button
                                             @click="viewTrainer(trainer)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded"
                                             title="View"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -384,11 +384,11 @@ const handleEditFromDetails = (trainer) => {
                                         </button>
                                         <button
                                             @click="editTrainer(trainer)"
-                                            class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded"
                                             title="Edit"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -403,12 +403,12 @@ const handleEditFromDetails = (trainer) => {
                                         </button>
                                         <button
                                             @click="deleteTrainer(trainer)"
-                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            class="text-red-600 hover:text-red-900 p-2 rounded"
                                             title="Delete"
                                             :disabled="processing"
                                         >
                                             <svg
-                                                class="h-5 w-5"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"

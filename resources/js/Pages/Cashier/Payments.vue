@@ -33,7 +33,7 @@ const props = defineProps({
             outstandingBalance: { amount: 0, trainees: 0 },
         }),
     },
-    collectionsByCourse: {
+    collectionsByProgram: {
         type: Array,
         default: () => [],
     },
@@ -49,7 +49,7 @@ const enrollmentPayments = computed(() =>
 );
 const assessmentPayments = ref(props.assessmentPayments);
 const summaryStats = ref(props.summaryStats);
-const collectionsByCourse = ref(props.collectionsByCourse);
+const collectionsByProgram = ref(props.collectionsByProgram);
 
 const searchQuery = ref("");
 
@@ -75,7 +75,7 @@ const filteredPayments = computed(() => {
         filtered = filtered.filter(
             (payment) =>
                 (payment.trainee?.name || "").toLowerCase().includes(query) ||
-                (payment.course || "").toLowerCase().includes(query) ||
+                (payment.program || "").toLowerCase().includes(query) ||
                 (payment.receiptNo || "").toLowerCase().includes(query) ||
                 (payment.trainee?.id || "").toLowerCase().includes(query) ||
                 (payment.id || "").toLowerCase().includes(query)
@@ -232,7 +232,7 @@ const editableReceiptData = ref({
     fees: [
         {
             natureOfCollection: "",
-            course: "",
+            program: "",
             accountCode: "EDU-001",
             amount: 0,
         },
@@ -276,7 +276,7 @@ const generateReceiptForPaidPayment = (payment) => {
                         : payment.type === "assessment"
                         ? "Assessment Fee"
                         : "Enrollment Fee",
-                course: payment.course,
+                program: payment.program,
                 accountCode: "EDU-001",
                 amount: payment.amount,
             },
@@ -371,7 +371,7 @@ const saveCancelledReceipt = () => {
 const addFee = () => {
     editableReceiptData.value.fees.push({
         natureOfCollection: "",
-        course: "",
+        program: "",
         accountCode: "EDU-001",
         amount: 0,
     });
@@ -663,14 +663,9 @@ const convertNumberToWords = (num) => {
                         </svg>
                         Assessment Fees ({{ assessmentPayments.length }})
                     </button>
-                    <button
-                        @click="setActiveTab('summary')"
-                        :class="[
-                            'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'summary'
-                                ? 'border-green-500 text-green-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                        ]"
+                    <Link
+                        :href="route('cashier.reports')"
+                        class="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                     >
                         <svg
                             class="w-4 h-4 mr-2 inline"
@@ -686,15 +681,12 @@ const convertNumberToWords = (num) => {
                             ></path>
                         </svg>
                         Summary & Reports
-                    </button>
+                    </Link>
                 </nav>
             </div>
 
             <!-- Payment Summary Content -->
-            <div
-                v-if="activeTab === 'summary'"
-                class="space-y-6 animate-fade-in"
-            >
+            <div v-if="false" class="space-y-6 animate-fade-in">
                 <!-- Summary Statistics Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Total Collections -->
@@ -711,11 +703,6 @@ const convertNumberToWords = (num) => {
                                         summaryStats.totalCollections.amount
                                     )
                                 }}
-                            </p>
-                            <p class="text-sm text-gray-500 mt-1">
-                                From
-                                {{ summaryStats.totalCollections.trainees }}
-                                trainees
                             </p>
                         </div>
                     </div>
@@ -735,10 +722,6 @@ const convertNumberToWords = (num) => {
                                     )
                                 }}
                             </p>
-                            <p class="text-sm text-gray-500 mt-1">
-                                From
-                                {{ summaryStats.thisMonth.trainees }} trainees
-                            </p>
                         </div>
                     </div>
 
@@ -757,26 +740,21 @@ const convertNumberToWords = (num) => {
                                     )
                                 }}
                             </p>
-                            <p class="text-sm text-gray-500 mt-1">
-                                From
-                                {{ summaryStats.outstandingBalance.trainees }}
-                                trainees
-                            </p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Collections by Course Table -->
+                <!-- Collections by Program Table -->
                 <div
                     class="bg-white rounded-xl shadow-sm border border-gray-100"
                 >
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h2 class="text-lg font-semibold text-gray-900">
-                            Collections by Course
+                            Collections by Program
                         </h2>
                     </div>
                     <div
-                        v-if="collectionsByCourse.length === 0"
+                        v-if="collectionsByProgram.length === 0"
                         class="p-12 text-center"
                     >
                         <svg
@@ -793,10 +771,10 @@ const convertNumberToWords = (num) => {
                             ></path>
                         </svg>
                         <h3 class="text-lg font-medium text-gray-900 mb-2">
-                            No course data available
+                            No program data available
                         </h3>
                         <p class="text-gray-500">
-                            Course collection information will appear here when
+                            Program collection information will appear here when
                             data is available.
                         </p>
                     </div>
@@ -808,7 +786,7 @@ const convertNumberToWords = (num) => {
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                     >
-                                        Course
+                                        Program
                                     </th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -839,41 +817,41 @@ const convertNumberToWords = (num) => {
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr
-                                    v-for="course in collectionsByCourse"
-                                    :key="course.course"
+                                    v-for="program in collectionsByProgram"
+                                    :key="program.program"
                                     class="hover:bg-gray-50"
                                 >
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                                     >
-                                        {{ course.course }}
+                                        {{ program.program }}
                                     </td>
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                     >
-                                        {{ course.totalTrainees }}
+                                        {{ program.totalTrainees }}
                                     </td>
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                     >
-                                        {{ course.fullyPaid }}
+                                        {{ program.fullyPaid }}
                                     </td>
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                     >
-                                        {{ course.partiallyPaid }}
+                                        {{ program.partiallyPaid }}
                                     </td>
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                     >
-                                        {{ course.unpaid }}
+                                        {{ program.unpaid }}
                                     </td>
                                     <td
                                         class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                                     >
                                         {{
                                             formatCurrency(
-                                                course.collectionAmount
+                                                program.collectionAmount
                                             )
                                         }}
                                     </td>
@@ -1044,7 +1022,7 @@ const convertNumberToWords = (num) => {
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Course
+                                    Program
                                 </th>
                                 <th
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -1107,7 +1085,7 @@ const convertNumberToWords = (num) => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ payment.course }}
+                                    {{ payment.program }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
@@ -1142,11 +1120,11 @@ const convertNumberToWords = (num) => {
                                     <div class="flex items-center space-x-2">
                                         <button
                                             @click="viewPayment(payment.id)"
-                                            class="text-blue-600 hover:text-blue-900"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded hover:bg-blue-50"
                                             title="View Details"
                                         >
                                             <svg
-                                                class="w-4 h-4"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -1166,16 +1144,13 @@ const convertNumberToWords = (num) => {
                                             </svg>
                                         </button>
                                         <button
-                                            v-if="
-                                                payment.status === 'unpaid' &&
-                                                activeTab !== 'enrollments'
-                                            "
+                                            v-if="payment.status === 'unpaid'"
                                             @click="markAsPaid(payment.id)"
-                                            class="text-blue-600 hover:text-blue-900"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded hover:bg-blue-50"
                                             title="Mark as Paid"
                                         >
                                             <svg
-                                                class="w-4 h-4"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -1198,11 +1173,11 @@ const convertNumberToWords = (num) => {
                                                     payment
                                                 )
                                             "
-                                            class="text-orange-600 hover:text-orange-900"
+                                            class="text-orange-600 hover:text-orange-900 p-2 rounded hover:bg-orange-50"
                                             title="Complete Enrollment - Generate Receipt"
                                         >
                                             <svg
-                                                class="w-4 h-4"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -1217,11 +1192,11 @@ const convertNumberToWords = (num) => {
                                         </button>
                                         <button
                                             @click="generateReceipt(payment.id)"
-                                            class="text-green-600 hover:text-green-900"
+                                            class="text-green-600 hover:text-green-900 p-2 rounded hover:bg-green-50"
                                             title="Generate New Receipt"
                                         >
                                             <svg
-                                                class="w-4 h-4"
+                                                class="h-6 w-6 md:h-7 md:w-7"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -1411,12 +1386,12 @@ const convertNumberToWords = (num) => {
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600"
-                                                >Course:</span
+                                                >Program:</span
                                             >
                                             <span
                                                 class="text-sm font-medium text-gray-900"
                                                 >{{
-                                                    selectedPayment.course
+                                                    selectedPayment.program
                                                 }}</span
                                             >
                                         </div>
@@ -1737,7 +1712,7 @@ const convertNumberToWords = (num) => {
                                                     >Program</label
                                                 >
                                                 <input
-                                                    v-model="fee.course"
+                                                    v-model="fee.program"
                                                     type="text"
                                                     class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                                                 />
@@ -1942,7 +1917,7 @@ const convertNumberToWords = (num) => {
                                             class="border-r border-gray-800 p-2 w-2/5"
                                         >
                                             {{ fee.natureOfCollection }}<br />
-                                            <small>{{ fee.course }}</small>
+                                            <small>{{ fee.program }}</small>
                                         </div>
                                         <div
                                             class="border-r border-gray-800 p-2 w-1/5 text-center"

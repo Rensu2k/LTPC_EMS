@@ -35,6 +35,7 @@ const pageTitle = computed(() => {
     if (currentRoute === "cashier.dashboard") return "Cashier Dashboard";
     if (currentRoute === "cashier.payments") return "Payments";
     if (currentRoute === "cashier.receipts") return "Receipts";
+    if (currentRoute === "cashier.reports") return "Reports";
 
     // Default fallback
     return "Dashboard";
@@ -691,6 +692,40 @@ function logout() {
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
                                 >Receipts</span
+                            >
+                        </span>
+                    </NavLink>
+                    <NavLink
+                        :href="route('cashier.reports')"
+                        :active="route().current('cashier.reports')"
+                        class="group py-3 px-2 rounded-lg"
+                    >
+                        <span class="flex items-center gap-4">
+                            <svg
+                                class="h-6 w-6"
+                                :class="
+                                    route().current('cashier.reports')
+                                        ? 'text-white'
+                                        : 'text-white/70 group-hover:text-white'
+                                "
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                />
+                            </svg>
+                            <span
+                                :class="
+                                    route().current('cashier.reports')
+                                        ? 'font-semibold text-lg text-white'
+                                        : 'text-lg text-white/80 group-hover:text-white'
+                                "
+                                >Reports</span
                             >
                         </span>
                     </NavLink>

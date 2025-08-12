@@ -57,12 +57,12 @@ class CashierController extends Controller
                 
                 // For scholars, show additional fees (Trainee ID, Certification, etc.)
                 $additionalFees = 0;
-                $courseName = $enrollment->program->name;
+                $programName = $enrollment->program->name;
                 
                 if ($isScholar && $enrollment->enrollment_fee == 0) {
                     // Add estimated additional fees for scholars
                     $additionalFees = 500; // Trainee ID + Certification fees (adjust as needed)
-                    $courseName .= ' (Scholar - Additional Fees)';
+                    $programName .= ' (Scholar - Additional Fees)';
                 }
                 
                 $totalAmount = $enrollment->enrollment_fee + $additionalFees;
@@ -70,6 +70,19 @@ class CashierController extends Controller
                 // Skip if no fees at all
                 if ($totalAmount <= 0) {
                     return null;
+                }
+
+                // For scholars with additional fees, check if they've actually paid the additional fees
+                $actualStatus = 'unpaid';
+                if ($isScholar && $additionalFees > 0) {
+                    // Check if scholar has generated a custom receipt for additional fees
+                    $hasCustomReceipt = \App\Models\CustomReceipt::where('enrollment_id', $enrollment->id)
+                        ->where('status', 'generated')
+                        ->exists();
+                    $actualStatus = $hasCustomReceipt ? 'paid' : 'unpaid';
+                } else {
+                    // Non-scholars or scholars without additional fees use the enrollment payment status
+                    $actualStatus = $enrollment->payment_status === 'paid' ? 'paid' : 'unpaid';
                 }
 
                 return [
@@ -80,11 +93,11 @@ class CashierController extends Controller
                         'id' => 'T-' . str_pad($enrollment->trainee->id, 4, '0', STR_PAD_LEFT),
                         'uli_number' => $enrollment->trainee->uli_number,
                     ],
-                    'course' => $courseName,
+                    'program' => $programName,
                     'amount' => $totalAmount,
                     'receiptNo' => $enrollment->payment_reference ?: 'RN-ENR-' . str_pad($enrollment->id, 4, '0', STR_PAD_LEFT),
                     'date' => $enrollment->enrollment_date->format('Y-m-d'),
-                    'status' => $enrollment->payment_status === 'paid' ? 'paid' : 'unpaid',
+                    'status' => $actualStatus,
                     'enrollment_id' => $enrollment->id,
                     'assessment_id' => null,
                     'trainee_id' => null,
@@ -119,11 +132,11 @@ class CashierController extends Controller
                 
                 // For scholars, add additional fees even if enrollment fee is $0
                 $additionalFees = 0;
-                $courseName = $trainee->program_qualification; // Remove ' (Enrollment Fee)' suffix
+                $programName = $trainee->program_qualification; // Remove ' (Enrollment Fee)' suffix
                 
                 if ($isScholar && $enrollmentFee == 0) {
                     $additionalFees = 500; // Trainee ID + Certification fees
-                    $courseName = $trainee->program_qualification . ' (Scholar - Additional Fees)';
+                    $programName = $trainee->program_qualification . ' (Scholar - Additional Fees)';
                 }
                 
                 $totalAmount = $enrollmentFee + $additionalFees;
@@ -141,7 +154,7 @@ class CashierController extends Controller
                         'id' => 'T-' . str_pad($trainee->id, 4, '0', STR_PAD_LEFT),
                         'uli_number' => $trainee->uli_number,
                     ],
-                    'course' => $courseName,
+                    'program' => $programName,
                     'amount' => $totalAmount,
                     'receiptNo' => $trainee->payment_reference ?: 'RN-REG-' . str_pad($trainee->id, 4, '0', STR_PAD_LEFT),
                     'date' => $trainee->created_at->format('Y-m-d'),
@@ -173,9 +186,9 @@ class CashierController extends Controller
                     ? 'EXT-' . str_pad($assessment->id, 4, '0', STR_PAD_LEFT)
                     : ($assessment->trainee ? 'T-' . str_pad($assessment->trainee->id, 4, '0', STR_PAD_LEFT) : 'N/A');
 
-                $courseName = $assessment->program ? $assessment->program->name : $assessment->title;
+                $programName = $assessment->program ? $assessment->program->name : $assessment->title;
                 if ($assessment->assessment_fee == 0 && $assessment->payment_method === 'scholarship_exemption') {
-                    $courseName .= ' (Scholar)';
+                    $programName .= ' (Scholar)';
                 }
 
                 return [
@@ -186,7 +199,7 @@ class CashierController extends Controller
                         'id' => $applicantId,
                         'uli_number' => $assessment->trainee ? $assessment->trainee->uli_number : null,
                     ],
-                    'course' => $courseName,
+                    'program' => $programName,
                     'amount' => $assessment->assessment_fee,
                     'receiptNo' => $assessment->payment_reference ?: 'RN-ASS-' . str_pad($assessment->id, 4, '0', STR_PAD_LEFT),
                     'date' => $assessment->assessment_date ? $assessment->assessment_date->format('Y-m-d') : $assessment->created_at->format('Y-m-d'),
@@ -201,8 +214,8 @@ class CashierController extends Controller
         // Calculate summary statistics
         $summaryStats = $this->calculatePaymentSummaryStats();
         
-        // Get collections by course
-        $collectionsByCourse = $this->getCollectionsByCourse();
+        // Get collections by program
+        $collectionsByProgram = $this->getCollectionsByProgram();
         
 
 
@@ -210,7 +223,7 @@ class CashierController extends Controller
             'enrollmentPayments' => $allEnrollmentPayments,
             'assessmentPayments' => $assessmentPayments,
             'summaryStats' => $summaryStats,
-            'collectionsByCourse' => $collectionsByCourse,
+            'collectionsByProgram' => $collectionsByProgram,
         ]);
     }
 
@@ -219,10 +232,15 @@ class CashierController extends Controller
      */
     public function receipts()
     {
-        // Get enrollment receipts (paid enrollments) - with consistent amount calculation
+        // Get enrollment receipts (paid enrollments) - exclude scholars' automatic enrollments
         $enrollmentReceipts = TraineeEnrollment::with(['trainee', 'program'])
             ->where('payment_status', 'paid')
             ->whereNotNull('payment_reference')
+            ->where(function ($query) {
+                // Exclude automatic scholar enrollments - they have payment_method = 'scholarship_exemption'
+                $query->where('payment_method', '!=', 'scholarship_exemption')
+                      ->orWhereNull('payment_method');
+            })
             ->orderBy('payment_date', 'desc')
             ->get()
             ->map(function ($enrollment) {
@@ -232,12 +250,12 @@ class CashierController extends Controller
                 
                 // Calculate total amount consistently with payments page
                 $additionalFees = 0;
-                $courseName = $enrollment->program->name;
+                $programName = $enrollment->program->name;
                 
                 if ($isScholar && $enrollment->enrollment_fee == 0) {
                     // Add estimated additional fees for scholars (same as payments page)
                     $additionalFees = 500; // Trainee ID + Certification fees
-                    $courseName .= ' (Scholar - Additional Fees)';
+                    $programName .= ' (Scholar - Additional Fees)';
                 }
                 
                 $totalAmount = $enrollment->enrollment_fee + $additionalFees;
@@ -252,7 +270,7 @@ class CashierController extends Controller
                         'uli_number' => $enrollment->trainee->uli_number,
                         'trainee_id' => $enrollment->trainee->id, // Add trainee ID for grouping
                     ],
-                    'course' => $courseName,
+                    'program' => $programName,
                     'amount' => $totalAmount, // Now matches payments page calculation
                     'dateGenerated' => $enrollment->payment_date->format('Y-m-d'),
                     'timeGenerated' => $enrollment->payment_date->format('g:i A'),
@@ -262,10 +280,15 @@ class CashierController extends Controller
                 ];
             });
 
-        // Get assessment receipts (paid assessments including scholar exemptions)
+        // Get assessment receipts (paid assessments) - exclude scholars' automatic assessments
         $assessmentReceipts = Assessment::with(['trainee', 'program'])
             ->where('payment_status', 'paid')
             ->whereNotNull('payment_reference')
+            ->where(function ($query) {
+                // Exclude automatic scholar assessments - they have payment_method = 'scholarship_exemption'
+                $query->where('payment_method', '!=', 'scholarship_exemption')
+                      ->orWhereNull('payment_method');
+            })
             ->orderBy('payment_date', 'desc')
             ->get()
             ->map(function ($assessment) {
@@ -287,7 +310,7 @@ class CashierController extends Controller
                         'uli_number' => $assessment->trainee ? $assessment->trainee->uli_number : null,
                         'trainee_id' => $assessment->trainee ? $assessment->trainee->id : 'external_' . $assessment->id, // Add trainee ID for grouping
                     ],
-                    'course' => $assessment->program ? $assessment->program->name : $assessment->title,
+                    'program' => $assessment->program ? $assessment->program->name : $assessment->title,
                     'amount' => $assessment->assessment_fee,
                     'dateGenerated' => $assessment->payment_date->format('Y-m-d'),
                     'timeGenerated' => $assessment->payment_date->format('g:i A'),
@@ -301,6 +324,8 @@ class CashierController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($receipt) {
+                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
+                
                 return [
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
@@ -311,7 +336,8 @@ class CashierController extends Controller
                         'uli_number' => $receipt->trainee_uli_number,
                         'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
                     ],
-                    'course' => collect(array_merge($receipt->original_fees ?: [], $receipt->fees ?: []))->pluck('course')->join(', '),
+                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
+                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
                     'amount' => $receipt->total_amount,
                     'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
                     'timeGenerated' => $receipt->time_generated->format('g:i A'),
@@ -328,6 +354,8 @@ class CashierController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($receipt) {
+                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
+                
                 return [
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
@@ -338,7 +366,8 @@ class CashierController extends Controller
                         'uli_number' => $receipt->trainee_uli_number,
                         'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
                     ],
-                    'course' => collect(array_merge($receipt->original_fees ?: [], $receipt->fees ?: []))->pluck('course')->join(', '),
+                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
+                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
                     'amount' => $receipt->total_amount,
                     'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
                     'timeGenerated' => $receipt->time_generated->format('g:i A'),
@@ -356,6 +385,8 @@ class CashierController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($receipt) {
+                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
+                
                 return [
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
@@ -366,7 +397,8 @@ class CashierController extends Controller
                         'uli_number' => $receipt->trainee_uli_number,
                         'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
                     ],
-                    'course' => collect(array_merge($receipt->original_fees ?: [], $receipt->fees ?: []))->pluck('course')->join(', '),
+                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
+                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
                     'amount' => $receipt->total_amount,
                     'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
                     'timeGenerated' => $receipt->time_generated->format('g:i A'),
@@ -383,6 +415,8 @@ class CashierController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($receipt) {
+                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
+                
                 return [
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
@@ -392,7 +426,8 @@ class CashierController extends Controller
                         'id' => $receipt->trainee_id_number,
                         'uli_number' => $receipt->trainee_uli_number,
                     ],
-                    'course' => collect(array_merge($receipt->original_fees ?: [], $receipt->fees ?: []))->pluck('course')->join(', '),
+                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
+                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
                     'amount' => $receipt->total_amount,
                     'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
                     'timeGenerated' => $receipt->time_generated->format('g:i A'),
@@ -437,6 +472,7 @@ class CashierController extends Controller
                 'total_amount' => $receipts->sum('amount'),
                 'receipts' => $sortedReceipts,
                 'latest_receipt_date' => $sortedReceipts->first()['dateGenerated'] ?? null,
+                'program_names' => $receipts->pluck('program')->unique()->filter()->join(', '), // Aggregate program names
             ];
         })->sortByDesc('latest_receipt_date')->values();
 
@@ -446,6 +482,22 @@ class CashierController extends Controller
             // Keep the old format for backward compatibility during transition
             'enrollmentReceipts' => $finalEnrollmentReceipts->sortByDesc('dateGenerated')->values(),
             'assessmentReceipts' => $finalAssessmentReceipts->sortByDesc('dateGenerated')->values(),
+        ]);
+    }
+
+    /**
+     * Display dedicated reports page (summary & collections)
+     */
+    public function reports()
+    {
+        $summaryStats = $this->calculatePaymentSummaryStats();
+
+        // Reuse existing aggregation by program
+        $collectionsByProgram = $this->getCollectionsByProgram();
+
+        return Inertia::render('Cashier/Reports', [
+            'summaryStats' => $summaryStats,
+            'collectionsByProgram' => $collectionsByProgram,
         ]);
     }
 
@@ -537,7 +589,7 @@ class CashierController extends Controller
             'trainee.uli_number' => 'nullable|string',
             'fees' => 'required|array|min:1',
             'fees.*.natureOfCollection' => 'required|string',
-            'fees.*.course' => 'required|string',
+            'fees.*.program' => 'required|string',
             'fees.*.amount' => 'required|numeric|min:0',
             'fees.*.accountCode' => 'required|string',
             'dateGenerated' => 'required|date',
@@ -618,7 +670,7 @@ class CashierController extends Controller
             'receiptNo' => 'required|string',
             'fees' => 'required|array|min:0', // Only custom fees can be edited
             'fees.*.natureOfCollection' => 'required|string',
-            'fees.*.course' => 'required|string',
+            'fees.*.program' => 'required|string',
             'fees.*.amount' => 'required|numeric|min:0',
             'fees.*.accountCode' => 'required|string',
         ]);
@@ -689,8 +741,36 @@ class CashierController extends Controller
             ->whereHas('enrollments')
             ->count();
 
-        // Combined current month totals
-        $currentTotal = $currentEnrollmentTotal + $currentAssessmentTotal;
+        // Include Custom Receipts (additional fees and finalized collections)
+        // Avoid double-counting by excluding enrollments/assessments that already have custom receipts
+        $currentMonthCustomReceiptsTotal = CustomReceipt::where('status', 'generated')
+            ->where('date_generated', '>=', $currentMonth)
+            ->sum('total_amount');
+
+        $currentMonthEnrollmentIdsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->where('date_generated', '>=', $currentMonth)
+            ->whereNotNull('enrollment_id')
+            ->pluck('enrollment_id')
+            ->toArray();
+
+        $currentMonthAssessmentIdsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->where('date_generated', '>=', $currentMonth)
+            ->whereNotNull('assessment_id')
+            ->pluck('assessment_id')
+            ->toArray();
+
+        $currentEnrollmentTotalNoReceipt = TraineeEnrollment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $currentMonth)
+            ->whereNotIn('id', $currentMonthEnrollmentIdsWithReceipts)
+            ->sum('enrollment_fee');
+
+        $currentAssessmentTotalNoReceipt = Assessment::where('payment_status', 'paid')
+            ->where('payment_date', '>=', $currentMonth)
+            ->whereNotIn('id', $currentMonthAssessmentIdsWithReceipts)
+            ->sum('assessment_fee');
+
+        // Combined current month totals now include additional fees via Custom Receipts
+        $currentTotal = $currentMonthCustomReceiptsTotal + $currentEnrollmentTotalNoReceipt + $currentAssessmentTotalNoReceipt;
         $currentPending = $currentEnrollmentPending + $currentAssessmentPending + $currentRegistrationPending;
         $currentReceipts = $currentEnrollmentReceipts + $currentAssessmentReceipts + $currentRegistrationPaid;
 
@@ -736,8 +816,35 @@ class CashierController extends Controller
             ->whereHas('enrollments')
             ->count();
 
-        // Combined last month totals
-        $lastTotal = $lastEnrollmentTotal + $lastAssessmentTotal;
+        // Include Custom Receipts for last month range as well (avoid double count similarly)
+        $lastMonthCustomReceiptsTotal = CustomReceipt::where('status', 'generated')
+            ->whereBetween('date_generated', [$lastMonth, $currentMonth])
+            ->sum('total_amount');
+
+        $lastMonthEnrollmentIdsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereBetween('date_generated', [$lastMonth, $currentMonth])
+            ->whereNotNull('enrollment_id')
+            ->pluck('enrollment_id')
+            ->toArray();
+
+        $lastMonthAssessmentIdsWithReceipts = CustomReceipt::where('status', 'generated')
+            ->whereBetween('date_generated', [$lastMonth, $currentMonth])
+            ->whereNotNull('assessment_id')
+            ->pluck('assessment_id')
+            ->toArray();
+
+        $lastEnrollmentTotalNoReceipt = TraineeEnrollment::where('payment_status', 'paid')
+            ->whereBetween('payment_date', [$lastMonth, $currentMonth])
+            ->whereNotIn('id', $lastMonthEnrollmentIdsWithReceipts)
+            ->sum('enrollment_fee');
+
+        $lastAssessmentTotalNoReceipt = Assessment::where('payment_status', 'paid')
+            ->whereBetween('payment_date', [$lastMonth, $currentMonth])
+            ->whereNotIn('id', $lastMonthAssessmentIdsWithReceipts)
+            ->sum('assessment_fee');
+
+        // Combined last month totals include custom receipts
+        $lastTotal = $lastMonthCustomReceiptsTotal + $lastEnrollmentTotalNoReceipt + $lastAssessmentTotalNoReceipt;
         $lastPending = $lastEnrollmentPending + $lastAssessmentPending + $lastRegistrationPending;
         $lastReceipts = $lastEnrollmentReceipts + $lastAssessmentReceipts + $lastRegistrationPaid;
 
@@ -767,19 +874,13 @@ class CashierController extends Controller
                             $enrollment->trainee->scholarship_package && 
                             trim($enrollment->trainee->scholarship_package) !== '';
                 
-                $additionalFees = 0;
-                $courseName = $enrollment->program->name . ' (Enrollment)';
+                // For dashboard, only show enrollment fees (no additional fees)
+                $programName = $enrollment->program->name . ' (Enrollment)';
+                $displayAmount = $enrollment->enrollment_fee; // Only show enrollment fee amount
                 
-                if ($isScholar && $enrollment->enrollment_fee == 0) {
-                    $additionalFees = 500; // Additional fees for scholars
-                    $courseName = $enrollment->program->name . ' (Scholar - Additional Fees)';
-                }
-                
-                $totalAmount = $enrollment->enrollment_fee + $additionalFees;
-                
-                // Skip if no fees at all
-                if ($totalAmount <= 0) {
-                    return null;
+                if ($isScholar) {
+                    $programName = $enrollment->program->name . ' (Scholar - Enrollment Fee)';
+                    $displayAmount = 0; // Scholars have 0 enrollment fee
                 }
 
                 $initials = collect(explode(' ', $enrollment->trainee->full_name))
@@ -787,13 +888,16 @@ class CashierController extends Controller
                     ->take(2)
                     ->join('');
                     
+                // Status based only on enrollment fee payment
+                $actualStatus = $enrollment->payment_status === 'paid' ? 'paid' : 'pending';
+
                 return [
                     'id' => 'ENR-' . str_pad($enrollment->id, 4, '0', STR_PAD_LEFT),
                     'initials' => $initials,
                     'name' => $enrollment->trainee->full_name,
-                    'course' => $courseName,
-                    'amountDue' => $totalAmount,
-                    'status' => $enrollment->payment_status === 'paid' ? 'paid' : 'pending',
+                    'program' => $programName,
+                    'amountDue' => $displayAmount,
+                    'status' => $actualStatus,
                     'created_at' => $enrollment->created_at,
                     'is_scholarship' => $isScholar,
                 ];
@@ -802,7 +906,7 @@ class CashierController extends Controller
             ->take(5) // Take 5 after filtering
             ->values();
 
-        // Get registration payments (newly registered trainees including scholars)
+        // Get registration payments (newly registered trainees)
         $registrationPayments = Trainee::where('payment_status', 'unpaid')
             ->where('status', 'pending')
             ->whereDoesntHave('enrollments')
@@ -817,19 +921,13 @@ class CashierController extends Controller
                 $isScholar = $trainee->scholarship_package && 
                             trim($trainee->scholarship_package) !== '';
                 
-                $additionalFees = 0;
-                $courseName = $trainee->program_qualification . ' (Enrollment Fee)';
+                // For dashboard, only show enrollment fees (no additional fees)
+                $programName = $trainee->program_qualification . ' (Enrollment Fee)';
+                $displayAmount = $enrollmentFee; // Only show enrollment fee amount
                 
-                if ($isScholar && $enrollmentFee == 0) {
-                    $additionalFees = 500; // Additional fees for scholars
-                    $courseName = $trainee->program_qualification . ' (Scholar - Additional Fees)';
-                }
-                
-                $totalAmount = $enrollmentFee + $additionalFees;
-                
-                // Skip if no fees at all
-                if ($totalAmount <= 0) {
-                    return null;
+                if ($isScholar) {
+                    $programName = $trainee->program_qualification . ' (Scholar - Enrollment Fee)';
+                    $displayAmount = 0; // Scholars have 0 enrollment fee
                 }
 
                 $initials = collect(explode(' ', $trainee->full_name))
@@ -837,13 +935,16 @@ class CashierController extends Controller
                     ->take(2)
                     ->join('');
                     
+                // Status based only on enrollment fee payment
+                $actualStatus = $trainee->payment_status === 'paid' ? 'paid' : 'pending';
+
                 return [
                     'id' => 'REG-' . str_pad($trainee->id, 4, '0', STR_PAD_LEFT),
                     'initials' => $initials,
                     'name' => $trainee->full_name,
-                    'course' => $courseName,
-                    'amountDue' => $totalAmount,
-                    'status' => 'pending',
+                    'program' => $programName,
+                    'amountDue' => $displayAmount,
+                    'status' => $actualStatus,
                     'created_at' => $trainee->created_at,
                     'is_scholarship' => $isScholar,
                 ];
@@ -873,7 +974,7 @@ class CashierController extends Controller
                     'id' => 'ASS-' . str_pad($assessment->id, 4, '0', STR_PAD_LEFT),
                     'initials' => $initials,
                     'name' => $applicantName,
-                    'course' => ($assessment->program ? $assessment->program->name : $assessment->title) . ' (Assessment)',
+                    'program' => ($assessment->program ? $assessment->program->name : $assessment->title) . ' (Assessment)',
                     'amountDue' => $assessment->assessment_fee,
                     'status' => $assessment->payment_status === 'paid' ? 'paid' : 'pending',
                     'created_at' => $assessment->created_at,
@@ -1253,9 +1354,9 @@ class CashierController extends Controller
     }
 
     /**
-     * Get collections by course
+     * Get collections by program
      */
-    private function getCollectionsByCourse()
+    private function getCollectionsByProgram()
     {
         return Program::with(['enrollments.trainee'])
             ->get()
@@ -1299,14 +1400,14 @@ class CashierController extends Controller
                         return $enrollmentFee + $additionalFees;
                     });
 
-                // Get custom receipt data for this program (match by course name in fees array)
+                // Get custom receipt data for this program (match by program name in fees array)
                 $customReceiptAmount = CustomReceipt::where('status', 'generated')
                     ->get()
                     ->filter(function ($receipt) use ($program) {
                         $fees = $receipt->fees;
                         if (is_array($fees)) {
                             foreach ($fees as $fee) {
-                                if (isset($fee['course']) && strpos($fee['course'], $program->name) !== false) {
+                                if (isset($fee['program']) && strpos($fee['program'], $program->name) !== false) {
                                     return true;
                                 }
                             }
@@ -1322,7 +1423,7 @@ class CashierController extends Controller
                 $totalCollectionAmount = $enrollmentAmount + $assessmentAmount + $registrationAmount + $customReceiptAmount;
 
                 return [
-                    'course' => $program->name,
+                    'program' => $program->name,
                     'totalTrainees' => $totalPayments, // Total payments (enrollments + assessments)
                     'fullyPaid' => $totalPaid,
                     'partiallyPaid' => 0, // We don't have partial payments yet

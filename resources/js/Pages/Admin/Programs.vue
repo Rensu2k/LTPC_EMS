@@ -9,11 +9,13 @@ import DangerButton from "@/Components/DangerButton.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
+import Pagination from "@/Components/Pagination.vue";
 
 const props = defineProps({
-    programs: Array,
+    programs: Object, // Changed from Array to Object to support pagination
     trainers: Array,
     flash: Object,
+    filters: Object, // Added filters prop
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -35,6 +37,12 @@ const showDeleteModal = ref(false);
 const editingProgram = ref(null);
 const deletingProgram = ref(null);
 const searchQuery = ref("");
+const perPage = ref(props.filters?.per_page || 10);
+
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+    return searchQuery.value || (perPage.value && perPage.value !== 10);
+});
 
 const form = useForm({
     program_id: "",
@@ -48,7 +56,7 @@ const form = useForm({
 });
 
 const filteredPrograms = computed(() => {
-    let filtered = props.programs || [];
+    let filtered = props.programs?.data || [];
 
     if (searchQuery.value) {
         filtered = filtered.filter(
@@ -64,6 +72,29 @@ const filteredPrograms = computed(() => {
 
     return filtered;
 });
+
+// Add search functionality
+const performSearch = () => {
+    router.get(
+        route("admin.programs"),
+        {
+            search: searchQuery.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+const clearFilters = () => {
+    searchQuery.value = "";
+    perPage.value = 10; // Reset to default
+    performSearch();
+};
 
 const openCreateModal = () => {
     if (!isOfficer.value && !isAdmin.value) return;
@@ -159,6 +190,10 @@ const getAssignedTrainers = (assignedTrainerIds) => {
 
     return `${assignedTrainers[0].name} +${assignedTrainers.length - 1} more`;
 };
+
+const changePerPage = () => {
+    performSearch();
+};
 </script>
 
 <template>
@@ -202,7 +237,7 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="relative">
                             <InputLabel for="search" value="Search Programs" />
                             <TextInput
@@ -211,8 +246,54 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                 type="text"
                                 placeholder="Search by program name"
                                 class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
+                                @keyup.enter="performSearch"
                             />
                         </div>
+                        <div class="relative">
+                            <InputLabel for="per_page" value="Items per page" />
+                            <select
+                                id="per_page"
+                                v-model="perPage"
+                                @change="changePerPage"
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-200"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end space-x-2">
+                            <SecondaryButton
+                                v-if="hasActiveFilters"
+                                @click="clearFilters"
+                                class="border-gray-300 text-gray-700 hover:bg-gray-50"
+                            >
+                                Clear Filters
+                            </SecondaryButton>
+                        </div>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    <div
+                        v-if="hasActiveFilters"
+                        class="flex flex-wrap gap-2 pt-4 border-t border-gray-200"
+                    >
+                        <span class="text-sm text-gray-600"
+                            >Active filters:</span
+                        >
+                        <span
+                            v-if="searchQuery"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                            Search: "{{ searchQuery }}"
+                        </span>
+                        <span
+                            v-if="perPage && perPage !== 10"
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                            Items per page: {{ perPage }}
+                        </span>
                     </div>
                 </div>
 
@@ -241,6 +322,34 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                                 Only Officers can add, edit, or delete programs.
                                 Admins have read-only access.
                             </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div
+                    v-if="programs && programs.data && programs.data.length > 0"
+                    class="px-6 py-3 bg-white border-b border-gray-200"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{
+                                programs.from || 0
+                            }}</span>
+                            to
+                            <span class="font-medium">{{
+                                programs.to || 0
+                            }}</span>
+                            of
+                            <span class="font-medium">{{
+                                programs.total || 0
+                            }}</span>
+                            results
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Page {{ programs.current_page || 1 }} of
+                            {{ programs.last_page || 1 }}
                         </div>
                     </div>
                 </div>
@@ -421,9 +530,19 @@ const getAssignedTrainers = (assignedTrainerIds) => {
                     </table>
                 </div>
 
+                <!-- Pagination -->
+                <Pagination
+                    v-if="programs && programs.data && programs.data.length > 0"
+                    :data="programs"
+                />
+
                 <!-- Empty State -->
                 <div
-                    v-if="filteredPrograms.length === 0"
+                    v-if="
+                        !programs ||
+                        !programs.data ||
+                        programs.data.length === 0
+                    "
                     class="text-center py-12"
                 >
                     <svg

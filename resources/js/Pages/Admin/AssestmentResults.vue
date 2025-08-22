@@ -1,71 +1,78 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { Head, router } from "@inertiajs/vue3";
+import { ref, computed, watch } from "vue";
 import Modal from "@/Components/Modal.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import Pagination from "@/Components/Pagination.vue";
+import { useForm } from "@inertiajs/vue3";
 
 const props = defineProps({
-    assessments: Array,
+    assessments: Object, // Changed from Array to Object to support pagination
+    comprehensive_assessments: Array, // All assessments for statistics (including all attempts)
     programs: Array,
     trainers: Array,
     flash: Object,
+    filters: Object, // Added filters prop
 });
 
 const showResultsModal = ref(false);
 const viewingAssessment = ref(null);
-const searchQuery = ref("");
-const selectedProgram = ref("");
-const selectedStatus = ref("");
-const dateFrom = ref("");
-const dateTo = ref("");
+const searchQuery = ref(props.filters?.search || "");
+const selectedProgram = ref(props.filters?.program || "");
+const selectedStatus = ref(props.filters?.status || "");
+const dateFrom = ref(props.filters?.date_from || "");
+const dateTo = ref(props.filters?.date_to || "");
+const perPage = ref(props.filters?.per_page || 10);
+const showFilters = ref(false);
 
+// Add search functionality
+const performSearch = () => {
+    router.get(
+        route("admin.assessments"),
+        {
+            search: searchQuery.value,
+            program: selectedProgram.value,
+            status: selectedStatus.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+// Add change per page functionality
+const changePerPage = () => {
+    performSearch();
+};
+
+// Watch for filter changes and trigger search automatically
+let searchTimeout = null;
+watch(
+    [selectedProgram, selectedStatus, dateFrom, dateTo, searchQuery],
+    () => {
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        // Debounce search to avoid too many requests while user is typing
+        searchTimeout = setTimeout(() => {
+            performSearch();
+        }, 500); // 500ms delay
+    },
+    { deep: true }
+);
+
+// Use backend-filtered data directly (no frontend filtering needed)
 const filteredAssessments = computed(() => {
-    let filtered = props.assessments || [];
-
-    if (searchQuery.value) {
-        filtered = filtered.filter(
-            (assessment) =>
-                assessment.title
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                assessment.program_name
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                assessment.trainer_name
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                assessment.applicant_name
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase())
-        );
-    }
-
-    if (selectedProgram.value) {
-        filtered = filtered.filter(
-            (assessment) => assessment.program_id == selectedProgram.value
-        );
-    }
-
-    if (selectedStatus.value) {
-        filtered = filtered.filter(
-            (assessment) => assessment.status === selectedStatus.value
-        );
-    }
-
-    if (dateFrom.value) {
-        filtered = filtered.filter(
-            (assessment) => assessment.assessment_date >= dateFrom.value
-        );
-    }
-
-    if (dateTo.value) {
-        filtered = filtered.filter(
-            (assessment) => assessment.assessment_date <= dateTo.value
-        );
-    }
-
-    return filtered;
+    return props.assessments?.data || [];
 });
 
 const programs = computed(() => {
@@ -82,9 +89,99 @@ const hasActiveFilters = computed(() => {
     );
 });
 
+// Percentage calculations for comprehensive results (UNIQUE applicants only)
+const assessmentPercentages = computed(() => {
+    const assessments = props.comprehensive_assessments || [];
+
+    // Group assessments by unique applicants and get their latest attempt
+    const uniqueApplicants = new Map();
+
+    assessments.forEach((assessment) => {
+        // Create unique key based on applicant type and identifier
+        let applicantKey;
+        if (assessment.applicant_type === "enrolled_trainee") {
+            applicantKey = `trainee_${assessment.trainee_id}`;
+        } else {
+            applicantKey = `external_${assessment.external_applicant_email}`;
+        }
+
+        // Keep only the latest assessment for each unique applicant
+        if (
+            !uniqueApplicants.has(applicantKey) ||
+            new Date(assessment.assessment_date) >
+                new Date(uniqueApplicants.get(applicantKey).assessment_date)
+        ) {
+            uniqueApplicants.set(applicantKey, assessment);
+        }
+    });
+
+    // Convert to array of unique applicant assessments
+    const uniqueAssessments = Array.from(uniqueApplicants.values());
+    const total = uniqueAssessments.length;
+
+    if (total === 0) {
+        return {
+            completedVsAssessed: 0,
+            competentVsNotCompetent: 0,
+            completedCount: 0,
+            assessedCount: 0,
+            competentCount: 0,
+            notCompetentCount: 0,
+        };
+    }
+
+    // Completed applicants vs total assessed (exclude absent applicants)
+    // Ensure we only count completed assessments that are not absent
+    const completedCount = uniqueAssessments.filter(
+        (a) => a.status === "completed" && a.result !== "absent"
+    ).length;
+    const assessedCount = uniqueAssessments.filter(
+        (a) => a.result !== "absent"
+    ).length; // Only count applicants who actually took the assessment
+
+    // Competent vs not competent among applicants with actual results (exclude absent and pending)
+    const competentCount = uniqueAssessments.filter(
+        (a) => a.result === "competent"
+    ).length;
+    const notCompetentCount = uniqueAssessments.filter(
+        (a) => a.result === "not_yet_competent"
+    ).length;
+    // Only include assessments that have actual results (competent or not_yet_competent)
+    const totalWithResults = uniqueAssessments.filter(
+        (a) => a.result === "competent" || a.result === "not_yet_competent"
+    ).length;
+
+    return {
+        completedVsAssessed:
+            assessedCount > 0
+                ? Math.min(
+                      Math.round((completedCount / assessedCount) * 100),
+                      100
+                  )
+                : 0,
+        competentVsNotCompetent:
+            totalWithResults > 0
+                ? Math.min(
+                      Math.round((competentCount / totalWithResults) * 100),
+                      100
+                  )
+                : 0,
+        completedCount,
+        assessedCount,
+        competentCount,
+        notCompetentCount,
+        totalWithResults,
+    };
+});
+
 const openResultsModal = (assessment) => {
     viewingAssessment.value = assessment;
     showResultsModal.value = true;
+};
+
+const viewAssessmentHistory = (assessment) => {
+    // Navigate to assessment history page
+    router.visit(`/admin/assessments/${assessment.id}/assessment-history`);
 };
 
 const clearFilters = () => {
@@ -132,6 +229,15 @@ const formatDuration = (minutes) => {
     return `${mins}m`;
 };
 
+const formatDate = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
+
 const exportAssessmentResults = () => {
     // TODO: Implement export functionality
 };
@@ -176,7 +282,7 @@ const exportAssessmentResults = () => {
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="relative">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-1"
@@ -191,221 +297,315 @@ const exportAssessmentResults = () => {
                                 class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
                             />
                         </div>
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
+                        <div class="flex items-end">
+                            <button
+                                @click="showFilters = !showFilters"
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300"
                             >
-                                Filter by Program
-                            </label>
-                            <select
-                                id="program-filter"
-                                v-model="selectedProgram"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
-                            >
-                                <option value="">All Programs</option>
-                                <option
-                                    v-for="program in programs"
-                                    :key="program.program_id"
-                                    :value="program.program_id"
+                                <svg
+                                    class="w-4 h-4 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    {{ program.name }}
-                                </option>
-                            </select>
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"
+                                    />
+                                </svg>
+                                {{ showFilters ? "Hide" : "Show" }} Filters
+                            </button>
                         </div>
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                            >
-                                Filter by Status
-                            </label>
-                            <select
-                                id="status-filter"
-                                v-model="selectedStatus"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
-                            >
-                                <option value="">All Statuses</option>
-                                <option value="pending">Pending</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                            >
-                                Date From
-                            </label>
-                            <input
-                                id="date-from"
-                                v-model="dateFrom"
-                                type="date"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
-                            />
-                        </div>
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                            >
-                                Date To
-                            </label>
-                            <input
-                                id="date-to"
-                                v-model="dateTo"
-                                type="date"
-                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Clear Filters Button -->
-                    <div class="mt-4 flex justify-end">
-                        <button
-                            v-if="hasActiveFilters"
-                            @click="clearFilters"
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300"
+                        <!-- Advanced Filters -->
+                        <div
+                            v-if="showFilters"
+                            class="col-span-full grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200"
                         >
-                            <svg
-                                class="w-4 h-4 mr-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12"
-                                ></path>
-                            </svg>
-                            Clear Filters
-                        </button>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Filter by Program
+                                </label>
+                                <select
+                                    id="program-filter"
+                                    v-model="selectedProgram"
+                                    class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                                >
+                                    <option value="">All Programs</option>
+                                    <option
+                                        v-for="program in programs"
+                                        :key="program.program_id"
+                                        :value="program.program_id"
+                                    >
+                                        {{ program.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Filter by Status
+                                </label>
+                                <select
+                                    id="status-filter"
+                                    v-model="selectedStatus"
+                                    class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                                >
+                                    <option value="">All Statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Date From
+                                </label>
+                                <input
+                                    id="date-from"
+                                    v-model="dateFrom"
+                                    type="date"
+                                    class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Date To
+                                </label>
+                                <input
+                                    id="date-to"
+                                    v-model="dateTo"
+                                    type="date"
+                                    class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Statistics Cards -->
-                <div class="p-6 border-b border-gray-200">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="px-4 py-3 border-b border-gray-200">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div
-                            class="bg-green-50 p-4 rounded-lg border border-green-200"
+                            class="text-center p-2 bg-green-50 rounded border border-green-200"
                         >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >✓</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p
-                                        class="text-xs font-medium text-green-600"
-                                    >
-                                        Competent
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-green-900"
-                                    >
-                                        {{
-                                            filteredAssessments.filter(
+                            <p class="text-xs font-medium text-green-600 mb-1">
+                                Competent
+                            </p>
+                            <p class="text-sm font-semibold text-green-900">
+                                {{
+                                    (
+                                        props.comprehensive_assessments || []
+                                    ).filter((a) => a.result === "competent")
+                                        .length
+                                }}
+                                <span
+                                    v-if="hasActiveFilters"
+                                    class="text-xs text-green-700 ml-1"
+                                >
+                                    ({{
+                                        Math.round(
+                                            ((
+                                                props.comprehensive_assessments ||
+                                                []
+                                            ).filter(
                                                 (a) => a.result === "competent"
-                                            ).length
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
+                                            ).length /
+                                                (
+                                                    props.comprehensive_assessments ||
+                                                    []
+                                                ).length) *
+                                                100
+                                        )
+                                    }}%)
+                                </span>
+                            </p>
                         </div>
 
                         <div
-                            class="bg-red-50 p-4 rounded-lg border border-red-200"
+                            class="text-center p-2 bg-red-50 rounded border border-red-200"
                         >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >✗</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-xs font-medium text-red-600">
-                                        Not Yet Competent
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-red-900"
-                                    >
-                                        {{
-                                            filteredAssessments.filter(
+                            <p class="text-xs font-medium text-red-600 mb-1">
+                                Not Yet Competent
+                            </p>
+                            <p class="text-sm font-semibold text-red-900">
+                                {{
+                                    (
+                                        props.comprehensive_assessments || []
+                                    ).filter(
+                                        (a) => a.result === "not_yet_competent"
+                                    ).length
+                                }}
+                                <span
+                                    v-if="hasActiveFilters"
+                                    class="text-xs text-red-700 ml-1"
+                                >
+                                    ({{
+                                        Math.round(
+                                            ((
+                                                props.comprehensive_assessments ||
+                                                []
+                                            ).filter(
                                                 (a) =>
                                                     a.result ===
                                                     "not_yet_competent"
-                                            ).length
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
+                                            ).length /
+                                                (
+                                                    props.comprehensive_assessments ||
+                                                    []
+                                                ).length) *
+                                                100
+                                        )
+                                    }}%)
+                                </span>
+                            </p>
                         </div>
 
                         <div
-                            class="bg-gray-50 p-4 rounded-lg border border-gray-200"
+                            class="text-center p-2 bg-gray-50 rounded border border-gray-200"
                         >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >—</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p
-                                        class="text-xs font-medium text-gray-600"
-                                    >
-                                        Absent
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-gray-900"
-                                    >
-                                        {{
-                                            filteredAssessments.filter(
+                            <p class="text-xs font-medium text-gray-600 mb-1">
+                                Absent
+                            </p>
+                            <p class="text-sm font-semibold text-gray-900">
+                                {{
+                                    (
+                                        props.comprehensive_assessments || []
+                                    ).filter((a) => a.result === "absent")
+                                        .length
+                                }}
+                                <span
+                                    v-if="hasActiveFilters"
+                                    class="text-xs text-gray-700 ml-1"
+                                >
+                                    ({{
+                                        Math.round(
+                                            ((
+                                                props.comprehensive_assessments ||
+                                                []
+                                            ).filter(
                                                 (a) => a.result === "absent"
-                                            ).length
-                                        }}
-                                    </p>
-                                </div>
+                                            ).length /
+                                                (
+                                                    props.comprehensive_assessments ||
+                                                    []
+                                                ).length) *
+                                                100
+                                        )
+                                    }}%)
+                                </span>
+                            </p>
+                        </div>
+
+                        <div
+                            class="text-center p-2 bg-blue-50 rounded border border-blue-200"
+                        >
+                            <p class="text-xs font-medium text-blue-600 mb-1">
+                                Total Assessments
+                            </p>
+                            <p class="text-sm font-semibold text-blue-900">
+                                {{
+                                    (props.comprehensive_assessments || [])
+                                        .length
+                                }}
+                                <span
+                                    v-if="hasActiveFilters"
+                                    class="text-xs text-blue-700 ml-1"
+                                    >(100%)</span
+                                >
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtered Results Analysis -->
+                <div
+                    v-if="hasActiveFilters"
+                    class="px-4 py-3 border-b border-gray-200 bg-blue-50"
+                >
+                    <h4 class="text-sm font-medium text-blue-900 mb-3">
+                        Filtered Results Analysis
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div
+                            class="bg-white p-3 rounded border border-blue-200"
+                        >
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-gray-600"
+                                    >Completion Rate</span
+                                >
+                                <span class="text-lg font-bold text-green-600">
+                                    {{
+                                        assessmentPercentages.completedVsAssessed
+                                    }}%
+                                </span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                {{ assessmentPercentages.completedCount }}/{{
+                                    assessmentPercentages.assessedCount
+                                }}
+                                completed
                             </div>
                         </div>
 
                         <div
-                            class="bg-blue-50 p-4 rounded-lg border border-blue-200"
+                            class="bg-white p-3 rounded border border-blue-200"
                         >
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center"
-                                    >
-                                        <span class="text-white text-xs"
-                                            >📊</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="ml-3">
-                                    <p
-                                        class="text-xs font-medium text-blue-600"
-                                    >
-                                        Total Assessments
-                                    </p>
-                                    <p
-                                        class="text-lg font-semibold text-blue-900"
-                                    >
-                                        {{ filteredAssessments.length }}
-                                    </p>
-                                </div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-gray-600"
+                                    >Competency Rate</span
+                                >
+                                <span class="text-lg font-bold text-blue-600">
+                                    {{
+                                        assessmentPercentages.competentVsNotCompetent
+                                    }}%
+                                </span>
                             </div>
+                            <div class="text-xs text-gray-500">
+                                {{ assessmentPercentages.competentCount }}/{{
+                                    assessmentPercentages.totalWithResults
+                                }}
+                                competent
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div
+                    v-if="
+                        assessments &&
+                        assessments.data &&
+                        assessments.data.length > 0
+                    "
+                    class="px-6 py-3 bg-white border-b border-gray-200"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{
+                                assessments.from || 0
+                            }}</span>
+                            to
+                            <span class="font-medium">{{
+                                assessments.to || 0
+                            }}</span>
+                            of
+                            <span class="font-medium">{{
+                                assessments.total || 0
+                            }}</span>
+                            results
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Page {{ assessments.current_page || 1 }} of
+                            {{ assessments.last_page || 1 }}
                         </div>
                     </div>
                 </div>
@@ -480,7 +680,11 @@ const exportAssessmentResults = () => {
                                             <div
                                                 class="text-sm text-gray-500 group-hover:text-green-500 transition-colors duration-200"
                                             >
-                                                {{ assessment.assessment_date }}
+                                                {{
+                                                    formatDate(
+                                                        assessment.assessment_date
+                                                    )
+                                                }}
                                             </div>
                                         </div>
                                     </div>
@@ -554,14 +758,38 @@ const exportAssessmentResults = () => {
                                         >
                                             Results
                                         </button>
+                                        <button
+                                            @click="
+                                                viewAssessmentHistory(
+                                                    assessment
+                                                )
+                                            "
+                                            class="px-3 py-1 text-green-600 hover:text-white hover:bg-green-600 border border-green-600 rounded transition-all duration-300 font-medium"
+                                        >
+                                            History
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
 
+                    <!-- Pagination -->
+                    <Pagination
+                        v-if="
+                            assessments &&
+                            assessments.data &&
+                            assessments.data.length > 0
+                        "
+                        :data="assessments"
+                    />
+
                     <div
-                        v-if="filteredAssessments.length === 0"
+                        v-if="
+                            !assessments ||
+                            !assessments.data ||
+                            assessments.data.length === 0
+                        "
                         class="p-8 text-center bg-gradient-to-br from-white to-green-50"
                     >
                         <div class="text-gray-500">

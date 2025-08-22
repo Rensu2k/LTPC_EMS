@@ -64,6 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/assessments', [AssessmentResultsController::class, 'store'])->name('assessments.store');
         Route::put('/assessments/{assessment}', [AssessmentResultsController::class, 'update'])->name('assessments.update');
         Route::delete('/assessments/{assessment}', [AssessmentResultsController::class, 'destroy'])->name('assessments.destroy');
+        Route::get('/assessments/{assessment}/assessment-history', [AssessmentResultsController::class, 'assessmentHistory'])->name('assessments.assessment-history');
         
         Route::get('/employments', [EmploymentController::class, 'index'])->name('employments');
         Route::post('/employments', [EmploymentController::class, 'store'])->name('employments.store');
@@ -117,6 +118,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/assessments/{assessment}', [AssessmentController::class, 'update'])->name('assessments.update');
         Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])->name('assessments.destroy');
         Route::post('/assessments/{assessment}/reassessment', [AssessmentController::class, 'reassessment'])->name('assessments.reassessment');
+        Route::get('/assessments/{assessment}/assessment-history', [AssessmentController::class, 'assessmentHistory'])->name('assessments.assessment-history');
 
         Route::get('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'create'])->name('trainees.enroll');
         Route::post('/trainees/{trainee}/enroll', [TraineeEnrollmentController::class, 'store'])->name('trainees.enroll.store');

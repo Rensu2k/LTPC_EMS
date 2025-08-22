@@ -9,13 +9,34 @@ use Inertia\Inertia;
 
 class TraineeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Eager-load enrollments and related programs so we can reflect the current/most recent program in the list
-        $trainees = Trainee::with(['enrollments.program'])
-            ->latest()
-            ->get()
-            ->map(function ($trainee) {
+        $perPage = $request->get('per_page', 20); // Default to 20 items per page
+        $search = $request->get('search', '');
+        $program = $request->get('program', '');
+
+        // Build the query
+        $query = Trainee::with(['enrollments.program']);
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('uli_number', 'like', "%{$search}%")
+                  ->orWhere('program_qualification', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply program filter if provided
+        if ($program && $program !== 'All Programs') {
+            $query->where('program_qualification', $program);
+        }
+
+        // Get paginated results
+        $trainees = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($trainee) {
                 // Determine current active enrollment; if none, use the most recent enrollment
                 $activeEnrollment = $trainee->enrollments
                     ->where('status', 'active')
@@ -81,7 +102,12 @@ class TraineeController extends Controller
         
         return Inertia::render('Officer/Trainees', [
             'trainees' => $trainees,
-            'programs' => $programs
+            'programs' => $programs,
+            'filters' => [
+                'search' => $search,
+                'program' => $program,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 
@@ -279,50 +305,104 @@ class TraineeController extends Controller
     }
 
     /**
-     * Admin methods for trainee management
+     * Display a listing of the resource for admin.
      */
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        $trainees = Trainee::with('enrollments')->latest()->get()->map(function ($trainee) {
-            // Get trainer information from the trainee's enrollments
-            $trainerNames = [];
-            
-            // Check if trainee has enrollments with programs that have assigned trainers
-            foreach ($trainee->enrollments as $enrollment) {
-                $program = Program::where('program_id', $enrollment->program_id)->first();
-                if ($program && $program->assigned_trainers) {
-                    $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
-                    $trainerNames = array_merge($trainerNames, $trainers->pluck('full_name')->toArray());
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        $search = $request->get('search', '');
+        $program = $request->get('program', '');
+        $status = $request->get('status', '');
+        $enrollmentType = $request->get('enrollment_type', '');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+
+        $query = Trainee::with('enrollments');
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('uli_number', 'like', "%{$search}%")
+                  ->orWhere('email_facebook', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply program filter if provided
+        if ($program && $program !== 'All Programs') {
+            $query->where('program_qualification', $program);
+        }
+
+        // Apply status filter if provided
+        if ($status && $status !== 'All Statuses') {
+            $query->where('status', $status);
+        }
+
+        // Apply enrollment type filter if provided
+        if ($enrollmentType && $enrollmentType !== 'All Types') {
+            $query->where('enrollment_type', $enrollmentType);
+        }
+
+        // Apply date range filter if provided
+        if ($dateFrom) {
+            $query->where('entry_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->where('entry_date', '<=', $dateTo);
+        }
+
+        $trainees = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($trainee) {
+                // Get trainer information from the trainee's enrollments
+                $trainerNames = [];
+                
+                // Check if trainee has enrollments with programs that have assigned trainers
+                foreach ($trainee->enrollments as $enrollment) {
+                    $program = Program::where('program_id', $enrollment->program_id)->first();
+                    if ($program && $program->assigned_trainers) {
+                        $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                        $trainerNames = array_merge($trainerNames, $trainers->pluck('full_name')->toArray());
+                    }
                 }
-            }
-            
-            // If no trainers found from enrollments, try to get from program_qualification (legacy)
-            if (empty($trainerNames)) {
-                $program = Program::where('name', $trainee->program_qualification)->first();
-                if ($program && $program->assigned_trainers) {
-                    $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
-                    $trainerNames = $trainers->pluck('full_name')->toArray();
+                
+                // If no trainers found from enrollments, try to get from program_qualification (legacy)
+                if (empty($trainerNames)) {
+                    $program = Program::where('name', $trainee->program_qualification)->first();
+                    if ($program && $program->assigned_trainers) {
+                        $trainers = \App\Models\Trainer::whereIn('id', $program->assigned_trainers)->get();
+                        $trainerNames = $trainers->pluck('full_name')->toArray();
+                    }
                 }
-            }
-            
-            // Get the most recent enrollment date from the new enrollment system
-            $latestEnrollment = $trainee->enrollments->sortByDesc('enrollment_date')->first();
-            
-            // Use the enrollment date from the new system if available, otherwise fall back to the old system
-            $actualEnrollmentDate = $latestEnrollment ? $latestEnrollment->enrollment_date : $trainee->date_enrolled;
-            
-            // Add trainer information and actual enrollment date to the trainee data
-            $trainee->assigned_trainers = array_unique($trainerNames);
-            $trainee->actual_enrollment_date = $actualEnrollmentDate;
-            
-            return $trainee;
-        });
+                
+                // Get the most recent enrollment date from the new enrollment system
+                $latestEnrollment = $trainee->enrollments->sortByDesc('enrollment_date')->first();
+                
+                // Use the enrollment date from the new system if available, otherwise fall back to the old system
+                $actualEnrollmentDate = $latestEnrollment ? $latestEnrollment->enrollment_date : $trainee->date_enrolled;
+                
+                // Add trainer information and actual enrollment date to the trainee data
+                $trainee->assigned_trainers = array_unique($trainerNames);
+                $trainee->actual_enrollment_date = $actualEnrollmentDate;
+                
+                return $trainee;
+            });
         
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Admin/Trainees', [
             'trainees' => $trainees,
-            'programs' => $programs
+            'programs' => $programs,
+            'filters' => [
+                'search' => $search,
+                'program' => $program,
+                'status' => $status,
+                'enrollment_type' => $enrollmentType,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 

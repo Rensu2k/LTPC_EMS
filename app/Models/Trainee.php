@@ -147,7 +147,7 @@ class Trainee extends Model
     /**
      * Enroll trainee in a new program
      */
-    public function enrollInProgram($programId, $batchNumber = null, $enrollmentFee = null): TraineeEnrollment
+    public function enrollInProgram($programId, $batchNumber = null, $enrollmentFee = null, $maintainScholarship = null): TraineeEnrollment
     {
         // Get the program
         $program = Program::find($programId);
@@ -170,13 +170,17 @@ class Trainee extends Model
             $enrollmentFee = $program->enrollment_fee ?? 0;
         }
 
-        // Auto-set payment status for scholars
+        // Auto-set payment status for scholars based on scholarship choice
         $paymentStatus = 'unpaid';
         $paymentMethod = null;
         $paymentReference = null;
         $paymentNotes = null;
 
-        if ($this->scholarship_package) {
+        // Determine if scholarship should be applied
+        // Default to true if maintainScholarship is not specified (backward compatibility)
+        $shouldApplyScholarship = $this->scholarship_package && ($maintainScholarship !== false);
+
+        if ($shouldApplyScholarship) {
             $paymentStatus = 'paid';
             $paymentMethod = 'scholarship_exemption';
             $paymentReference = 'SCHOLAR-' . strtoupper($this->scholarship_package) . '-' . time();
@@ -228,10 +232,23 @@ class Trainee extends Model
         }
 
         try {
-            // Auto-enroll the trainee
-            $this->enrollInProgram($program->program_id);
-            Log::info("Auto-enrolled trainee {$this->id} in program {$program->program_id}");
+            // Auto-enroll the trainee, preserving their current payment status
+            // For auto-enrollment, use the actual program fee (registration payment covers this)
+            $enrollment = $this->enrollInProgram($program->program_id, null, null); // Use default program fee
+            
+            // Update the enrollment to match trainee's current status and payment
+            // The registration payment covers the enrollment, so enrollment should be paid too
+            $enrollment->update([
+                'status' => $this->status, // Match trainee's status (should be 'active')
+                'payment_status' => $this->payment_status, // Match trainee's payment status (should be 'paid')
+                'payment_method' => $this->payment_method,
+                'payment_reference' => $this->payment_reference,
+                'payment_date' => $this->payment_status === 'paid' ? ($this->payment_date ?: now()) : null,
+                'payment_notes' => $this->payment_notes
+            ]);
+            
         } catch (\Exception $e) {
+            // Log error for debugging if needed
             Log::error("Failed to auto-enroll trainee {$this->id}: " . $e->getMessage());
         }
     }

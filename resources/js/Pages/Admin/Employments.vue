@@ -1,28 +1,64 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, useForm, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import Pagination from "@/Components/Pagination.vue";
 
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 
 const props = defineProps({
-    employment_referrals: Array,
+    employment_referrals: Object, // Changed from Array to Object to support pagination
     trainees: Array,
     flash: Object,
+    filters: Object, // Added filters prop
 });
 
 const showModal = ref(false);
 const showDetailsModal = ref(false);
 const editingReferral = ref(null);
 const viewingReferral = ref(null);
-const searchQuery = ref("");
-const selectedStatus = ref("");
-const selectedCompany = ref("");
+const searchQuery = ref(props.filters?.search || "");
+const selectedStatus = ref(props.filters?.status || "");
+const selectedCompany = ref(props.filters?.company || "");
+const perPage = ref(props.filters?.per_page || 10);
+
+// Add search functionality
+const performSearch = () => {
+    router.get(
+        route("admin.employments"),
+        {
+            search: searchQuery.value,
+            status: selectedStatus.value,
+            company: selectedCompany.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+// Add change per page functionality
+const changePerPage = () => {
+    performSearch();
+};
+
+// Watch for filter changes and trigger search
+watch(
+    [selectedStatus, selectedCompany],
+    () => {
+        performSearch();
+    },
+    { deep: true }
+);
 
 const form = useForm({
     trainee_id: "",
@@ -40,7 +76,7 @@ const form = useForm({
 });
 
 const filteredReferrals = computed(() => {
-    let filtered = props.employment_referrals || [];
+    let filtered = props.employment_referrals?.data || [];
 
     if (searchQuery.value) {
         filtered = filtered.filter(
@@ -78,7 +114,7 @@ const filteredReferrals = computed(() => {
 const companies = computed(() => {
     const uniqueCompanies = [
         ...new Set(
-            props.employment_referrals
+            props.employment_referrals?.data
                 ?.map((referral) => referral.company_name)
                 .filter(Boolean)
         ),
@@ -197,6 +233,7 @@ const exportEmploymentReport = () => {
                                 type="text"
                                 placeholder="Search by trainee name, company, or position"
                                 class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
+                                @keyup.enter="performSearch"
                             />
                         </div>
                         <div>
@@ -234,6 +271,20 @@ const exportEmploymentReport = () => {
                                 >
                                     {{ company }}
                                 </option>
+                            </select>
+                        </div>
+                        <div>
+                            <InputLabel for="per_page" value="Items per page" />
+                            <select
+                                id="per_page"
+                                v-model="perPage"
+                                @change="changePerPage"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
                             </select>
                         </div>
                     </div>
@@ -334,6 +385,38 @@ const exportEmploymentReport = () => {
                                     </p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div
+                    v-if="
+                        employment_referrals &&
+                        employment_referrals.data &&
+                        employment_referrals.data.length > 0
+                    "
+                    class="px-6 py-3 bg-white border-b border-gray-200"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{
+                                employment_referrals.from || 0
+                            }}</span>
+                            to
+                            <span class="font-medium">{{
+                                employment_referrals.to || 0
+                            }}</span>
+                            of
+                            <span class="font-medium">{{
+                                employment_referrals.total || 0
+                            }}</span>
+                            results
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Page {{ employment_referrals.current_page || 1 }} of
+                            {{ employment_referrals.last_page || 1 }}
                         </div>
                     </div>
                 </div>
@@ -499,8 +582,22 @@ const exportEmploymentReport = () => {
                         </tbody>
                     </table>
 
+                    <!-- Pagination -->
+                    <Pagination
+                        v-if="
+                            employment_referrals &&
+                            employment_referrals.data &&
+                            employment_referrals.data.length > 0
+                        "
+                        :data="employment_referrals"
+                    />
+
                     <div
-                        v-if="filteredReferrals.length === 0"
+                        v-if="
+                            !employment_referrals ||
+                            !employment_referrals.data ||
+                            employment_referrals.data.length === 0
+                        "
                         class="p-8 text-center bg-gradient-to-br from-white to-green-50"
                     >
                         <div class="text-gray-500">

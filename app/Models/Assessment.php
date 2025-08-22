@@ -107,7 +107,54 @@ class Assessment extends Model
      */
     public function canBeReassessed()
     {
-        return $this->result === 'not_yet_competent' || $this->result === 'absent';
+        // Only allow re-assessment if the result is 'not_yet_competent' or 'absent'
+        if (!($this->result === 'not_yet_competent' || $this->result === 'absent')) {
+            return false;
+        }
+
+        // Check if this is a re-assessment - if so, use the original assessment ID
+        $originalAssessmentId = $this->is_reassessment ? $this->original_assessment_id : $this->id;
+
+        // Get the highest attempt number for this assessment chain
+        $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
+            $query->where('id', $originalAssessmentId)
+                  ->orWhere('original_assessment_id', $originalAssessmentId);
+        })->max('attempt_number');
+
+        // Maximum of 3 attempts allowed - after 3rd attempt, must re-enroll
+        if ($maxAttemptNumber >= 3) {
+            return false;
+        }
+
+        // Check if there's already a pending re-assessment for this original assessment
+        $hasPendingReassessment = Assessment::where('original_assessment_id', $originalAssessmentId)
+            ->where('status', 'pending')
+            ->exists();
+
+        return !$hasPendingReassessment;
+    }
+
+    /**
+     * Check if re-enrollment is required (3rd attempt failed)
+     */
+    public function requiresReenrollment()
+    {
+        // Only applies to failed assessments (not_yet_competent or absent)
+        if (!($this->result === 'not_yet_competent' || $this->result === 'absent')) {
+            return false;
+        }
+
+        // Check if this is a re-assessment - if so, use the original assessment ID
+        $originalAssessmentId = $this->is_reassessment ? $this->original_assessment_id : $this->id;
+
+        // Get the highest attempt number for this assessment chain
+        $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
+            $query->where('id', $originalAssessmentId)
+                  ->orWhere('original_assessment_id', $originalAssessmentId);
+        })->max('attempt_number');
+
+        // Re-enrollment required after 3rd failed attempt
+        return $maxAttemptNumber >= 3;
     }
 
     /**
@@ -124,6 +171,24 @@ class Assessment extends Model
     public function isEditable()
     {
         return !$this->isGraded() || $this->status === 'pending';
+    }
+
+    /**
+     * Check if the assessment can be deleted
+     */
+    public function isDeletable()
+    {
+        // Cannot delete if assessment is graded (completed)
+        if ($this->isGraded()) {
+            return false;
+        }
+
+        // Cannot delete if payment has been made
+        if ($this->payment_status === 'paid') {
+            return false;
+        }
+
+        return true;
     }
 
     /**

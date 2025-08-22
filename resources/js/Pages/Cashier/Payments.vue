@@ -1,8 +1,9 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, usePage, router } from "@inertiajs/vue3";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useNotifications } from "@/composables/useNotifications";
+import Pagination from "@/Components/Pagination.vue";
 
 // Get URL parameters
 const page = usePage();
@@ -18,7 +19,7 @@ const selectedPayment = ref(null);
 // Define props to receive data from backend
 const props = defineProps({
     enrollmentPayments: {
-        type: Array,
+        type: [Object, Array], // Support both pagination object and legacy array
         default: () => [],
     },
     assessmentPayments: {
@@ -37,10 +38,19 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 // Convert props to reactive refs and separate registration vs enrollment payments
-const allPayments = ref(props.enrollmentPayments);
+const allPayments = computed(() => {
+    const paymentsData =
+        props.enrollmentPayments?.data || props.enrollmentPayments;
+    return paymentsData || [];
+});
+
 const registrationPayments = computed(() =>
     allPayments.value.filter((p) => p.type === "registration")
 );
@@ -51,7 +61,7 @@ const assessmentPayments = ref(props.assessmentPayments);
 const summaryStats = ref(props.summaryStats);
 const collectionsByProgram = ref(props.collectionsByProgram);
 
-const searchQuery = ref("");
+const searchQuery = ref(props.filters?.search || "");
 
 // Get current payment data based on active tab
 const currentPayments = computed(() => {
@@ -234,11 +244,16 @@ const editableReceiptData = ref({
             natureOfCollection: "",
             program: "",
             accountCode: "EDU-001",
-            amount: 0,
+            amount: "",
         },
     ],
 });
 
+// Receipt modal validation errors
+const receiptModalErrors = ref({
+    amount: false,
+});
+// task: make another type of Receipt "regular/trust" fund
 const generateReceipt = (paymentId) => {
     // Search in all payment arrays
     let payment = registrationPayments.value.find((p) => p.id === paymentId);
@@ -278,7 +293,7 @@ const generateReceiptForPaidPayment = (payment) => {
                         : "Enrollment Fee",
                 program: payment.program,
                 accountCode: "EDU-001",
-                amount: payment.amount,
+                amount: "", // Empty by default - user must manually enter amount
             },
         ],
     };
@@ -391,6 +406,31 @@ const getTotalAmount = () => {
 
 const saveReceipt = () => {
     const totalAmount = getTotalAmount();
+
+    // Validate required fields
+    let hasErrors = false;
+    receiptModalErrors.value.amount = false;
+
+    // Check if all fees have amounts
+    editableReceiptData.value.fees.forEach((fee, index) => {
+        if (
+            !fee.amount ||
+            fee.amount === "" ||
+            fee.amount === "0" ||
+            fee.amount === 0
+        ) {
+            receiptModalErrors.value.amount = true;
+            hasErrors = true;
+        }
+    });
+
+    // If there are validation errors, show error and return
+    if (hasErrors) {
+        notifications.error(
+            "Please fill in all required fields, including the Amount for each fee."
+        );
+        return;
+    }
 
     // Check if this is a registration payment that needs enrollment after receipt generation
     const isRegistrationPayment =
@@ -529,6 +569,27 @@ const convertNumberToWords = (num) => {
 
     return result.trim() + " pesos only";
 };
+
+// Debounced search function
+let searchTimeout;
+const performSearch = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.visit(route("cashier.payments"), {
+            data: {
+                search: searchQuery.value,
+                per_page: props.filters?.per_page || 20,
+            },
+            preserveState: true,
+            replace: true,
+        });
+    }, 300);
+};
+
+// Watch for search changes
+watch(searchQuery, () => {
+    performSearch();
+});
 </script>
 
 <template>
@@ -562,25 +623,6 @@ const convertNumberToWords = (num) => {
                         </svg>
                         Export Report
                     </button>
-                    <button
-                        @click="recordPayment"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        <svg
-                            class="w-4 h-4 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            ></path>
-                        </svg>
-                        Record Payment
-                    </button>
                 </div>
             </div>
 
@@ -610,6 +652,7 @@ const convertNumberToWords = (num) => {
                             ></path>
                         </svg>
                         Enrollment Fees - New Trainees ({{
+                            props.enrollmentPayments?.meta?.total ||
                             registrationPayments.length
                         }})
                     </button>
@@ -636,6 +679,7 @@ const convertNumberToWords = (num) => {
                             ></path>
                         </svg>
                         Additional Fees - Enrolled Trainees ({{
+                            props.enrollmentPayments?.meta?.total ||
                             enrollmentPayments.length
                         }})
                     </button>
@@ -661,7 +705,10 @@ const convertNumberToWords = (num) => {
                                 d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
                             ></path>
                         </svg>
-                        Assessment Fees ({{ assessmentPayments.length }})
+                        Assessment Fees ({{
+                            props.enrollmentPayments?.meta?.total ||
+                            assessmentPayments.length
+                        }})
                     </button>
                     <Link
                         :href="route('cashier.reports')"
@@ -683,6 +730,67 @@ const convertNumberToWords = (num) => {
                         Summary & Reports
                     </Link>
                 </nav>
+            </div>
+
+            <!-- Search and Filters -->
+            <div class="mb-6 animate-fade-in">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <label for="search" class="sr-only"
+                            >Search payments</label
+                        >
+                        <div class="relative">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                            >
+                                <svg
+                                    class="h-5 w-5 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    />
+                                </svg>
+                            </div>
+                            <input
+                                id="search"
+                                v-model="searchQuery"
+                                type="text"
+                                placeholder="Search by trainee name, ULI number, or payment ID..."
+                                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Count -->
+                <div class="mt-4 text-sm text-gray-600">
+                    <span v-if="props.enrollmentPayments?.meta?.total">
+                        Showing
+                        {{
+                            (props.enrollmentPayments.meta.current_page - 1) *
+                                props.enrollmentPayments.meta.per_page +
+                            1
+                        }}
+                        to
+                        {{
+                            Math.min(
+                                props.enrollmentPayments.meta.current_page *
+                                    props.enrollmentPayments.meta.per_page,
+                                props.enrollmentPayments.meta.total
+                            )
+                        }}
+                        of {{ props.enrollmentPayments.meta.total }} results
+                    </span>
+                    <span v-else>
+                        {{ allPayments.length }} payments found
+                    </span>
+                </div>
             </div>
 
             <!-- Payment Summary Content -->
@@ -1245,6 +1353,11 @@ const convertNumberToWords = (num) => {
                         }}
                     </p>
                 </div>
+
+                <!-- Pagination -->
+                <div v-if="allPayments.length > 0" class="mt-6">
+                    <Pagination :data="props.enrollmentPayments" />
+                </div>
             </div>
 
             <!-- Payment Details Modal -->
@@ -1736,14 +1849,33 @@ const convertNumberToWords = (num) => {
                                                 <div>
                                                     <label
                                                         class="block text-sm font-medium text-gray-700"
-                                                        >Amount</label
+                                                        >Amount
+                                                        <span
+                                                            class="text-red-500"
+                                                            >*</span
+                                                        ></label
                                                     >
                                                     <input
                                                         v-model="fee.amount"
                                                         type="number"
                                                         step="0.01"
+                                                        required
                                                         class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                                        :class="{
+                                                            'border-red-500':
+                                                                !fee.amount &&
+                                                                receiptModalErrors.amount,
+                                                        }"
                                                     />
+                                                    <p
+                                                        v-if="
+                                                            !fee.amount &&
+                                                            receiptModalErrors.amount
+                                                        "
+                                                        class="mt-1 text-sm text-red-600"
+                                                    >
+                                                        Amount is required
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

@@ -6,17 +6,19 @@ import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const props = defineProps({
-    trainees: Array,
+    trainees: [Object, Array], // Support both pagination object and legacy array
     programs: Array,
+    filters: Object,
 });
 
-// Sample data - replace with real data from backend
-const searchQuery = ref("");
-const selectedProgram = ref("All Programs");
+// Initialize from props filters
+const searchQuery = ref(props.filters?.search || "");
+const selectedProgram = ref(props.filters?.program || "All Programs");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
@@ -41,16 +43,33 @@ const getTrainerNames = (assignedTrainers) => {
     return `${assignedTrainers[0]} +${assignedTrainers.length - 1} more`;
 };
 
+// Helper function to get the actual trainees data (handles both paginated and non-paginated)
+const getTraineesData = () => {
+    return props.trainees?.data || props.trainees || [];
+};
+
+// Helper function to find a trainee by ID
+const findTraineeById = (id) => {
+    const traineesData = getTraineesData();
+    return traineesData.find((t) => t.id === id);
+};
+
 // Process trainees data to match the expected format
-const traineesList = ref(
-    props.trainees?.map((trainee) => ({
+const traineesList = computed(() => {
+    const traineesData = props.trainees?.data || props.trainees;
+
+    if (!traineesData || !Array.isArray(traineesData)) {
+        return [];
+    }
+
+    return traineesData.map((trainee) => ({
         id: trainee.id, // Keep original ID for key purposes
         uli_number: trainee.uli_number || "Not assigned",
         name: `${trainee.first_name} ${trainee.last_name}`,
         trainer: getTrainerNames(trainee.assigned_trainers),
         enrollmentDate: trainee.entry_date
             ? new Date(trainee.entry_date).toLocaleDateString()
-            : new Date().toLocaleDateString(),
+            : "Not assigned",
         status: trainee.status
             ? trainee.status.charAt(0).toUpperCase() + trainee.status.slice(1)
             : "Active",
@@ -62,8 +81,8 @@ const traineesList = ref(
             trainee.last_name?.charAt(0) || ""
         }`,
         program: trainee.program_qualification,
-    })) || []
-);
+    }));
+});
 
 const exportData = () => {
     // TODO: Implement export functionality
@@ -84,7 +103,7 @@ const onTraineeSubmitted = () => {
 
 const viewTrainee = (trainee) => {
     // Find the actual trainee data from props
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
     showDetailsModal.value = true;
 };
@@ -92,7 +111,7 @@ const viewTrainee = (trainee) => {
 const editTrainee = (trainee) => {
     // For now, we'll reuse the registration modal for editing
     // Find the actual trainee data from props
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
     // TODO: Implement edit modal or redirect to edit page
     router.visit(`/officer/trainees/${trainee.id}/edit`);
@@ -100,7 +119,7 @@ const editTrainee = (trainee) => {
 
 const viewEnrollmentHistory = (trainee) => {
     // Find the actual trainee data from props
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     if (actualTrainee) {
         router.visit(
             route("officer.trainees.enrollment-history", actualTrainee.id)
@@ -111,7 +130,7 @@ const viewEnrollmentHistory = (trainee) => {
 const deleteTrainee = (trainee) => {
     // Double check if trainee can be deleted
     if (!canDeleteTrainee(trainee)) {
-        const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+        const actualTrainee = findTraineeById(trainee.id);
         const status = actualTrainee?.status || trainee.status || "active";
         const paymentStatus =
             actualTrainee?.payment_status || trainee.payment_status || "unpaid";
@@ -159,7 +178,7 @@ const handleEditFromDetails = (trainee) => {
 
 // Status change functionality
 const changeStatus = (trainee) => {
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
     statusForm.value.status = actualTrainee.status;
     showStatusModal.value = true;
@@ -196,7 +215,7 @@ const confirmStatusChange = () => {
 
 // Helper function to check if trainee status can be changed
 const canChangeStatus = (trainee) => {
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     const paymentStatus =
         actualTrainee?.payment_status || trainee.payment_status || "unpaid";
@@ -218,7 +237,7 @@ const canChangeStatus = (trainee) => {
 // Helper function to check if trainee can be deleted
 const canDeleteTrainee = (trainee) => {
     // Find the actual trainee data from props to get the real status
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     const paymentStatus =
         actualTrainee?.payment_status || trainee.payment_status || "unpaid";
@@ -229,45 +248,46 @@ const canDeleteTrainee = (trainee) => {
 
 // Helper function to get trainee status for display
 const getTraineeStatus = (trainee) => {
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
 // Helper function to get the actual status value (lowercase)
 const getTraineeActualStatus = (trainee) => {
-    const actualTrainee = props.trainees.find((t) => t.id === trainee.id);
+    const actualTrainee = findTraineeById(trainee.id);
     return actualTrainee?.status || trainee.status || "active";
 };
 
-// Computed property for filtered trainees
-const filteredTrainees = computed(() => {
-    let filtered = traineesList.value;
+// Server-side filtering is now handled by the backend
+// This computed property is kept for backward compatibility
+const filteredTrainees = computed(() => traineesList.value);
 
-    // Filter by program
-    if (selectedProgram.value !== "All Programs") {
-        filtered = filtered.filter(
-            (trainee) => trainee.program === selectedProgram.value
-        );
-    }
+// Debounced search function
+let searchTimeout;
+const performSearch = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.visit(route("officer.trainees"), {
+            data: {
+                search: searchQuery.value,
+                program: selectedProgram.value,
+                per_page: props.filters?.per_page || 20,
+            },
+            preserveState: true,
+            replace: true,
+        });
+    }, 300);
+};
 
-    // Filter by search query
-    if (searchQuery.value) {
-        filtered = filtered.filter(
-            (trainee) =>
-                trainee.name
-                    .toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                trainee.uli_number
-                    .toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                trainee.program
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase())
-        );
-    }
+// Watch for search changes
+watch(searchQuery, () => {
+    performSearch();
+});
 
-    return filtered;
+// Watch for program filter changes
+watch(selectedProgram, () => {
+    performSearch();
 });
 </script>
 
@@ -329,7 +349,9 @@ const filteredTrainees = computed(() => {
             >
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Trainees ({{ filteredTrainees.length }})
+                        All Trainees ({{
+                            trainees?.meta?.total || traineesList.length
+                        }})
                     </h2>
                     <div class="relative">
                         <input
@@ -701,6 +723,9 @@ const filteredTrainees = computed(() => {
                         </button>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <Pagination v-if="traineesList.length > 0" :data="trainees" />
             </div>
         </div>
 

@@ -21,11 +21,7 @@ const emit = defineEmits(["close", "submitted"]);
 const form = useForm({
     assessment_date: "",
     trainer_id: "",
-    assessment_fee: "0",
-    payment_status: "pending",
-    payment_method: "",
-    payment_reference: "",
-    payment_notes: "Re-assessment - payment required",
+    assessment_fee: "",
 });
 
 const submit = () => {
@@ -55,6 +51,14 @@ watch(
             // Set default assessment date to today when opening
             const today = new Date();
             form.assessment_date = today.toISOString().split("T")[0];
+
+            // Set default assessment fee - use original assessment fee or standard re-assessment fee
+            // Re-assessments are not free (scholars only get exemption for first attempt)
+            const defaultFee =
+                props.assessment?.assessment_fee > 0
+                    ? props.assessment.assessment_fee
+                    : "";
+            form.assessment_fee = defaultFee.toString();
         }
     }
 );
@@ -219,10 +223,10 @@ const isScholar = computed(() => {
                     </div>
                 </div>
 
-                <!-- Payment Information -->
-                <div class="bg-red-50 rounded-lg p-4">
+                <!-- Assessment Fee -->
+                <div class="bg-blue-50 rounded-lg p-4">
                     <h3
-                        class="text-md font-semibold text-red-900 mb-3 flex items-center gap-2"
+                        class="text-md font-semibold text-blue-900 mb-3 flex items-center gap-2"
                     >
                         <svg
                             class="w-5 h-5"
@@ -237,7 +241,7 @@ const isScholar = computed(() => {
                                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
                             />
                         </svg>
-                        Payment Required for Re-assessment
+                        Assessment Fee Information
                     </h3>
 
                     <div
@@ -247,114 +251,33 @@ const isScholar = computed(() => {
                         <p class="text-orange-800 text-sm">
                             <strong>Note:</strong> Scholar exemption only
                             applies to the first assessment attempt.
-                            Re-assessments require payment regardless of
-                            scholarship status.
+                            Re-assessments require payment which will be handled
+                            by the cashier.
                         </p>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Assessment Fee -->
-                        <div>
-                            <InputLabel
-                                for="assessment_fee"
-                                value="Assessment Fee *"
-                            />
-                            <TextInput
-                                id="assessment_fee"
-                                v-model="form.assessment_fee"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="mt-1 block w-full"
-                                required
-                            />
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.assessment_fee"
-                            />
-                        </div>
-
-                        <!-- Payment Status -->
-                        <div>
-                            <InputLabel
-                                for="payment_status"
-                                value="Payment Status *"
-                            />
-                            <select
-                                id="payment_status"
-                                v-model="form.payment_status"
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                required
-                            >
-                                <option value="pending">Pending</option>
-                                <option value="paid">Paid</option>
-                            </select>
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_status"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Payment Details (shown when paid) -->
-                    <div
-                        v-if="form.payment_status === 'paid'"
-                        class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"
-                    >
-                        <!-- Payment Method -->
-                        <div>
-                            <InputLabel
-                                for="payment_method"
-                                value="Payment Method *"
-                            />
-                            <TextInput
-                                id="payment_method"
-                                v-model="form.payment_method"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="e.g., Cash, GCash, Bank Transfer"
-                                required
-                            />
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_method"
-                            />
-                        </div>
-
-                        <!-- Payment Reference -->
-                        <div>
-                            <InputLabel
-                                for="payment_reference"
-                                value="Payment Reference"
-                            />
-                            <TextInput
-                                id="payment_reference"
-                                v-model="form.payment_reference"
-                                type="text"
-                                class="mt-1 block w-full"
-                                placeholder="Transaction ID, Receipt #"
-                            />
-                            <InputError
-                                class="mt-2"
-                                :message="form.errors.payment_reference"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Payment Notes -->
                     <div class="mt-4">
-                        <InputLabel for="payment_notes" value="Payment Notes" />
-                        <textarea
-                            id="payment_notes"
-                            v-model="form.payment_notes"
-                            rows="2"
-                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            placeholder="Additional payment information..."
-                        ></textarea>
+                        <InputLabel
+                            for="assessment_fee"
+                            value="Assessment Fee Amount *"
+                        />
+                        <TextInput
+                            id="assessment_fee"
+                            v-model="form.assessment_fee"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="mt-1 block w-full"
+                            required
+                        />
                         <InputError
                             class="mt-2"
-                            :message="form.errors.payment_notes"
+                            :message="form.errors.assessment_fee"
                         />
+                        <p class="text-xs text-gray-500 mt-1">
+                            This amount will be used for cashier payment
+                            processing
+                        </p>
                     </div>
                 </div>
 

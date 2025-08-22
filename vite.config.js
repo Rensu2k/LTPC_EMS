@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
                 input: "resources/js/app.js",
                 // Allow disabling auto-refresh during remote HTTPS testing
                 refresh: env.VITE_LARAVEL_REFRESH !== "false",
+                // Ensure proper asset URL handling
+                buildDirectory: "build",
             }),
             vue({
                 template: {
@@ -26,6 +28,15 @@ export default defineConfig(({ mode }) => {
             chunkSizeWarningLimit: 1000,
             // Enable minification
             minify: "esbuild",
+            // Ensure assets are built with proper URLs
+            assetsDir: "assets",
+            rollupOptions: {
+                output: {
+                    assetFileNames: "assets/[name]-[hash][extname]",
+                    chunkFileNames: "assets/[name]-[hash].js",
+                    entryFileNames: "assets/[name]-[hash].js",
+                },
+            },
         },
         optimizeDeps: {
             include: ["vue", "@inertiajs/vue3"],

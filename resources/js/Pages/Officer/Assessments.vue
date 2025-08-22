@@ -7,13 +7,15 @@ import AssessmentRegistrationModal from "@/Components/AssessmentRegistrationModa
 import AssessmentDetailsModal from "@/Components/AssessmentDetailsModal.vue";
 import AssessmentReassessmentModal from "@/Components/AssessmentReassessmentModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { useNotifications } from "@/composables/useNotifications";
 
 const props = defineProps({
-    assessments: Array,
+    assessments: [Object, Array], // Support both pagination object and legacy array
     programs: Array,
     trainees: Array,
     trainers: Array,
+    filters: Object,
     flash: Object,
 });
 
@@ -30,9 +32,9 @@ watch(
     { deep: true, immediate: true }
 );
 
-const searchQuery = ref("");
-const selectedType = ref("All Types");
-const selectedStatus = ref("All Status");
+const searchQuery = ref(props.filters?.search || "");
+const selectedType = ref(props.filters?.type || "All Types");
+const selectedStatus = ref(props.filters?.status || "All Status");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showReassessmentModal = ref(false);
@@ -41,9 +43,26 @@ const selectedAssessment = ref(null);
 const processing = ref(false);
 const assessmentErrors = ref({});
 
+// Helper function to get the actual assessments data (handles both paginated and non-paginated)
+const getAssessmentsData = () => {
+    return props.assessments?.data || props.assessments || [];
+};
+
+// Helper function to find an assessment by ID
+const findAssessmentById = (id) => {
+    const assessmentsData = getAssessmentsData();
+    return assessmentsData.find((a) => a.id === id);
+};
+
 // Process assessments data
-const assessmentsList = ref(
-    props.assessments?.map((assessment) => ({
+const assessmentsList = computed(() => {
+    const assessmentsData = props.assessments?.data || props.assessments;
+
+    if (!assessmentsData || !Array.isArray(assessmentsData)) {
+        return [];
+    }
+
+    return assessmentsData.map((assessment) => ({
         id: assessment.id,
         title: assessment.title,
         description: assessment.description,
@@ -53,7 +72,9 @@ const assessmentsList = ref(
         result_status: assessment.result_status,
         result_color: assessment.result_color,
         can_be_reassessed: assessment.can_be_reassessed,
+        requires_reenrollment: assessment.requires_reenrollment,
         program_name: assessment.program_name,
+        program_id: assessment.program_id,
         applicant_name: assessment.applicant_name,
         applicant_type: assessment.applicant_type,
         trainer_name: assessment.trainer_name,
@@ -64,8 +85,12 @@ const assessmentsList = ref(
         payment_status: assessment.payment_status,
         payment_required: assessment.payment_required,
         payment_completed: assessment.payment_completed,
-    })) || []
-);
+        attempt_number: assessment.attempt_number,
+        trainee: assessment.trainee,
+        original_assessment_for_history:
+            assessment.original_assessment_for_history,
+    }));
+});
 
 function getGrade(percentage) {
     if (percentage >= 90) return "A";
@@ -78,6 +103,18 @@ function getGrade(percentage) {
 // Check if assessment is graded (based on status)
 function isGraded(assessment) {
     return assessment.status === "completed";
+}
+
+// Check if assessment payment is completed
+function isPaid(assessment) {
+    return assessment.payment_status === "paid";
+}
+
+// Check if assessment can be deleted
+function isDeletable(assessment) {
+    return assessment.is_deletable !== undefined
+        ? assessment.is_deletable
+        : !isGraded(assessment) && !isPaid(assessment);
 }
 
 const addAssessment = () => {
@@ -102,9 +139,7 @@ const onReassessmentSubmitted = () => {
 };
 
 const viewAssessment = (assessment) => {
-    const actualAssessment = props.assessments.find(
-        (a) => a.id === assessment.id
-    );
+    const actualAssessment = findAssessmentById(assessment.id);
     selectedAssessment.value = actualAssessment;
     showDetailsModal.value = true;
 };
@@ -121,9 +156,15 @@ const editAssessment = (assessment) => {
 
 const reassessment = (assessment) => {
     if (!assessment.can_be_reassessed) {
-        notifications.warning(
-            "This assessment cannot be re-assessed. Only assessments with 'Not Yet Competent' or 'Absent' results can be re-assessed."
-        );
+        if (assessment.requires_reenrollment) {
+            notifications.warning(
+                "Maximum of 3 assessment attempts reached. The applicant must re-enroll in the program to take the assessment again."
+            );
+        } else {
+            notifications.warning(
+                "This assessment cannot be re-assessed. Either the assessment result is already competent, or there is already a pending re-assessment scheduled."
+            );
+        }
         return;
     }
     selectedAssessment.value = assessment;
@@ -131,10 +172,18 @@ const reassessment = (assessment) => {
 };
 
 const deleteAssessment = (assessment) => {
-    if (isGraded(assessment)) {
-        notifications.warning(
-            "Cannot delete finalized assessments. This assessment has already been graded."
-        );
+    if (!isDeletable(assessment)) {
+        if (isGraded(assessment)) {
+            notifications.warning(
+                "Cannot delete finalized assessments. This assessment has already been graded."
+            );
+        } else if (isPaid(assessment)) {
+            notifications.warning(
+                "Cannot delete paid assessments. This assessment payment has already been processed."
+            );
+        } else {
+            notifications.warning("This assessment cannot be deleted.");
+        }
         return;
     }
     selectedAssessment.value = assessment;
@@ -183,6 +232,13 @@ const handleReassessmentFromDetails = (assessment) => {
     reassessment(assessment);
 };
 
+const viewAssessmentHistory = (assessment) => {
+    // Use the original assessment ID for history navigation
+    const originalId =
+        assessment.original_assessment_for_history || assessment.id;
+    router.visit(`/officer/assessments/${originalId}/assessment-history`);
+};
+
 // Computed property for filtered assessments
 const filteredAssessments = computed(() => {
     let filtered = assessmentsList.value;
@@ -226,6 +282,37 @@ const filteredAssessments = computed(() => {
 const exportData = () => {
     // TODO: Implement export functionality
 };
+
+// Debounced search function
+let searchTimeout;
+const performSearch = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.visit(route("officer.assessments"), {
+            data: {
+                search: searchQuery.value,
+                status: selectedStatus.value,
+                program: selectedType.value,
+                per_page: props.filters?.per_page || 20,
+            },
+            preserveState: true,
+            replace: true,
+        });
+    }, 300);
+};
+
+// Watch for search and filter changes
+watch(searchQuery, () => {
+    performSearch();
+});
+
+watch(selectedStatus, () => {
+    performSearch();
+});
+
+watch(selectedType, () => {
+    performSearch();
+});
 </script>
 
 <template>
@@ -286,7 +373,9 @@ const exportData = () => {
             >
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Assessments ({{ filteredAssessments.length }})
+                        All Assessments ({{
+                            assessments?.meta?.total || assessmentsList.length
+                        }})
                     </h2>
                     <div class="relative">
                         <input
@@ -358,11 +447,6 @@ const exportData = () => {
                                 <th
                                     class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
-                                    Assessment
-                                </th>
-                                <th
-                                    class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
                                     Applicant
                                 </th>
                                 <th
@@ -409,26 +493,6 @@ const exportData = () => {
                                 :key="assessment.id"
                                 class="hover:bg-gray-50"
                             >
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div>
-                                        <div
-                                            class="text-sm font-medium text-gray-900"
-                                        >
-                                            {{ assessment.title }}
-                                        </div>
-                                        <div
-                                            class="text-sm text-gray-500"
-                                            v-if="assessment.description"
-                                        >
-                                            {{
-                                                assessment.description.substring(
-                                                    0,
-                                                    50
-                                                )
-                                            }}...
-                                        </div>
-                                    </div>
-                                </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
@@ -502,12 +566,24 @@ const exportData = () => {
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div v-if="assessment.result">
+                                    <div
+                                        v-if="assessment.result"
+                                        class="flex flex-col gap-1"
+                                    >
                                         <span
                                             :class="assessment.result_color"
-                                            class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                            class="inline-flex px-2 py-1 text-xs font-semibold rounded-full w-fit"
                                         >
                                             {{ assessment.result_status }}
+                                        </span>
+                                        <span
+                                            v-if="
+                                                assessment.requires_reenrollment
+                                            "
+                                            class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 w-fit"
+                                            title="Maximum attempts reached - re-enrollment required"
+                                        >
+                                            Re-enrollment Required
                                         </span>
                                     </div>
                                     <div v-else class="text-gray-400 text-sm">
@@ -586,6 +662,10 @@ const exportData = () => {
                                             </svg>
                                         </button>
                                         <button
+                                            v-if="
+                                                assessment.status !==
+                                                'completed'
+                                            "
                                             @click="editAssessment(assessment)"
                                             :class="{
                                                 'text-blue-600 hover:text-blue-900 cursor-pointer':
@@ -637,18 +717,49 @@ const exportData = () => {
                                         </button>
                                         <button
                                             @click="
+                                                viewAssessmentHistory(
+                                                    assessment
+                                                )
+                                            "
+                                            class="text-purple-600 hover:text-purple-900 p-2 rounded"
+                                            title="View Assessment History"
+                                        >
+                                            <svg
+                                                class="h-6 w-6 md:h-7 md:w-7"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            v-if="
+                                                assessment.status !==
+                                                'completed'
+                                            "
+                                            @click="
                                                 deleteAssessment(assessment)
                                             "
                                             :class="{
                                                 'text-red-600 hover:text-red-900 cursor-pointer':
-                                                    !isGraded(assessment),
+                                                    isDeletable(assessment),
                                                 'text-gray-400 cursor-not-allowed':
-                                                    isGraded(assessment),
+                                                    !isDeletable(assessment),
                                             }"
-                                            :disabled="isGraded(assessment)"
+                                            :disabled="!isDeletable(assessment)"
                                             :title="
-                                                isGraded(assessment)
-                                                    ? 'Cannot delete finalized assessment'
+                                                !isDeletable(assessment)
+                                                    ? isGraded(assessment)
+                                                        ? 'Cannot delete finalized assessment'
+                                                        : isPaid(assessment)
+                                                        ? 'Cannot delete paid assessment'
+                                                        : 'Cannot delete this assessment'
                                                     : 'Delete'
                                             "
                                             class="p-2 rounded"
@@ -724,6 +835,12 @@ const exportData = () => {
                         </button>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <Pagination
+                    v-if="assessmentsList.length > 0"
+                    :data="assessments"
+                />
             </div>
         </div>
 

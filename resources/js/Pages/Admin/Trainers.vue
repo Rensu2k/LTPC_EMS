@@ -3,12 +3,14 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TrainerRegistrationModal from "@/Components/TrainerRegistrationModal.vue";
 import TrainerDetailsModal from "@/Components/TrainerDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { Head, router, usePage } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const props = defineProps({
-    trainers: Array,
+    trainers: Object, // Changed from Array to Object to support pagination
     programs: Array,
+    filters: Object, // Added filters prop
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -21,10 +23,61 @@ const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedTrainer = ref(null);
 const processing = ref(false);
+const perPage = ref(props.filters?.per_page || 10);
+
+// Add search functionality
+const performSearch = () => {
+    router.get(
+        route("admin.trainers"),
+        {
+            search: searchQuery.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+    return searchQuery.value;
+});
+
+// Clear filters functionality
+const clearFilters = () => {
+    searchQuery.value = "";
+    performSearch();
+};
+
+// Add change per page functionality
+const changePerPage = () => {
+    performSearch();
+};
+
+// Watch for search query changes and trigger search automatically
+let searchTimeout = null;
+watch(searchQuery, (newQuery, oldQuery) => {
+    // Clear previous timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    // If query hasn't changed significantly, don't search
+    if (newQuery === oldQuery) return;
+
+    // Debounce search to avoid too many requests
+    searchTimeout = setTimeout(() => {
+        performSearch();
+    }, 500); // 500ms delay
+});
 
 // Process trainers data to match the expected format
 const trainersList = ref(
-    props.trainers?.map((trainer) => ({
+    props.trainers?.data?.map((trainer) => ({
         id: trainer.id,
         name: trainer.full_name,
         expertise: trainer.expertise,
@@ -44,24 +97,14 @@ const trainersList = ref(
     })) || []
 );
 
-// Computed property for filtered trainers - this provides automatic reactivity
+// Computed property for filtered trainers - using backend search results
 const filteredTrainers = computed(() => {
-    if (!searchQuery.value) {
+    // Use pagination data if available, otherwise use processed trainers list
+    if (props.trainers?.data) {
+        return props.trainers.data;
+    } else {
         return trainersList.value;
     }
-
-    return trainersList.value.filter(
-        (trainer) =>
-            trainer.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise_string
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.email
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    );
 });
 
 const addTrainer = () => {
@@ -79,7 +122,7 @@ const onTrainerSubmitted = () => {
 
 const viewTrainer = (trainer) => {
     // Find the actual trainer data from props
-    const actualTrainer = props.trainers.find((t) => t.id === trainer.id);
+    const actualTrainer = props.trainers.data.find((t) => t.id === trainer.id);
     selectedTrainer.value = actualTrainer;
     showDetailsModal.value = true;
 };
@@ -178,20 +221,39 @@ const handleEditFromDetails = (trainer) => {
                     </div>
                 </div>
 
-                <!-- Search Section -->
+                <!-- Search and Filters Section -->
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="flex justify-between items-center">
+                    <!-- Title Section -->
+                    <div class="mb-4">
                         <h2 class="text-xl font-semibold text-green-900">
-                            All Trainers ({{ filteredTrainers.length }})
+                            All Trainers
+                            <span
+                                v-if="trainers && trainers.total"
+                                class="text-gray-600"
+                            >
+                                ({{ trainers.total }})
+                            </span>
                         </h2>
+                    </div>
+
+                    <!-- Search and Items per Page Row -->
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"
+                    >
                         <div class="relative">
+                            <label
+                                for="search"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Search Trainers</label
+                            >
                             <input
+                                id="search"
                                 v-model="searchQuery"
                                 type="text"
-                                placeholder="Search trainers..."
-                                class="pl-10 pr-4 py-2 border-2 border-transparent rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300 w-80 transition-all"
+                                placeholder="Search by name, email, or phone..."
+                                class="pl-10 pr-4 py-2 border-2 border-transparent rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300 w-full transition-all"
                             />
                             <svg
                                 class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -206,6 +268,96 @@ const handleEditFromDetails = (trainer) => {
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                                 />
                             </svg>
+                        </div>
+                        <div class="relative">
+                            <label
+                                for="per_page"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Items per page</label
+                            >
+                            <select
+                                id="per_page"
+                                v-model="perPage"
+                                @change="changePerPage"
+                                class="block w-full border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters Button Row -->
+                    <div class="flex justify-end mt-2">
+                        <button
+                            v-if="hasActiveFilters"
+                            @click="clearFilters"
+                            class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                            Clear Filters
+                        </button>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    <div
+                        v-if="hasActiveFilters"
+                        class="mt-4 pt-4 border-t border-gray-200"
+                    >
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm text-gray-600"
+                                >Active filters:</span
+                            >
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span
+                                v-if="searchQuery"
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                                Search: "{{ searchQuery }}"
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div
+                    v-if="trainers && trainers.data && trainers.data.length > 0"
+                    class="px-6 py-3 bg-white border-b border-gray-200"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{
+                                trainers.from || 0
+                            }}</span>
+                            to
+                            <span class="font-medium">{{
+                                trainers.to || 0
+                            }}</span>
+                            of
+                            <span class="font-medium">{{
+                                trainers.total || 0
+                            }}</span>
+                            results
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Page {{ trainers.current_page || 1 }} of
+                            {{ trainers.last_page || 1 }}
                         </div>
                     </div>
                 </div>
@@ -439,9 +591,23 @@ const handleEditFromDetails = (trainer) => {
                         </tbody>
                     </table>
 
+                    <!-- Pagination -->
+                    <Pagination
+                        v-if="
+                            trainers &&
+                            trainers.data &&
+                            trainers.data.length > 0
+                        "
+                        :data="trainers"
+                    />
+
                     <!-- Empty State -->
                     <div
-                        v-if="filteredTrainers.length === 0"
+                        v-if="
+                            !trainers ||
+                            !trainers.data ||
+                            trainers.data.length === 0
+                        "
                         class="p-8 text-center bg-gradient-to-br from-white to-green-50"
                     >
                         <svg

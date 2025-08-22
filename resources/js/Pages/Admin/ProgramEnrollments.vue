@@ -63,6 +63,39 @@ const filteredEnrollments = computed(() => {
     return filtered;
 });
 
+// Percentage calculations for filtered results
+const completionPercentage = computed(() => {
+    if (filteredEnrollments.value.length === 0) return 0;
+    const completed = filteredEnrollments.value.filter(
+        (e) => e.status === "completed"
+    ).length;
+    return Math.round((completed / filteredEnrollments.value.length) * 100);
+});
+
+const activePercentage = computed(() => {
+    if (filteredEnrollments.value.length === 0) return 0;
+    const active = filteredEnrollments.value.filter(
+        (e) => e.status === "active"
+    ).length;
+    return Math.round((active / filteredEnrollments.value.length) * 100);
+});
+
+const droppedPercentage = computed(() => {
+    if (filteredEnrollments.value.length === 0) return 0;
+    const dropped = filteredEnrollments.value.filter(
+        (e) => e.status === "dropped"
+    ).length;
+    return Math.round((dropped / filteredEnrollments.value.length) * 100);
+});
+
+const pendingPercentage = computed(() => {
+    if (filteredEnrollments.value.length === 0) return 0;
+    const pending = filteredEnrollments.value.filter(
+        (e) => e.status === "pending"
+    ).length;
+    return Math.round((pending / filteredEnrollments.value.length) * 100);
+});
+
 const getStatusColor = (status) => {
     const colors = {
         active: "bg-green-100 text-green-800",
@@ -119,25 +152,31 @@ const exportToPDF = () => {
     // Add summary statistics
     doc.setFontSize(10);
     doc.text(`Total Enrollments: ${filteredEnrollments.value.length}`, 14, 42);
+
+    const completedCount = filteredEnrollments.value.filter(
+        (e) => e.status === "completed"
+    ).length;
+    const activeCount = filteredEnrollments.value.filter(
+        (e) => e.status === "active"
+    ).length;
+    const droppedCount = filteredEnrollments.value.filter(
+        (e) => e.status === "dropped"
+    ).length;
+    const pendingCount = filteredEnrollments.value.filter(
+        (e) => e.status === "pending"
+    ).length;
+
     doc.text(
-        `Completed: ${
-            filteredEnrollments.value.filter((e) => e.status === "completed")
-                .length
-        }`,
+        `Completed: ${completedCount} (${completionPercentage.value}%)`,
         14,
         50
     );
-    doc.text(
-        `Dropped: ${
-            filteredEnrollments.value.filter((e) => e.status === "dropped")
-                .length
-        }`,
-        14,
-        58
-    );
+    doc.text(`Active: ${activeCount} (${activePercentage.value}%)`, 14, 58);
+    doc.text(`Dropped: ${droppedCount} (${droppedPercentage.value}%)`, 14, 66);
+    doc.text(`Pending: ${pendingCount} (${pendingPercentage.value}%)`, 14, 74);
 
     // Create a simple table without autotable
-    let yPosition = 70;
+    let yPosition = 86;
     const lineHeight = 8;
     const pageHeight = 280;
     let currentPage = 1;
@@ -225,33 +264,32 @@ const exportToExcel = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
 
+    // Calculate counts for summary
+    const totalCount = filteredEnrollments.value.length;
+    const completedCount = filteredEnrollments.value.filter(
+        (e) => e.status === "completed"
+    ).length;
+    const activeCount = filteredEnrollments.value.filter(
+        (e) => e.status === "active"
+    ).length;
+    const droppedCount = filteredEnrollments.value.filter(
+        (e) => e.status === "dropped"
+    ).length;
+    const pendingCount = filteredEnrollments.value.filter(
+        (e) => e.status === "pending"
+    ).length;
+
     // Add summary information at the top
     const summaryData = [
         ["Program:", props.program?.name],
         ["Report Date:", new Date().toLocaleDateString()],
         [""],
         ["Summary Statistics:"],
-        ["Total Enrollments:", filteredEnrollments.value.length],
-        [
-            "Completed:",
-            filteredEnrollments.value.filter((e) => e.status === "completed")
-                .length,
-        ],
-        [
-            "Dropped:",
-            filteredEnrollments.value.filter((e) => e.status === "dropped")
-                .length,
-        ],
-        [
-            "Active:",
-            filteredEnrollments.value.filter((e) => e.status === "active")
-                .length,
-        ],
-        [
-            "Pending:",
-            filteredEnrollments.value.filter((e) => e.status === "pending")
-                .length,
-        ],
+        ["Total Enrollments:", totalCount],
+        ["Completed:", `${completedCount} (${completionPercentage.value}%)`],
+        ["Active:", `${activeCount} (${activePercentage.value}%)`],
+        ["Dropped:", `${droppedCount} (${droppedPercentage.value}%)`],
+        ["Pending:", `${pendingCount} (${pendingPercentage.value}%)`],
         [""],
     ];
 
@@ -485,7 +523,7 @@ const exportToExcel = () => {
                             <h4 class="text-sm font-medium text-blue-900 mb-2">
                                 Filtered Results Summary
                             </h4>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div class="text-center">
                                     <div
                                         class="text-2xl font-bold text-blue-600"
@@ -497,31 +535,55 @@ const exportToExcel = () => {
                                     </div>
                                 </div>
                                 <div class="text-center">
-                                    <div
-                                        class="text-2xl font-bold text-green-600"
-                                    >
-                                        {{
-                                            filteredEnrollments.filter(
-                                                (e) => e.status === "completed"
-                                            ).length
-                                        }}
-                                    </div>
-                                    <div class="text-xs text-green-700">
-                                        Completed
+                                    <div class="flex flex-col items-center">
+                                        <div
+                                            class="text-2xl font-bold text-green-600"
+                                        >
+                                            {{
+                                                filteredEnrollments.filter(
+                                                    (e) =>
+                                                        e.status === "completed"
+                                                ).length
+                                            }}
+                                        </div>
+                                        <div class="text-xs text-green-700">
+                                            Completed ({{
+                                                completionPercentage
+                                            }}%)
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="text-center">
-                                    <div
-                                        class="text-2xl font-bold text-red-600"
-                                    >
-                                        {{
-                                            filteredEnrollments.filter(
-                                                (e) => e.status === "dropped"
-                                            ).length
-                                        }}
+                                    <div class="flex flex-col items-center">
+                                        <div
+                                            class="text-2xl font-bold text-orange-600"
+                                        >
+                                            {{
+                                                filteredEnrollments.filter(
+                                                    (e) => e.status === "active"
+                                                ).length
+                                            }}
+                                        </div>
+                                        <div class="text-xs text-orange-700">
+                                            Active ({{ activePercentage }}%)
+                                        </div>
                                     </div>
-                                    <div class="text-xs text-red-700">
-                                        Dropped
+                                </div>
+                                <div class="text-center">
+                                    <div class="flex flex-col items-center">
+                                        <div
+                                            class="text-2xl font-bold text-red-600"
+                                        >
+                                            {{
+                                                filteredEnrollments.filter(
+                                                    (e) =>
+                                                        e.status === "dropped"
+                                                ).length
+                                            }}
+                                        </div>
+                                        <div class="text-xs text-red-700">
+                                            Dropped ({{ droppedPercentage }}%)
+                                        </div>
                                     </div>
                                 </div>
                             </div>

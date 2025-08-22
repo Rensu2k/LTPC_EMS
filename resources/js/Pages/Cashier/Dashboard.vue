@@ -1,7 +1,8 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed, watch } from "vue";
+import Pagination from "@/Components/Pagination.vue";
 
 // Define props to receive data from backend
 const props = defineProps({
@@ -17,7 +18,7 @@ const props = defineProps({
         }),
     },
     paymentStatus: {
-        type: Array,
+        type: [Object, Array], // Support both pagination object and legacy array
         default: () => [],
     },
     paymentSummaries: {
@@ -28,6 +29,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 // Convert props to reactive refs for template usage
@@ -35,6 +40,11 @@ const stats = ref(props.stats);
 const paymentStatus = ref(props.paymentStatus);
 const paymentSummaries = ref(props.paymentSummaries);
 const recentActivities = ref(props.recentActivities);
+
+// Get payment status data with pagination support
+const paymentStatusData = computed(() => {
+    return props.paymentStatus?.data || props.paymentStatus || [];
+});
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-PH", {
@@ -282,7 +292,7 @@ const generateReport = (period) => {
                                 </p>
                                 <p class="text-2xl font-bold text-orange-600">
                                     {{
-                                        paymentStatus.filter((p) =>
+                                        paymentStatusData.filter((p) =>
                                             p.id.startsWith("REG-")
                                         ).length
                                     }}
@@ -320,7 +330,7 @@ const generateReport = (period) => {
                                 </p>
                                 <p class="text-2xl font-bold text-blue-600">
                                     {{
-                                        paymentStatus.filter((p) =>
+                                        paymentStatusData.filter((p) =>
                                             p.id.startsWith("ENR-")
                                         ).length
                                     }}
@@ -358,7 +368,7 @@ const generateReport = (period) => {
                                 </p>
                                 <p class="text-2xl font-bold text-purple-600">
                                     {{
-                                        paymentStatus.filter((p) =>
+                                        paymentStatusData.filter((p) =>
                                             p.id.startsWith("ASS-")
                                         ).length
                                     }}
@@ -390,9 +400,54 @@ const generateReport = (period) => {
             <!-- Payment Status Section -->
             <div class="mb-8 animate-fade-in">
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-900">
-                        Recent Payment Status
-                    </h2>
+                    <div>
+                        <!-- task: make a pagination even if the items does not exceed the per page -->
+                        <h2 class="text-xl font-bold text-gray-900">
+                            Recent Payment Status
+                        </h2>
+                        <!-- Results Count -->
+                        <div class="mt-2 text-sm text-gray-600">
+                            <span
+                                v-if="props.paymentStatus?.meta?.total"
+                                class="font-medium text-blue-600"
+                            >
+                                📊 Showing
+                                {{
+                                    (props.paymentStatus.meta.current_page -
+                                        1) *
+                                        props.paymentStatus.meta.per_page +
+                                    1
+                                }}
+                                to
+                                {{
+                                    Math.min(
+                                        props.paymentStatus.meta.current_page *
+                                            props.paymentStatus.meta.per_page,
+                                        props.paymentStatus.meta.total
+                                    )
+                                }}
+                                of {{ props.paymentStatus.meta.total }} results
+                                (Page
+                                {{ props.paymentStatus.meta.current_page }} of
+                                {{ props.paymentStatus.meta.last_page }})
+                            </span>
+                            <span v-else class="text-gray-500">
+                                📋 {{ paymentStatusData.length }} payments found
+                                (no pagination)
+                            </span>
+                        </div>
+
+                        <!-- Debug Info (remove this later) -->
+                        <div class="mt-1 text-xs text-gray-400">
+                            <span v-if="props.paymentStatus?.meta">
+                                Debug: Per page:
+                                {{ props.paymentStatus.meta.per_page }},
+                                Current:
+                                {{ props.paymentStatus.meta.current_page }},
+                                Total: {{ props.paymentStatus.meta.total }}
+                            </span>
+                        </div>
+                    </div>
                     <div class="flex items-center space-x-4 flex-wrap">
                         <div class="flex items-center">
                             <div
@@ -433,8 +488,29 @@ const generateReport = (period) => {
                     </div>
                 </div>
 
+                <!-- Pagination Status Banner -->
                 <div
-                    v-if="paymentStatus.length === 0"
+                    v-if="props.paymentStatus?.meta?.total"
+                    class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-blue-600">🔢</span>
+                            <span class="text-sm font-medium text-blue-800">
+                                Pagination Active:
+                                {{ props.paymentStatus.meta.current_page }} of
+                                {{ props.paymentStatus.meta.last_page }} pages
+                            </span>
+                        </div>
+                        <div class="text-xs text-blue-600">
+                            {{ props.paymentStatus.meta.per_page }} items per
+                            page
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    v-if="paymentStatusData.length === 0"
                     class="bg-white rounded-xl shadow-sm p-12 border border-gray-100 text-center"
                 >
                     <svg
@@ -470,7 +546,7 @@ const generateReport = (period) => {
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                     <div
-                        v-for="payment in paymentStatus"
+                        v-for="payment in paymentStatusData"
                         :key="payment.id"
                         class="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
                         :class="
@@ -592,6 +668,17 @@ const generateReport = (period) => {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Pagination for Payment Status -->
+            <div
+                v-if="
+                    paymentStatusData.length > 0 &&
+                    props.paymentStatus?.meta?.last_page > 1
+                "
+                class="mb-8"
+            >
+                <Pagination :data="paymentStatus" />
             </div>
 
             <!-- Payment Summaries -->

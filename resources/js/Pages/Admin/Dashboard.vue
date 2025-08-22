@@ -352,30 +352,42 @@ const getActivityTypeLabel = (type) => {
                                 Regular trainees only
                             </p>
                         </div>
-                        <div class="p-6 space-y-3">
+                            <div class="p-6 space-y-4">
                             <div
-                                class="flex items-center justify-between text-sm"
+                                class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
                             >
-                                <span class="text-gray-600"
-                                    >Training Payments</span
-                                >
-                                <span class="font-medium text-green-600"
-                                    >{{ paymentSummary.paid_training }} paid,
-                                    {{ paymentSummary.pending_training }}
-                                    pending</span
-                                >
+                                <div>
+                                    <div class="font-medium text-green-900">
+                                        Training Payments
+                                    </div>
+                                    <div class="text-sm text-green-600">
+                                        Enrollment and tuition fees
+                                    </div>
+                                </div>
+                                <div class="text-2xl font-bold text-green-900">
+                                    {{ paymentSummary.paid_training }}/{{
+                                        paymentSummary.paid_training +
+                                        paymentSummary.pending_training
+                                    }}
+                                </div>
                             </div>
                             <div
-                                class="flex items-center justify-between text-sm"
+                                class="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
                             >
-                                <span class="text-gray-600"
-                                    >Assessment Payments</span
-                                >
-                                <span class="font-medium text-green-600"
-                                    >{{ paymentSummary.paid_assessment }} paid,
-                                    {{ paymentSummary.pending_assessment }}
-                                    pending</span
-                                >
+                                <div>
+                                    <div class="font-medium text-blue-900">
+                                        Assessment Payments
+                                    </div>
+                                    <div class="text-sm text-blue-600">
+                                        Certification and evaluation fees
+                                    </div>
+                                </div>
+                                <div class="text-2xl font-bold text-blue-900">
+                                    {{ paymentSummary.paid_assessment }}/{{
+                                        paymentSummary.paid_assessment +
+                                        paymentSummary.pending_assessment
+                                    }}
+                                </div>
                             </div>
                         </div>
                     </div>

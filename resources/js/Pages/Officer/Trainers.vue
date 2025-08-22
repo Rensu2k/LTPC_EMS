@@ -3,24 +3,43 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TrainerRegistrationModal from "@/Components/TrainerRegistrationModal.vue";
 import TrainerDetailsModal from "@/Components/TrainerDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const props = defineProps({
-    trainers: Array,
+    trainers: [Object, Array], // Support both pagination object and legacy array
     programs: Array,
+    filters: Object,
 });
 
-const searchQuery = ref("");
+const searchQuery = ref(props.filters?.search || "");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
 const selectedTrainer = ref(null);
 const processing = ref(false);
 
+// Helper function to get the actual trainers data (handles both paginated and non-paginated)
+const getTrainersData = () => {
+    return props.trainers?.data || props.trainers || [];
+};
+
+// Helper function to find a trainer by ID
+const findTrainerById = (id) => {
+    const trainersData = getTrainersData();
+    return trainersData.find((t) => t.id === id);
+};
+
 // Process trainers data to match the expected format
-const trainersList = ref(
-    props.trainers?.map((trainer) => ({
+const trainersList = computed(() => {
+    const trainersData = props.trainers?.data || props.trainers;
+
+    if (!trainersData || !Array.isArray(trainersData)) {
+        return [];
+    }
+
+    return trainersData.map((trainer) => ({
         id: trainer.id,
         name: trainer.full_name,
         expertise: trainer.expertise,
@@ -37,28 +56,12 @@ const trainersList = ref(
                 .map((n) => n[0])
                 .join("") || "",
         status: trainer.status,
-    })) || []
-);
-
-// Computed property for filtered trainers - this provides automatic reactivity
-const filteredTrainers = computed(() => {
-    if (!searchQuery.value) {
-        return trainersList.value;
-    }
-
-    return trainersList.value.filter(
-        (trainer) =>
-            trainer.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.expertise_string
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            trainer.email
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    );
+    }));
 });
+
+// Server-side filtering is now handled by the backend
+// This computed property is kept for backward compatibility
+const filteredTrainers = computed(() => trainersList.value);
 
 const addTrainer = () => {
     showRegistrationModal.value = true;
@@ -75,7 +78,7 @@ const onTrainerSubmitted = () => {
 
 const viewTrainer = (trainer) => {
     // Find the actual trainer data from props
-    const actualTrainer = props.trainers.find((t) => t.id === trainer.id);
+    const actualTrainer = findTrainerById(trainer.id);
     selectedTrainer.value = actualTrainer;
     showDetailsModal.value = true;
 };
@@ -122,6 +125,27 @@ const handleEditFromDetails = (trainer) => {
     closeDetailsModal();
     editTrainer(trainer);
 };
+
+// Debounced search function
+let searchTimeout;
+const performSearch = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.visit(route("officer.trainers"), {
+            data: {
+                search: searchQuery.value,
+                per_page: props.filters?.per_page || 20,
+            },
+            preserveState: true,
+            replace: true,
+        });
+    }, 300);
+};
+
+// Watch for search changes
+watch(searchQuery, () => {
+    performSearch();
+});
 </script>
 
 <template>
@@ -163,7 +187,9 @@ const handleEditFromDetails = (trainer) => {
             >
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Trainers ({{ filteredTrainers.length }})
+                        All Trainers ({{
+                            trainers?.meta?.total || trainersList.length
+                        }})
                     </h2>
                     <div class="relative">
                         <input
@@ -478,6 +504,9 @@ const handleEditFromDetails = (trainer) => {
                         </button>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <Pagination v-if="trainersList.length > 0" :data="trainers" />
             </div>
         </div>
 

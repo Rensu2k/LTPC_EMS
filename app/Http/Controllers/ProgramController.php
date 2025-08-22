@@ -12,9 +12,24 @@ class ProgramController extends Controller
     /**
      * Display a listing of the resource for officers.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $programs = Program::latest()->get()->map(function ($program) {
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        $search = $request->get('search', '');
+
+        $query = Program::query();
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $programs = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($program) {
             return [
                 'program_id' => $program->program_id,
                 'name' => $program->name,
@@ -46,36 +61,57 @@ class ProgramController extends Controller
             ];
         });
 
+
+
         return Inertia::render('Officer/Programs', [
             'programs' => $programs,
-            'trainers' => $trainers
+            'trainers' => $trainers,
+            'filters' => [
+                'search' => $search,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 
     /**
      * Display a listing of the resource for admin.
      */
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        $programs = Program::latest()->get()->map(function ($program) {
-            return [
-                'program_id' => $program->program_id,
-                'name' => $program->name,
-                'description' => $program->description,
-                'duration' => $program->duration,
-                'prerequisites' => $program->prerequisites,
-                'enrollment_fee' => $program->enrollment_fee,
-                'status' => $program->status,
-                'created_at' => $program->created_at,
-                'assigned_trainers' => $program->assigned_trainers,
-                // Additional status counts
-                'enrollments' => $program->total_enrollment_count, // All enrollments (active, completed, dropped, etc.)
-                'total_trainees' => $program->total_trainees_count,
-                'completed_trainees' => $program->completed_trainees_count,
-                'dropped_trainees' => $program->dropped_trainees_count,
-                'pending_trainees' => $program->pending_trainees_count,
-            ];
-        });
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        $search = $request->get('search', '');
+
+        $query = Program::query();
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        $programs = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($program) {
+                return [
+                    'program_id' => $program->program_id,
+                    'name' => $program->name,
+                    'description' => $program->description,
+                    'duration' => $program->duration,
+                    'prerequisites' => $program->prerequisites,
+                    'enrollment_fee' => $program->enrollment_fee,
+                    'status' => $program->status,
+                    'created_at' => $program->created_at,
+                    'assigned_trainers' => $program->assigned_trainers,
+                    // Additional status counts
+                    'enrollments' => $program->total_enrollment_count, // All enrollments (active, completed, dropped, etc.)
+                    'total_trainees' => $program->total_trainees_count,
+                    'completed_trainees' => $program->completed_trainees_count,
+                    'dropped_trainees' => $program->dropped_trainees_count,
+                    'pending_trainees' => $program->pending_trainees_count,
+                ];
+            });
 
         $trainers = Trainer::where('status', 'active')->get()->map(function ($trainer) {
             return [
@@ -88,7 +124,11 @@ class ProgramController extends Controller
 
         return Inertia::render('Admin/Programs', [
             'programs' => $programs,
-            'trainers' => $trainers
+            'trainers' => $trainers,
+            'filters' => [
+                'search' => $search,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 

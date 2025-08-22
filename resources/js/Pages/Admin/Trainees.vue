@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, useForm, router, usePage } from "@inertiajs/vue3";
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
@@ -10,14 +10,16 @@ import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import InputError from "@/Components/InputError.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 const props = defineProps({
-    trainees: Array,
+    trainees: Object, // Changed from Array to Object to support pagination
     programs: Array,
     flash: Object,
+    filters: Object, // Added filters prop
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -27,20 +29,23 @@ const showModal = ref(false);
 const showDeleteModal = ref(false);
 const editingTrainee = ref(null);
 const deletingTrainee = ref(null);
-const searchQuery = ref("");
-const selectedProgram = ref("");
-const selectedEnrollmentType = ref("");
-const selectedStatus = ref("");
-const dateFrom = ref("");
-const dateTo = ref("");
+const searchQuery = ref(props.filters?.search || "");
+const selectedProgram = ref(props.filters?.program || "");
+const selectedStatus = ref(props.filters?.status || "");
+const selectedEnrollmentType = ref(props.filters?.enrollment_type || "");
+const dateFrom = ref(props.filters?.date_from || "");
+const dateTo = ref(props.filters?.date_to || "");
+const perPage = ref(props.filters?.per_page || 10);
+const showFilters = ref(false);
 
 const clearFilters = () => {
     searchQuery.value = "";
     selectedProgram.value = "";
-    selectedEnrollmentType.value = "";
     selectedStatus.value = "";
+    selectedEnrollmentType.value = "";
     dateFrom.value = "";
     dateTo.value = "";
+    performSearch();
 };
 
 const hasActiveFilters = computed(() => {
@@ -69,7 +74,7 @@ const form = useForm({
 });
 
 const filteredTrainees = computed(() => {
-    let filtered = props.trainees || [];
+    let filtered = props.trainees?.data || [];
 
     if (searchQuery.value) {
         filtered = filtered.filter(
@@ -98,14 +103,10 @@ const filteredTrainees = computed(() => {
     }
 
     if (selectedEnrollmentType.value) {
-        filtered = filtered.filter((trainee) => {
-            if (selectedEnrollmentType.value === "regular") {
-                return !trainee.scholarship_package;
-            } else if (selectedEnrollmentType.value === "scholar") {
-                return !!trainee.scholarship_package;
-            }
-            return true;
-        });
+        filtered = filtered.filter(
+            (trainee) =>
+                trainee.enrollment_type === selectedEnrollmentType.value
+        );
     }
 
     if (selectedStatus.value) {
@@ -114,27 +115,56 @@ const filteredTrainees = computed(() => {
         );
     }
 
-    if (dateFrom.value || dateTo.value) {
-        filtered = filtered.filter((trainee) => {
-            const enrolledDate = trainee.actual_enrollment_date
-                ? new Date(trainee.actual_enrollment_date)
-                : null;
-            const fromDate = dateFrom.value ? new Date(dateFrom.value) : null;
-            const toDate = dateTo.value ? new Date(dateTo.value) : null;
-            if (!enrolledDate) return false;
-            if (fromDate && toDate) {
-                return enrolledDate >= fromDate && enrolledDate <= toDate;
-            } else if (fromDate) {
-                return enrolledDate >= fromDate;
-            } else if (toDate) {
-                return enrolledDate <= toDate;
-            }
-            return true;
-        });
+    if (dateFrom.value) {
+        filtered = filtered.filter(
+            (trainee) => trainee.entry_date >= dateFrom.value
+        );
+    }
+
+    if (dateTo.value) {
+        filtered = filtered.filter(
+            (trainee) => trainee.entry_date <= dateTo.value
+        );
     }
 
     return filtered;
 });
+
+// Add search functionality
+const performSearch = () => {
+    router.get(
+        route("admin.trainees"),
+        {
+            search: searchQuery.value,
+            program: selectedProgram.value,
+            status: selectedStatus.value,
+            enrollment_type: selectedEnrollmentType.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+// Add change per page functionality
+const changePerPage = () => {
+    performSearch();
+};
+
+// Watch for filter changes and trigger search
+watch(
+    [selectedProgram, selectedStatus, selectedEnrollmentType, dateFrom, dateTo],
+    () => {
+        performSearch();
+    },
+    { deep: true }
+);
 
 const statusOptions = [
     { value: "", label: "All Statuses" },
@@ -152,6 +182,26 @@ const summaryStats = computed(() => {
         active: trainees.filter((t) => t.status === "active").length,
         completed: trainees.filter((t) => t.status === "completed").length,
         dropped: trainees.filter((t) => t.status === "dropped").length,
+    };
+});
+
+// Percentage calculations for filtered results
+const traineePercentages = computed(() => {
+    const stats = summaryStats.value;
+    const total = stats.total;
+
+    if (total === 0) {
+        return {
+            active: 0,
+            completed: 0,
+            dropped: 0,
+        };
+    }
+
+    return {
+        active: Math.round((stats.active / total) * 100),
+        completed: Math.round((stats.completed / total) * 100),
+        dropped: Math.round((stats.dropped / total) * 100),
     };
 });
 
@@ -245,9 +295,23 @@ const exportToPDF = () => {
     // Add summary statistics
     doc.setFontSize(10);
     doc.text(`Total Trainees: ${summaryStats.value.total}`, 14, 42);
-    doc.text(`Active: ${summaryStats.value.active}`, 14, 50);
-    doc.text(`Completed: ${summaryStats.value.completed}`, 14, 58);
-    doc.text(`Dropped: ${summaryStats.value.dropped}`, 14, 66);
+
+    const percentages = traineePercentages.value;
+    doc.text(
+        `Active: ${summaryStats.value.active} (${percentages.active}%)`,
+        14,
+        50
+    );
+    doc.text(
+        `Completed: ${summaryStats.value.completed} (${percentages.completed}%)`,
+        14,
+        58
+    );
+    doc.text(
+        `Dropped: ${summaryStats.value.dropped} (${percentages.dropped}%)`,
+        14,
+        66
+    );
 
     // Create a simple table without autotable
     let yPosition = 80;
@@ -320,65 +384,103 @@ const exportToPDF = () => {
 };
 
 const exportToExcel = () => {
-    // Prepare data for Excel
-    const excelData = filteredTrainees.value.map((trainee) => ({
-        "Full Name": `${trainee.first_name || ""} ${trainee.last_name || ""}`,
-        "ULI Number": trainee.uli_number || "N/A",
-        Email: trainee.email || "N/A",
-        "Contact Number": trainee.phone || "N/A",
-        Program: trainee.program_qualification || "N/A",
-        "Assigned Trainer(s)":
-            trainee.assigned_trainers && trainee.assigned_trainers.length > 0
-                ? trainee.assigned_trainers.join(", ")
-                : "Not Assigned",
-        Status: trainee.status,
-        "Date Enrolled": trainee.actual_enrollment_date
-            ? formatDate(trainee.actual_enrollment_date)
-            : "N/A",
-        "Enrollment Type": trainee.scholarship_package ? "Scholar" : "Regular",
-        Address: trainee.address || "N/A",
-    }));
+    const trainees = filteredTrainees.value;
+    const programs = [
+        ...new Set(
+            trainees.map((t) => t.program_qualification).filter(Boolean)
+        ),
+    ];
+
+    // Create empty table with just column headers (no data rows)
+    // Add a single empty row to ensure column headers are created
+    const excelData = [
+        {
+            Program: "",
+            "Type of Training": "",
+            "RQM/SECTOR": "",
+            "Training Period": "",
+            "Regular Amount": "",
+            "TWSP Billed Amount": "",
+            "TWSP Amount": "",
+            "OR #": "",
+            "Date Collected": "",
+            "Age 18-30": "",
+            Female: "",
+            Male: "",
+            Started: "",
+            Finished: "",
+            "% Finished": "",
+            "Assessors Name": "",
+            "Assessment Date": "",
+            "Assessment Fee": "",
+            "OR No.": "",
+            "Assessment Date Collected": "",
+            "Assessment Female": "",
+            "Assessment Male": "",
+            Assessed: "",
+            "Age 18 - 30 (Assessed)": "",
+            "Absent / Did not take": "",
+            "Not yet Competent": "",
+            "Competent after Assessment": "",
+            Employed: "",
+            "Self Employed": "",
+            Unemployed: "",
+            "Age 18 - 30 (Employed)": "",
+            "Employment Update": "",
+            "TOTAL EMPLOYED": "",
+            Remarks: "",
+        },
+    ];
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Add summary information at the top
-    const summaryData = [
-        ["Report Date:", new Date().toLocaleDateString()],
-        [""],
-        ["Summary Statistics:"],
-        ["Total Trainees:", summaryStats.value.total],
-        ["Active:", summaryStats.value.active],
-        ["Completed:", summaryStats.value.completed],
-        ["Dropped:", summaryStats.value.dropped],
-        [""],
-    ];
-
-    // Insert summary data at the beginning
-    XLSX.utils.sheet_add_aoa(ws, summaryData, { origin: "A1" });
-
-    // Adjust column widths
+    // Adjust column widths for better readability
     const colWidths = [
-        { wch: 25 }, // Full Name
-        { wch: 15 }, // ULI Number
-        { wch: 30 }, // Email
-        { wch: 15 }, // Contact Number
         { wch: 25 }, // Program
-        { wch: 30 }, // Assigned Trainer(s)
-        { wch: 12 }, // Status
-        { wch: 15 }, // Date Enrolled
-        { wch: 15 }, // Enrollment Type
-        { wch: 40 }, // Address
+        { wch: 20 }, // Type of Training
+        { wch: 15 }, // RQM/SECTOR
+        { wch: 15 }, // Training Period
+        { wch: 15 }, // Regular amount
+        { wch: 18 }, // TWSP Billed Amount
+        { wch: 15 }, // TWSP Amount
+        { wch: 10 }, // OR #
+        { wch: 15 }, // Date Collected
+        { wch: 12 }, // Age 18-30
+        { wch: 10 }, // Female
+        { wch: 10 }, // Male
+        { wch: 10 }, // Started
+        { wch: 10 }, // Finished
+        { wch: 12 }, // % Finished
+        { wch: 20 }, // Assessors Name
+        { wch: 15 }, // Assessment Date
+        { wch: 15 }, // Assessment Fee
+        { wch: 10 }, // OR No.
+        { wch: 22 }, // Assessment Date Collected
+        { wch: 16 }, // Assessment Female
+        { wch: 14 }, // Assessment Male
+        { wch: 12 }, // Assessed
+        { wch: 20 }, // Age 18 - 30 (Assessed)
+        { wch: 20 }, // Absent / Did not take
+        { wch: 18 }, // Not yet Competent
+        { wch: 25 }, // Competent after Assessment
+        { wch: 12 }, // Employed
+        { wch: 15 }, // Self Employed
+        { wch: 12 }, // Unemployed
+        { wch: 20 }, // Age 18 - 30 (Employed)
+        { wch: 18 }, // Employment Update
+        { wch: 15 }, // TOTAL EMPLOYED
+        { wch: 20 }, // Remarks
     ];
     ws["!cols"] = colWidths;
 
     // Add the worksheet to the workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Trainees");
+    XLSX.utils.book_append_sheet(wb, ws, "Training Report");
 
     // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
-    const filename = `trainees_report_${timestamp}.xlsx`;
+    const filename = `training_program_report_${timestamp}.xlsx`;
 
     // Save the Excel file
     XLSX.writeFile(wb, filename);
@@ -443,8 +545,9 @@ const getEnrollmentTypeColor = (type) => {
                 <div
                     class="p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200"
                 >
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="relative">
+                    <!-- Search and Toggle Row -->
+                    <div class="flex items-end gap-4 mb-4">
+                        <div class="flex-1">
                             <InputLabel for="search" value="Search Trainees" />
                             <TextInput
                                 id="search"
@@ -452,8 +555,37 @@ const getEnrollmentTypeColor = (type) => {
                                 type="text"
                                 placeholder="Search by name or email..."
                                 class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300"
+                                @keyup.enter="performSearch"
                             />
                         </div>
+                        <div class="flex items-end gap-2">
+                            <SecondaryButton
+                                @click="showFilters = !showFilters"
+                                class="flex items-center gap-2"
+                            >
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"
+                                    />
+                                </svg>
+                                {{ showFilters ? "Hide" : "Show" }} Filters
+                            </SecondaryButton>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Filters -->
+                    <div
+                        v-if="showFilters"
+                        class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200"
+                    >
                         <div>
                             <InputLabel
                                 for="program-filter"
@@ -505,8 +637,27 @@ const getEnrollmentTypeColor = (type) => {
                                 </option>
                             </select>
                         </div>
+                        <div>
+                            <InputLabel for="per_page" value="Items per page" />
+                            <select
+                                id="per_page"
+                                v-model="perPage"
+                                @change="changePerPage"
+                                class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
+                            >
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+
+                    <!-- Date Range Filters -->
+                    <div
+                        v-if="showFilters"
+                        class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200"
+                    >
                         <div>
                             <InputLabel
                                 for="date-from"
@@ -531,10 +682,10 @@ const getEnrollmentTypeColor = (type) => {
                                 class="mt-1 block w-full"
                             />
                         </div>
-                        <div class="flex items-end gap-2 mt-6">
+                        <div class="flex items-end gap-2">
                             <SecondaryButton
-                                v-if="hasActiveFilters"
                                 @click="clearFilters"
+                                v-if="hasActiveFilters"
                                 class="flex items-center gap-2 text-red-600 hover:text-red-700"
                             >
                                 <svg
@@ -554,62 +705,61 @@ const getEnrollmentTypeColor = (type) => {
                             </SecondaryButton>
                         </div>
                     </div>
-                    <div
-                        v-if="hasActiveFilters"
-                        class="flex flex-wrap gap-2 pt-2"
-                    >
-                        <span class="text-sm text-gray-600"
-                            >Active filters:</span
-                        >
-                        <span
-                            v-if="searchQuery"
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                            Search: "{{ searchQuery }}"
-                        </span>
-                        <span
-                            v-if="selectedProgram"
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                        >
-                            Program:
-                            {{
-                                programs.find(
-                                    (p) => p.program_id == selectedProgram
-                                )?.name || selectedProgram
-                            }}
-                        </span>
-                        <span
-                            v-if="selectedEnrollmentType"
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
-                        >
-                            Type:
-                            {{
-                                selectedEnrollmentType.charAt(0).toUpperCase() +
-                                selectedEnrollmentType.slice(1)
-                            }}
-                        </span>
-                        <span
-                            v-if="selectedStatus"
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
-                        >
-                            Status:
-                            {{
-                                statusOptions.find(
-                                    (s) => s.value == selectedStatus
-                                )?.label || selectedStatus
-                            }}
-                        </span>
-                        <span
-                            v-if="dateFrom || dateTo"
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                        >
-                            Date: {{ dateFrom || "Any" }} -
-                            {{ dateTo || "Any" }}
-                        </span>
-                    </div>
                 </div>
 
-                <!-- Results Summary -->
+                <!-- Active Filters Display -->
+                <div
+                    v-if="hasActiveFilters && showFilters"
+                    class="flex flex-wrap gap-2 pt-4 border-t border-gray-200"
+                >
+                    <span class="text-sm text-gray-600">Active filters:</span>
+                    <span
+                        v-if="searchQuery"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                        Search: "{{ searchQuery }}"
+                    </span>
+                    <span
+                        v-if="selectedProgram"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                        Program:
+                        {{
+                            programs.find(
+                                (p) => p.program_id == selectedProgram
+                            )?.name || selectedProgram
+                        }}
+                    </span>
+                    <span
+                        v-if="selectedEnrollmentType"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                    >
+                        Type:
+                        {{
+                            selectedEnrollmentType.charAt(0).toUpperCase() +
+                            selectedEnrollmentType.slice(1)
+                        }}
+                    </span>
+                    <span
+                        v-if="selectedStatus"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+                    >
+                        Status:
+                        {{
+                            statusOptions.find((s) => s.value == selectedStatus)
+                                ?.label || selectedStatus
+                        }}
+                    </span>
+                    <span
+                        v-if="dateFrom || dateTo"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                    >
+                        Date: {{ dateFrom || "Any" }} -
+                        {{ dateTo || "Any" }}
+                    </span>
+                </div>
+
+                <!-- Summary Stats and Export Buttons -->
                 <div
                     v-if="hasActiveFilters"
                     class="p-4 border-b border-gray-200 bg-gray-50"
@@ -627,29 +777,54 @@ const getEnrollmentTypeColor = (type) => {
                                 </p>
                             </div>
                             <div class="text-center">
-                                <p class="text-2xl font-bold text-green-600">
-                                    {{ summaryStats.active }}
-                                </p>
-                                <p class="text-sm text-gray-600">Active</p>
+                                <div class="flex flex-col items-center">
+                                    <p
+                                        class="text-2xl font-bold text-green-600"
+                                    >
+                                        {{ summaryStats.active }}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        Active ({{
+                                            traineePercentages.active
+                                        }}%)
+                                    </p>
+                                </div>
                             </div>
                             <div class="text-center">
-                                <p class="text-2xl font-bold text-blue-600">
-                                    {{ summaryStats.completed }}
-                                </p>
-                                <p class="text-sm text-gray-600">Completed</p>
+                                <div class="flex flex-col items-center">
+                                    <p class="text-2xl font-bold text-blue-600">
+                                        {{ summaryStats.completed }}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        Completed ({{
+                                            traineePercentages.completed
+                                        }}%)
+                                    </p>
+                                </div>
                             </div>
                             <div class="text-center">
-                                <p class="text-2xl font-bold text-red-600">
-                                    {{ summaryStats.dropped }}
-                                </p>
-                                <p class="text-sm text-gray-600">Dropped</p>
+                                <div class="flex flex-col items-center">
+                                    <p class="text-2xl font-bold text-red-600">
+                                        {{ summaryStats.dropped }}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        Dropped ({{
+                                            traineePercentages.dropped
+                                        }}%)
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="text-right">
                                 <p class="text-sm text-gray-600">
                                     Showing {{ summaryStats.total }} of
-                                    {{ props.trainees.length }} trainees
+                                    {{
+                                        props.trainees?.data?.length ||
+                                        props.trainees?.length ||
+                                        0
+                                    }}
+                                    trainees
                                 </p>
                             </div>
                             <div class="flex gap-2">
@@ -692,6 +867,34 @@ const getEnrollmentTypeColor = (type) => {
                                     Export Excel
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Summary -->
+                <div
+                    v-if="trainees && trainees.data && trainees.data.length > 0"
+                    class="px-6 py-3 bg-white border-b border-gray-200"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{
+                                trainees.from || 0
+                            }}</span>
+                            to
+                            <span class="font-medium">{{
+                                trainees.to || 0
+                            }}</span>
+                            of
+                            <span class="font-medium">{{
+                                trainees.total || 0
+                            }}</span>
+                            results
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            Page {{ trainees.current_page || 1 }} of
+                            {{ trainees.last_page || 1 }}
                         </div>
                     </div>
                 </div>
@@ -913,8 +1116,22 @@ const getEnrollmentTypeColor = (type) => {
                         </tbody>
                     </table>
 
+                    <!-- Pagination -->
+                    <Pagination
+                        v-if="
+                            trainees &&
+                            trainees.data &&
+                            trainees.data.length > 0
+                        "
+                        :data="trainees"
+                    />
+
                     <div
-                        v-if="filteredTrainees.length === 0"
+                        v-if="
+                            !trainees ||
+                            !trainees.data ||
+                            trainees.data.length === 0
+                        "
                         class="p-8 text-center bg-gradient-to-br from-white to-green-50"
                     >
                         <div class="text-gray-500">

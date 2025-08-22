@@ -150,6 +150,38 @@
                         </p>
                     </div>
 
+                    <!-- Scholarship Status for New Enrollment -->
+                    <div v-if="traineeHasScholarship">
+                        <InputLabel
+                            for="maintain_scholarship"
+                            value="Scholarship Status"
+                        />
+                        <div class="mt-1 space-y-2">
+                            <label class="flex items-center">
+                                <input
+                                    v-model="form.maintain_scholarship"
+                                    type="checkbox"
+                                    class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                />
+                                <span class="ml-2 text-sm text-gray-700">
+                                    Maintain
+                                    {{
+                                        trainee.scholarship_package
+                                    }}
+                                    scholarship for this program
+                                </span>
+                            </label>
+                        </div>
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.maintain_scholarship"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Uncheck if the trainee should pay full fees for this
+                            new program enrollment
+                        </p>
+                    </div>
+
                     <!-- Enrollment Fee Override -->
                     <div>
                         <InputLabel
@@ -176,6 +208,17 @@
                         <p v-if="isScholar" class="text-xs text-green-600 mt-1">
                             ⭐ Fee automatically set to ₱0 due to
                             {{ trainee.scholarship_package }} scholarship
+                            (maintained for this program)
+                        </p>
+                        <p
+                            v-else-if="
+                                traineeHasScholarship &&
+                                !form.maintain_scholarship
+                            "
+                            class="text-xs text-orange-600 mt-1"
+                        >
+                            💰 Scholarship not maintained - standard program
+                            fees will apply
                         </p>
                         <p v-else class="text-xs text-gray-500 mt-1">
                             Leave blank to use the program's default enrollment
@@ -263,14 +306,20 @@ const form = useForm({
     batch: "",
     enrollment_fee: "",
     notes: "",
+    maintain_scholarship: true, // Default to maintaining scholarship
 });
 
-// Check if trainee is a scholar
-const isScholar = computed(() => {
+// Check if trainee has scholarship package in their profile
+const traineeHasScholarship = computed(() => {
     return (
         props.trainee?.scholarship_package &&
         props.trainee.scholarship_package.trim() !== ""
     );
+});
+
+// Check if scholarship should be applied for this enrollment
+const isScholar = computed(() => {
+    return traineeHasScholarship.value && form.maintain_scholarship;
 });
 
 // Enhanced programs with display text for SearchableSelect
@@ -281,12 +330,26 @@ const enhancedPrograms = computed(() => {
     }));
 });
 
-// Auto-set fee to 0 for scholars
+// Auto-set fee to 0 for scholars or reset when scholarship is disabled
 watch(
     () => isScholar.value,
     (newValue) => {
         if (newValue) {
             form.enrollment_fee = "0";
+        } else if (traineeHasScholarship.value && !form.maintain_scholarship) {
+            // Reset fee to empty when scholarship is unchecked
+            form.enrollment_fee = "";
+        }
+    }
+);
+
+// Initialize scholarship checkbox when modal opens
+watch(
+    () => props.show,
+    (newValue) => {
+        if (newValue && traineeHasScholarship.value) {
+            form.maintain_scholarship = true; // Default to maintaining scholarship
+            form.enrollment_fee = "0"; // Set fee to 0 initially for scholars
         }
     }
 );
@@ -315,6 +378,7 @@ watch(
             form.reset();
             form.clearErrors();
         }
-    }
+    },
+    { flush: "post" } // Ensure this runs after the initialization watcher
 );
 </script>

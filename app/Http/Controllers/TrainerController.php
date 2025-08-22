@@ -12,9 +12,33 @@ class TrainerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $trainers = Trainer::latest()->get()->map(function ($trainer) {
+        $perPage = $request->get('per_page', 20); // Default to 20 items per page
+        $search = $request->get('search', '');
+        $expertise = $request->get('expertise', '');
+
+        // Build the query
+        $query = Trainer::query();
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('expertise_string', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply expertise filter if provided
+        if ($expertise && $expertise !== 'All Expertise') {
+            $query->whereJsonContains('expertise', $expertise);
+        }
+
+        // Get paginated results
+        $trainers = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($trainer) {
             return [
                 'id' => $trainer->id,
                 'full_name' => $trainer->full_name,
@@ -39,7 +63,12 @@ class TrainerController extends Controller
         
         return Inertia::render('Officer/Trainers', [
             'trainers' => $trainers,
-            'programs' => $programs
+            'programs' => $programs,
+            'filters' => [
+                'search' => $search,
+                'expertise' => $expertise,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 
@@ -152,34 +181,68 @@ class TrainerController extends Controller
     /**
      * Admin methods for trainer management
      */
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        $trainers = Trainer::latest()->get()->map(function ($trainer) {
-            return [
-                'id' => $trainer->id,
-                'full_name' => $trainer->full_name,
-                'expertise' => $trainer->expertise,
-                'expertise_string' => $trainer->expertise_string,
-                'email' => $trainer->email,
-                'phone' => $trainer->phone,
-                'biography' => $trainer->biography,
-                'availability_schedule' => $trainer->availability_schedule,
-                'status' => $trainer->status,
-                'active_programs_count' => $trainer->active_programs_count,
-                'total_trainees_count' => $trainer->total_trainees_count,
-                'active_trainees_count' => $trainer->active_trainees_count,
-                'completed_trainees_count' => $trainer->completed_trainees_count,
-                'assigned_programs' => $trainer->assigned_programs,
-                'created_at' => $trainer->created_at,
-                'updated_at' => $trainer->updated_at,
-            ];
-        });
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        $search = $request->get('search', '');
+        $expertise = $request->get('expertise', '');
+        $status = $request->get('status', '');
+
+        $query = Trainer::query();
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('expertise_string', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply expertise filter if provided
+        if ($expertise && $expertise !== 'All Expertise') {
+            $query->whereJsonContains('expertise', $expertise);
+        }
+
+        // Apply status filter if provided
+        if ($status && $status !== 'All Statuses') {
+            $query->where('status', $status);
+        }
+
+        $trainers = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($trainer) {
+                return [
+                    'id' => $trainer->id,
+                    'full_name' => $trainer->full_name,
+                    'expertise' => $trainer->expertise,
+                    'expertise_string' => $trainer->expertise_string,
+                    'email' => $trainer->email,
+                    'phone' => $trainer->phone,
+                    'biography' => $trainer->biography,
+                    'availability_schedule' => $trainer->availability_schedule,
+                    'status' => $trainer->status,
+                    'active_programs_count' => $trainer->active_programs_count,
+                    'total_trainees_count' => $trainer->total_trainees_count,
+                    'active_trainees_count' => $trainer->active_trainees_count,
+                    'completed_trainees_count' => $trainer->completed_trainees_count,
+                    'assigned_programs' => $trainer->assigned_programs,
+                    'created_at' => $trainer->created_at,
+                    'updated_at' => $trainer->updated_at,
+                ];
+            });
         
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'description', 'duration']);
         
         return Inertia::render('Admin/Trainers', [
             'trainers' => $trainers,
-            'programs' => $programs
+            'programs' => $programs,
+            'filters' => [
+                'search' => $search,
+                'expertise' => $expertise,
+                'status' => $status,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 

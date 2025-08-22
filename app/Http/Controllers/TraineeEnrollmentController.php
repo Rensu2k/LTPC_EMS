@@ -58,7 +58,8 @@ class TraineeEnrollmentController extends Controller
             'program_id' => 'required|string|exists:programs,program_id',
             'batch' => 'nullable|integer|min:1',
             'enrollment_fee' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
+            'maintain_scholarship' => 'nullable|boolean'
         ]);
 
         try {
@@ -84,7 +85,8 @@ class TraineeEnrollmentController extends Controller
             $enrollment = $trainee->enrollInProgram(
                 $validated['program_id'],
                 $assignedBatch,
-                $validated['enrollment_fee'] ?? null
+                $validated['enrollment_fee'] ?? null,
+                $validated['maintain_scholarship'] ?? null
             );
 
             // Add any additional notes
@@ -96,8 +98,12 @@ class TraineeEnrollmentController extends Controller
             if ($assignedBatch > $program->current_batch - 1 && $program->getCurrentBatchEnrollmentCount() >= 25) {
                 $message .= ". Previous batch was full (25 trainees), enrolled in next available batch.";
             }
-            if ($trainee->scholarship_package) {
-                $message .= " (Fee exempted due to scholarship)";
+            
+            // Add scholarship message based on the choice made
+            if ($trainee->scholarship_package && ($validated['maintain_scholarship'] ?? true)) {
+                $message .= " (Fee exempted - scholarship maintained)";
+            } elseif ($trainee->scholarship_package && !($validated['maintain_scholarship'] ?? true)) {
+                $message .= " (Standard fees apply - scholarship not maintained for this program)";
             }
 
             return redirect()->back()->with('success', $message);

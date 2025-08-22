@@ -10,12 +10,40 @@ use Inertia\Inertia;
 
 class EmploymentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $employments = Employment::with(['trainee', 'assessment'])
-            ->latest()
-            ->get()
-            ->map(function ($employment) {
+        $perPage = $request->get('per_page', 10); // Default to 10 items per page
+        $search = $request->get('search', '');
+        $status = $request->get('status', '');
+        $company = $request->get('company', '');
+
+        $query = Employment::with(['trainee', 'assessment']);
+
+        // Apply search filter if provided
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('company_name', 'like', "%{$search}%")
+                  ->orWhere('position_title', 'like', "%{$search}%")
+                  ->orWhereHas('trainee', function ($traineeQuery) use ($search) {
+                      $traineeQuery->where('first_name', 'like', "%{$search}%")
+                                  ->orWhere('last_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Apply status filter if provided
+        if ($status && $status !== 'All Statuses') {
+            $query->where('status', $status);
+        }
+
+        // Apply company filter if provided
+        if ($company && $company !== 'All Companies') {
+            $query->where('company_name', $company);
+        }
+
+        $employments = $query->latest()
+            ->paginate($perPage)
+            ->through(function ($employment) {
                 return [
                     'id' => $employment->id,
                     'trainee_id' => $employment->trainee_id,
@@ -60,6 +88,12 @@ class EmploymentController extends Controller
         return Inertia::render('Admin/Employments', [
             'employment_referrals' => $employments,
             'trainees' => $trainees,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'company' => $company,
+                'per_page' => $perPage,
+            ]
         ]);
     }
 

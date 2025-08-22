@@ -4,17 +4,19 @@ import ProgramRegistrationModal from "@/Components/ProgramRegistrationModal.vue"
 import ProgramDetailsModal from "@/Components/ProgramDetailsModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import TrainerAssignmentModal from "@/Components/TrainerAssignmentModal.vue";
+import Pagination from "@/Components/Pagination.vue";
 import { Head, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useNotifications } from "@/composables/useNotifications";
 
 const props = defineProps({
-    programs: Array,
+    programs: [Object, Array], // Support both pagination object and legacy array
     trainers: Array,
+    filters: Object,
 });
 
 const notifications = useNotifications();
-const searchQuery = ref("");
+const searchQuery = ref(props.filters?.search || "");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
@@ -23,8 +25,15 @@ const selectedProgram = ref(null);
 const processing = ref(false);
 
 // Process programs data to match the expected format
-const programsList = ref(
-    props.programs?.map((program) => ({
+const programsList = computed(() => {
+    // Handle both paginated (object) and non-paginated (array) data structures
+    const programsData = props.programs?.data || props.programs;
+
+    if (!programsData || !Array.isArray(programsData)) {
+        return [];
+    }
+
+    return programsData.map((program) => ({
         id: program.program_id,
         program_id: program.program_id,
         name: program.name,
@@ -39,8 +48,8 @@ const programsList = ref(
         start_date: program.start_date,
         end_date: program.end_date,
         prerequisites: program.prerequisites,
-    })) || []
-);
+    }));
+});
 
 const addNewProgram = () => {
     showRegistrationModal.value = true;
@@ -149,24 +158,25 @@ const getAssignedTrainers = (assignedTrainerIds) => {
     return `${assignedTrainers[0].name} +${assignedTrainers.length - 1} more`;
 };
 
-// Computed property for filtered programs
-const filteredPrograms = computed(() => {
-    if (!searchQuery.value) {
-        return programsList.value;
-    }
+// Watch for search query changes and send to server
+let searchTimeout;
+watch(searchQuery, (newValue) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        const currentUrl = new URL(window.location.href);
+        if (newValue) {
+            currentUrl.searchParams.set("search", newValue);
+        } else {
+            currentUrl.searchParams.delete("search");
+        }
+        currentUrl.searchParams.delete("page"); // Reset to first page when searching
 
-    return programsList.value.filter(
-        (program) =>
-            program.name
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            program.description
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase()) ||
-            getAssignedTrainers(program.assigned_trainers)
-                .toLowerCase()
-                .includes(searchQuery.value.toLowerCase())
-    );
+        router.visit(currentUrl.toString(), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    }, 300); // Debounce search for 300ms
 });
 
 const formatCurrency = (amount) => {
@@ -230,7 +240,9 @@ const getStatusColor = (status) => {
             >
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold text-gray-900">
-                        All Programs ({{ filteredPrograms.length }})
+                        All Programs ({{
+                            programs?.meta?.total || programsList.length
+                        }})
                     </h2>
                     <div class="relative">
                         <input
@@ -303,7 +315,7 @@ const getStatusColor = (status) => {
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
-                                v-for="program in filteredPrograms"
+                                v-for="program in programsList"
                                 :key="program.id"
                                 class="hover:bg-gray-50"
                             >
@@ -469,10 +481,7 @@ const getStatusColor = (status) => {
                 </div>
 
                 <!-- Empty State -->
-                <div
-                    v-if="filteredPrograms.length === 0"
-                    class="text-center py-12"
-                >
+                <div v-if="programsList.length === 0" class="text-center py-12">
                     <svg
                         class="mx-auto h-12 w-12 text-gray-400"
                         fill="none"
@@ -518,6 +527,9 @@ const getStatusColor = (status) => {
                         </button>
                     </div>
                 </div>
+
+                <!-- Pagination -->
+                <Pagination v-if="programsList.length > 0" :data="programs" />
             </div>
         </div>
 

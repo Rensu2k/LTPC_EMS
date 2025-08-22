@@ -1,0 +1,5 @@
+[33m1670efd[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m fixed cashier, started working with excel
+[33m2428f6f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Enhanced EMS system: multi-enrollment support, UI improvements, course->program refactoring, payment fixes
+[33m07051fe[m chore: clean up unused components and docs; update Vite/ngrok/local configs; add HTTPS forcing option
+[33m5ec8ba6[m Remove Program Capacity Monitoring and manual employment creation, fix receipt number input
+[33mcff45e1[m Implement automatic employment record creation and comprehensive system updates

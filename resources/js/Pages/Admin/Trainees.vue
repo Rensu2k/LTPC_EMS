@@ -13,6 +13,7 @@ import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import Pagination from "@/Components/Pagination.vue";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const props = defineProps({
@@ -383,107 +384,200 @@ const exportToPDF = () => {
     doc.save(filename);
 };
 
-const exportToExcel = () => {
+const exportToExcel = async () => {
     const trainees = filteredTrainees.value;
-    const programs = [
-        ...new Set(
-            trainees.map((t) => t.program_qualification).filter(Boolean)
-        ),
+
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Training Report");
+
+    // Define headers
+    const headers = [
+        "Program",
+        "Type of Training",
+        "RQM/SECTOR",
+        "Training Period",
+        "Regular Amount",
+        "TWSP Billed Amount",
+        "TWSP Amount",
+        "OR #",
+        "Date Collected",
+        "Age 18-30",
+        "Female",
+        "Male",
+        "Started",
+        "Finished",
+        "% Finished",
+        "Assessors Name",
+        "Assessment Date",
+        "Assessment Fee",
+        "OR No.",
+        "Date Collected",
+        "Female",
+        "Male",
+        "Assessed",
+        "",
+        "Age 18 - 30 (Assessed)",
+        "Absent / Did not take",
+        "Not yet Competent",
+        "Competent after Assessment",
+        "",
+        "Employed",
+        "",
+        "Self Employed",
+        "",
+        "Unemployed",
+        "",
+        "Age 18 - 30 (Employed)",
+        "Employment Update",
+        "",
+        "TOTAL EMPLOYED",
+        "Remarks",
     ];
 
-    // Create empty table with just column headers (no data rows)
-    // Add a single empty row to ensure column headers are created
-    const excelData = [
-        {
-            Program: "",
-            "Type of Training": "",
-            "RQM/SECTOR": "",
-            "Training Period": "",
-            "Regular Amount": "",
-            "TWSP Billed Amount": "",
-            "TWSP Amount": "",
-            "OR #": "",
-            "Date Collected": "",
-            "Age 18-30": "",
-            Female: "",
-            Male: "",
-            Started: "",
-            Finished: "",
-            "% Finished": "",
-            "Assessors Name": "",
-            "Assessment Date": "",
-            "Assessment Fee": "",
-            "OR No.": "",
-            "Assessment Date Collected": "",
-            "Assessment Female": "",
-            "Assessment Male": "",
-            Assessed: "",
-            "Age 18 - 30 (Assessed)": "",
-            "Absent / Did not take": "",
-            "Not yet Competent": "",
-            "Competent after Assessment": "",
-            Employed: "",
-            "Self Employed": "",
-            Unemployed: "",
-            "Age 18 - 30 (Employed)": "",
-            "Employment Update": "",
-            "TOTAL EMPLOYED": "",
-            Remarks: "",
-        },
+    // Add grouped header row first
+    const groupedHeaders = [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Assessed",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Employment during Enrollment",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Employment after Training",
+        "",
+        "",
+        "",
+        "",
+    ];
+    worksheet.addRow(groupedHeaders);
+
+    // Add main headers to worksheet
+    worksheet.addRow(headers);
+
+    // Style the grouped header row (row 1)
+    const groupedHeaderRow = worksheet.getRow(1);
+    groupedHeaderRow.height = 30;
+
+    groupedHeaderRow.eachCell((cell, colNumber) => {
+        if (cell.value) {
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FF4F7942" }, // Same green color
+            };
+            cell.font = {
+                color: { argb: "FFFFFFFF" }, // White text
+                bold: true,
+                size: 12,
+            };
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: "center",
+                wrapText: true,
+            };
+            cell.border = {
+                top: { style: "thin" },
+                left: { style: "thin" },
+                bottom: { style: "thin" },
+                right: { style: "thin" },
+            };
+        }
+    });
+
+    // Merge cells for grouped headers
+    worksheet.mergeCells("P1:AC1"); // Assessed (columns P through AC)
+    worksheet.mergeCells("AD1:AI1"); // Employment during Enrollment (columns AD through AI - includes Employed, Self Employed, Unemployed)
+    worksheet.mergeCells("AJ1:AM1"); // Employment after Training (columns AJ through AM - includes Age 18-30, Employment Update, TOTAL EMPLOYED, Remarks)
+
+    // Merge cells for two-column spans in row 2
+    worksheet.mergeCells("W2:X2"); // Assessed (spans 2 columns)
+    worksheet.mergeCells("AB2:AC2"); // Competent after Assessment (spans 2 columns)
+    worksheet.mergeCells("AD2:AE2"); // Employed (spans 2 columns)
+    worksheet.mergeCells("AF2:AG2"); // Self Employed (spans 2 columns)
+    worksheet.mergeCells("AH2:AI2"); // Unemployed (spans 2 columns)
+    worksheet.mergeCells("AK2:AL2"); // Employment Update (spans 2 columns)
+
+    // Style the main header row (row 2)
+    const headerRow = worksheet.getRow(2);
+    headerRow.height = 35;
+
+    headerRow.eachCell((cell, colNumber) => {
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4F7942" }, // Dark green color matching your image
+        };
+        cell.font = {
+            color: { argb: "FFFFFFFF" }, // White text
+            bold: true,
+            size: 11,
+        };
+        cell.alignment = {
+            vertical: "middle",
+            horizontal: "center",
+            wrapText: true,
+        };
+        cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+        };
+    });
+
+    // Set column widths
+    const columnWidths = [
+        30, 25, 20, 20, 18, 22, 18, 12, 18, 15, 12, 12, 12, 12, 15, 25, 18, 18,
+        12, 28, 20, 18, 15, 15, 25, 25, 22, 15, 30, 15, 18, 15, 25, 22, 15, 15,
+        15, 15, 15, 15, 15, 25, 22, 18, 25,
     ];
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
+    columnWidths.forEach((width, index) => {
+        worksheet.getColumn(index + 1).width = width;
+    });
 
-    // Adjust column widths for better readability
-    const colWidths = [
-        { wch: 25 }, // Program
-        { wch: 20 }, // Type of Training
-        { wch: 15 }, // RQM/SECTOR
-        { wch: 15 }, // Training Period
-        { wch: 15 }, // Regular amount
-        { wch: 18 }, // TWSP Billed Amount
-        { wch: 15 }, // TWSP Amount
-        { wch: 10 }, // OR #
-        { wch: 15 }, // Date Collected
-        { wch: 12 }, // Age 18-30
-        { wch: 10 }, // Female
-        { wch: 10 }, // Male
-        { wch: 10 }, // Started
-        { wch: 10 }, // Finished
-        { wch: 12 }, // % Finished
-        { wch: 20 }, // Assessors Name
-        { wch: 15 }, // Assessment Date
-        { wch: 15 }, // Assessment Fee
-        { wch: 10 }, // OR No.
-        { wch: 22 }, // Assessment Date Collected
-        { wch: 16 }, // Assessment Female
-        { wch: 14 }, // Assessment Male
-        { wch: 12 }, // Assessed
-        { wch: 20 }, // Age 18 - 30 (Assessed)
-        { wch: 20 }, // Absent / Did not take
-        { wch: 18 }, // Not yet Competent
-        { wch: 25 }, // Competent after Assessment
-        { wch: 12 }, // Employed
-        { wch: 15 }, // Self Employed
-        { wch: 12 }, // Unemployed
-        { wch: 20 }, // Age 18 - 30 (Employed)
-        { wch: 18 }, // Employment Update
-        { wch: 15 }, // TOTAL EMPLOYED
-        { wch: 20 }, // Remarks
-    ];
-    ws["!cols"] = colWidths;
-
-    // Add the worksheet to the workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Training Report");
+    // Add an empty data row (since current export only shows headers)
+    worksheet.addRow(new Array(headers.length).fill(""));
 
     // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `training_program_report_${timestamp}.xlsx`;
 
-    // Save the Excel file
-    XLSX.writeFile(wb, filename);
+    // Write to buffer and save
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, filename);
 };
 
 const getStatusColor = (status) => {

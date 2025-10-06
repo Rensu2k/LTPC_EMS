@@ -14,9 +14,22 @@ class TraineeController extends Controller
         $perPage = $request->get('per_page', 20); // Default to 20 items per page
         $search = $request->get('search', '');
         $program = $request->get('program', '');
+        $status = $request->get('status', '');
+        $enrollmentType = $request->get('enrollment_type', '');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
 
         // Build the query
-        $query = Trainee::with(['enrollments.program']);
+        $query = Trainee::with([
+            'enrollments' => function($query) {
+                $query->select('id', 'trainee_id', 'program_id', 'batch', 'enrollment_date', 'date_started', 'date_ended', 'completion_date', 'status', 'payment_status', 'created_at', 'updated_at');
+            }, 
+            'enrollments.program',
+            'assessments' => function($query) {
+                $query->select('id', 'trainee_id', 'program_id', 'assessment_date', 'result', 'status', 'attempt_number', 'is_reassessment', 'original_assessment_id')
+                      ->orderBy('attempt_number', 'desc');
+            }
+        ]);
 
         // Apply search filter if provided
         if ($search) {
@@ -24,6 +37,7 @@ class TraineeController extends Controller
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('uli_number', 'like', "%{$search}%")
+                  ->orWhere('email_facebook', 'like', "%{$search}%")
                   ->orWhere('program_qualification', 'like', "%{$search}%");
             });
         }
@@ -31,6 +45,32 @@ class TraineeController extends Controller
         // Apply program filter if provided
         if ($program && $program !== 'All Programs') {
             $query->where('program_qualification', $program);
+        }
+
+        // Apply status filter if provided
+        if ($status && $status !== 'All Statuses') {
+            $query->where('status', $status);
+        }
+
+        // Apply enrollment type filter if provided (based on scholarship_package)
+        if ($enrollmentType && $enrollmentType !== 'All Types') {
+            if ($enrollmentType === 'scholar') {
+                $query->whereNotNull('scholarship_package')
+                      ->where('scholarship_package', '!=', '');
+            } else if ($enrollmentType === 'regular') {
+                $query->where(function($q) {
+                    $q->whereNull('scholarship_package')
+                      ->orWhere('scholarship_package', '');
+                });
+            }
+        }
+
+        // Apply date range filter if provided
+        if ($dateFrom) {
+            $query->where('entry_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->where('entry_date', '<=', $dateTo);
         }
 
         // Get paginated results
@@ -92,6 +132,28 @@ class TraineeController extends Controller
                     $trainee->status = $selectedEnrollment->status;
                 }
 
+                // Attach enrollment dates for export
+                if ($selectedEnrollment) {
+                    $trainee->date_started = $selectedEnrollment->date_started;
+                    $trainee->date_ended = $selectedEnrollment->date_ended;
+                    $trainee->completion_date = $selectedEnrollment->completion_date;
+                }
+
+                // Attach latest assessment data for export
+                // Get assessments for the current program
+                $latestAssessment = $trainee->assessments
+                    ->where('program_id', $selectedEnrollment ? $selectedEnrollment->program_id : null)
+                    ->sortByDesc('attempt_number')
+                    ->first();
+                
+                if ($latestAssessment) {
+                    $trainee->latest_assessment_date = $latestAssessment->assessment_date;
+                    $trainee->latest_assessment_result = $latestAssessment->result;
+                } else {
+                    $trainee->latest_assessment_date = null;
+                    $trainee->latest_assessment_result = null;
+                }
+
                 // Attach trainer names for display
                 $trainee->assigned_trainers = array_values(array_unique($assignedTrainerNames));
 
@@ -106,6 +168,10 @@ class TraineeController extends Controller
             'filters' => [
                 'search' => $search,
                 'program' => $program,
+                'status' => $status,
+                'enrollment_type' => $enrollmentType,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'per_page' => $perPage,
             ]
         ]);
@@ -339,9 +405,17 @@ class TraineeController extends Controller
             $query->where('status', $status);
         }
 
-        // Apply enrollment type filter if provided
+        // Apply enrollment type filter if provided (based on scholarship_package)
         if ($enrollmentType && $enrollmentType !== 'All Types') {
-            $query->where('enrollment_type', $enrollmentType);
+            if ($enrollmentType === 'scholar') {
+                $query->whereNotNull('scholarship_package')
+                      ->where('scholarship_package', '!=', '');
+            } else if ($enrollmentType === 'regular') {
+                $query->where(function($q) {
+                    $q->whereNull('scholarship_package')
+                      ->orWhere('scholarship_package', '');
+                });
+            }
         }
 
         // Apply date range filter if provided

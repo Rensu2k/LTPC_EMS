@@ -98,6 +98,14 @@ class Trainee extends Model
     }
 
     /**
+     * Get all assessments for this trainee
+     */
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(Assessment::class);
+    }
+
+    /**
      * Get full name of trainee
      */
     public function getFullNameAttribute(): string

@@ -7,8 +7,12 @@ import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import Pagination from "@/Components/Pagination.vue";
+import TextInput from "@/Components/TextInput.vue";
+import InputLabel from "@/Components/InputLabel.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { ref, computed, watch } from "vue";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 const props = defineProps({
     trainees: [Object, Array], // Support both pagination object and legacy array
@@ -18,7 +22,13 @@ const props = defineProps({
 
 // Initialize from props filters
 const searchQuery = ref(props.filters?.search || "");
-const selectedProgram = ref(props.filters?.program || "All Programs");
+const selectedProgram = ref(props.filters?.program || "");
+const selectedStatus = ref(props.filters?.status || "");
+const selectedEnrollmentType = ref(props.filters?.enrollment_type || "");
+const dateFrom = ref(props.filters?.date_from || "");
+const dateTo = ref(props.filters?.date_to || "");
+const perPage = ref(props.filters?.per_page || 20);
+const showFilters = ref(false);
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showDeleteModal = ref(false);
@@ -84,8 +94,370 @@ const traineesList = computed(() => {
     }));
 });
 
-const exportData = () => {
-    // TODO: Implement export functionality
+const exportToExcel = async () => {
+    const traineesData = props.trainees?.data || props.trainees || [];
+
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Trainees Report");
+
+    // Add title section
+    const titleRow1 = worksheet.addRow(["Republic of the Philippines"]);
+    titleRow1.font = { name: "Times New Roman", size: 15 };
+    titleRow1.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(1, 1, 1, 20);
+
+    const titleRow2 = worksheet.addRow([
+        "PUBLIC EMPLOYMENT SKILLS AND DEVELOPMENT OFFICE (PESDO)",
+    ]);
+    titleRow2.font = { name: "Times New Roman", bold: true, size: 20 };
+    titleRow2.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(2, 1, 2, 20);
+
+    const titleRow3 = worksheet.addRow(["Surigao City, Surigao Del Norte"]);
+    titleRow3.font = { name: "Times New Roman", size: 15 };
+    titleRow3.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(3, 1, 3, 20);
+
+    // Add empty row
+    worksheet.addRow([]);
+
+    // Get current year
+    const currentYear = new Date().getFullYear();
+    const programName = selectedProgram.value || "All Programs";
+
+    const titleRow4 = worksheet.addRow([
+        `PROFILE OF TRAINEES FOR ${programName.toUpperCase()}`,
+    ]);
+    titleRow4.font = { bold: true, size: 15 };
+    titleRow4.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(5, 1, 5, 20);
+
+    const titleRow5 = worksheet.addRow([`C.Y. ${currentYear}`]);
+    titleRow5.font = { bold: true, size: 15 };
+    titleRow5.alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.mergeCells(6, 1, 6, 20);
+
+    // Add empty row
+    worksheet.addRow([]);
+
+    // Define headers
+    const headers = [
+        "No.",
+        "Last Name",
+        "First Name",
+        "Middle Name",
+        "Extension Name",
+        "Contact Number",
+        "Barangay",
+        "Municipality - City",
+        "Sex",
+        "Date of Birth",
+        "Age",
+        "Civil Status",
+        "Highest Grade Completed",
+        "Training Status",
+        "Type of Scholarship",
+        "Date Started",
+        "Date Finished",
+        "Date Assessed",
+        "Assessment Results",
+        "Employment Status Before the Training",
+    ];
+
+    // Add header row (now at row 8)
+    worksheet.addRow(headers);
+
+    // Style the header row
+    const headerRow = worksheet.getRow(8);
+    headerRow.height = 25;
+
+    headerRow.eachCell((cell, colNumber) => {
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4F7942" },
+        };
+        cell.font = {
+            color: { argb: "FFFFFFFF" },
+            bold: true,
+            size: 11,
+        };
+        cell.alignment = {
+            vertical: "middle",
+            horizontal: "center",
+            wrapText: true,
+        };
+        cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+        };
+    });
+
+    // Set column widths
+    const columnWidths = [
+        8, // No.
+        20, // Last Name
+        20, // First Name
+        20, // Middle Name
+        15, // Extension Name
+        18, // Contact Number
+        20, // Barangay
+        25, // Municipality - City
+        12, // Sex
+        18, // Date of Birth
+        8, // Age
+        15, // Civil Status
+        25, // Highest Grade Completed
+        18, // Training Status
+        20, // Type of Scholarship
+        18, // Date Started
+        18, // Date Finished
+        18, // Date Assessed
+        20, // Assessment Results
+        30, // Employment Status Before the Training
+    ];
+
+    columnWidths.forEach((width, index) => {
+        worksheet.getColumn(index + 1).width = width;
+    });
+
+    // Helper function to format date
+    const formatDate = (date) => {
+        if (!date) return "N/A";
+        const d = new Date(date);
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${month}/${day}/${year}`;
+    };
+
+    // Helper function to get date of birth
+    const getDateOfBirth = (trainee) => {
+        if (trainee.birth_month && trainee.birth_day && trainee.birth_year) {
+            return `${String(trainee.birth_month).padStart(2, "0")}/${String(
+                trainee.birth_day
+            ).padStart(2, "0")}/${trainee.birth_year}`;
+        }
+        return "N/A";
+    };
+
+    // Helper function to get highest education
+    const getHighestEducation = (education) => {
+        if (!education) {
+            return "N/A";
+        }
+
+        // Education mapping
+        const educationMap = {
+            elementary_graduate: "Elementary Graduate",
+            elementary_undergraduate: "Elementary Undergraduate",
+            junior_high_graduate: "Junior High School Graduate",
+            junior_high_undergraduate: "Junior High School Undergraduate",
+            senior_high_graduate: "Senior High School Graduate",
+            senior_high_undergraduate: "Senior High School Undergraduate",
+            vocational_graduate: "Vocational Graduate",
+            vocational_undergraduate: "Vocational Undergraduate",
+            college_graduate: "College Graduate",
+            college_undergraduate: "College Undergraduate",
+            post_graduate: "Post Graduate",
+        };
+
+        // If education is a string (e.g., 'college_undergraduate')
+        if (typeof education === "string") {
+            return (
+                educationMap[education] ||
+                education
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())
+            );
+        }
+
+        // If education is an array
+        if (Array.isArray(education) && education.length > 0) {
+            // Check if array contains strings (e.g., ['college_undergraduate'])
+            if (typeof education[0] === "string") {
+                // Get the highest education from the array
+                const educationLevels = {
+                    elementary: 1,
+                    junior_high: 2,
+                    senior_high: 3,
+                    vocational: 3,
+                    college: 4,
+                    post_graduate: 5,
+                };
+
+                const highest = education.reduce((prev, curr) => {
+                    const prevLevel = Object.keys(educationLevels).find((key) =>
+                        prev.includes(key)
+                    );
+                    const currLevel = Object.keys(educationLevels).find((key) =>
+                        curr.includes(key)
+                    );
+                    const prevScore = educationLevels[prevLevel] || 0;
+                    const currScore = educationLevels[currLevel] || 0;
+                    return currScore > prevScore ? curr : prev;
+                });
+
+                return (
+                    educationMap[highest] ||
+                    highest
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())
+                );
+            }
+
+            // If education is an array of objects (legacy format)
+            const educationLevels = {
+                elementary: 1,
+                junior_high: 2,
+                senior_high: 3,
+                vocational: 3,
+                college: 4,
+                post_graduate: 5,
+            };
+
+            const highest = education.reduce((prev, curr) => {
+                const prevLevel = educationLevels[prev.level] || 0;
+                const currLevel = educationLevels[curr.level] || 0;
+                return currLevel > prevLevel ? curr : prev;
+            });
+
+            const levelNames = {
+                elementary: "Elementary",
+                junior_high: "Junior High School",
+                senior_high: "Senior High School",
+                vocational: "Vocational",
+                college: "College",
+                post_graduate: "Post Graduate",
+            };
+
+            const statusLabels = {
+                graduated: "Graduate",
+                undergraduate: "Undergraduate",
+                ongoing: "Ongoing",
+                completed: "Graduate",
+                not_completed: "Undergraduate",
+            };
+
+            const levelName = levelNames[highest.level] || highest.level;
+            const statusLabel = statusLabels[highest.status] || highest.status;
+
+            if (
+                highest.status &&
+                highest.status !== "graduated" &&
+                highest.status !== "completed"
+            ) {
+                return `${levelName} ${statusLabel}`;
+            }
+
+            return `${levelName} Graduate`;
+        }
+
+        return "N/A";
+    };
+
+    // Add data rows
+    traineesData.forEach((trainee, index) => {
+        const row = [
+            index + 1, // No.
+            trainee.last_name || "N/A",
+            trainee.first_name || "N/A",
+            trainee.middle_name || "N/A",
+            trainee.extension || "N/A",
+            trainee.contact_number || "N/A",
+            trainee.barangay || "N/A",
+            trainee.city_municipality || "N/A",
+            trainee.sex
+                ? trainee.sex.charAt(0).toUpperCase() + trainee.sex.slice(1)
+                : "N/A",
+            getDateOfBirth(trainee),
+            trainee.age || "N/A",
+            trainee.civil_status
+                ? trainee.civil_status
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())
+                : "N/A",
+            getHighestEducation(trainee.education),
+            trainee.status
+                ? trainee.status.charAt(0).toUpperCase() +
+                  trainee.status.slice(1)
+                : "N/A",
+            trainee.scholarship_package || "N/A",
+            formatDate(trainee.date_started), // Date Started from enrollment
+            formatDate(trainee.date_ended), // Date Finished (End Date) from enrollment
+            formatDate(trainee.latest_assessment_date), // Date Assessed - latest assessment
+            trainee.latest_assessment_result
+                ? trainee.latest_assessment_result
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())
+                : "N/A", // Assessment Results
+            trainee.employment_status
+                ? trainee.employment_status
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())
+                : "N/A",
+        ];
+
+        const dataRow = worksheet.addRow(row);
+
+        // Style data rows
+        dataRow.eachCell((cell) => {
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: "left",
+            };
+            cell.border = {
+                top: { style: "thin" },
+                left: { style: "thin" },
+                bottom: { style: "thin" },
+                right: { style: "thin" },
+            };
+        });
+
+        // Center align specific columns
+        dataRow.getCell(1).alignment = {
+            vertical: "middle",
+            horizontal: "center",
+        }; // No.
+        dataRow.getCell(9).alignment = {
+            vertical: "middle",
+            horizontal: "center",
+        }; // Sex
+        dataRow.getCell(10).alignment = {
+            vertical: "middle",
+            horizontal: "center",
+        }; // Date of Birth
+        dataRow.getCell(11).alignment = {
+            vertical: "middle",
+            horizontal: "center",
+        }; // Age
+    });
+
+    // Generate filename with current filters info
+    const timestamp = new Date().toISOString().split("T")[0];
+    let filename = `trainees_report_${timestamp}`;
+
+    if (selectedProgram.value) {
+        filename += `_${selectedProgram.value.replace(/\s+/g, "_")}`;
+    }
+    if (selectedStatus.value) {
+        filename += `_${selectedStatus.value}`;
+    }
+    if (selectedEnrollmentType.value) {
+        filename += `_${selectedEnrollmentType.value}`;
+    }
+
+    filename += ".xlsx";
+
+    // Write to buffer and save
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, filename);
 };
 
 const registerTrainee = () => {
@@ -259,36 +631,75 @@ const getTraineeActualStatus = (trainee) => {
     return actualTrainee?.status || trainee.status || "active";
 };
 
-// Server-side filtering is now handled by the backend
-// This computed property is kept for backward compatibility
-const filteredTrainees = computed(() => traineesList.value);
-
-// Debounced search function
-let searchTimeout;
-const performSearch = () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.visit(route("officer.trainees"), {
-            data: {
-                search: searchQuery.value,
-                program: selectedProgram.value,
-                per_page: props.filters?.per_page || 20,
-            },
-            preserveState: true,
-            replace: true,
-        });
-    }, 300);
+// Clear all filters
+const clearFilters = () => {
+    searchQuery.value = "";
+    selectedProgram.value = "";
+    selectedStatus.value = "";
+    selectedEnrollmentType.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
+    performSearch();
 };
 
-// Watch for search changes
-watch(searchQuery, () => {
-    performSearch();
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+    return (
+        searchQuery.value ||
+        selectedProgram.value ||
+        selectedEnrollmentType.value ||
+        selectedStatus.value ||
+        dateFrom.value ||
+        dateTo.value
+    );
 });
 
-// Watch for program filter changes
-watch(selectedProgram, () => {
+// Server-side filtering is now handled by the backend
+const filteredTrainees = computed(() => traineesList.value);
+
+// Status options
+const statusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "active", label: "Active" },
+    { value: "completed", label: "Completed" },
+    { value: "dropped", label: "Dropped" },
+];
+
+// Perform search with all filters
+const performSearch = () => {
+    router.get(
+        route("officer.trainees"),
+        {
+            search: searchQuery.value,
+            program: selectedProgram.value,
+            status: selectedStatus.value,
+            enrollment_type: selectedEnrollmentType.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
+            per_page: perPage.value,
+            page: 1, // Reset to first page when searching
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        }
+    );
+};
+
+// Change per page functionality
+const changePerPage = () => {
     performSearch();
-});
+};
+
+// Watch for filter changes and trigger search
+watch(
+    [selectedProgram, selectedStatus, selectedEnrollmentType, dateFrom, dateTo],
+    () => {
+        performSearch();
+    },
+    { deep: true }
+);
 </script>
 
 <template>
@@ -303,8 +714,10 @@ watch(selectedProgram, () => {
                 </h1>
                 <div class="flex gap-3">
                     <button
-                        @click="exportData"
-                        class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                        v-if="hasActiveFilters"
+                        @click="exportToExcel"
+                        class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                        title="Export filtered trainees to Excel"
                     >
                         <svg
                             class="h-5 w-5"
@@ -316,10 +729,10 @@ watch(selectedProgram, () => {
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 stroke-width="2"
-                                d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             />
                         </svg>
-                        Export
+                        Export to Excel
                     </button>
                     <button
                         @click="registerTrainee"
@@ -347,52 +760,208 @@ watch(selectedProgram, () => {
             <div
                 class="bg-white rounded-lg shadow-sm border p-6 mb-6 animate-fade-in"
             >
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-semibold text-gray-900">
-                        All Trainees ({{
-                            trainees?.meta?.total || traineesList.length
-                        }})
-                    </h2>
-                    <div class="relative">
-                        <input
+                <!-- Search and Toggle Row -->
+                <div class="flex items-end gap-4 mb-4">
+                    <div class="flex-1">
+                        <InputLabel for="search" value="Search Trainees" />
+                        <TextInput
+                            id="search"
                             v-model="searchQuery"
                             type="text"
-                            placeholder="Search trainees..."
-                            class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-80"
+                            placeholder="Search by name, ULI number, or email..."
+                            class="mt-1 block w-full transition-all duration-300 border-2 border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-blue-300"
+                            @keyup.enter="performSearch"
                         />
-                        <svg
-                            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <SecondaryButton
+                            @click="showFilters = !showFilters"
+                            class="flex items-center gap-2"
                         >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                        </svg>
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z"
+                                />
+                            </svg>
+                            {{ showFilters ? "Hide" : "Show" }} Filters
+                        </SecondaryButton>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <span class="text-sm font-medium text-gray-700"
-                        >Filter by Program:</span
-                    >
-                    <select
-                        v-model="selectedProgram"
-                        class="border border-gray-300 rounded-lg px-5 py-2 focus:ring-4 focus:ring-blue-500 focus:border-blue-500 w-64"
-                    >
-                        <option value="All Programs">All Programs</option>
-                        <option
-                            v-for="program in programs"
-                            :key="program.id"
-                            :value="program.name"
+                <!-- Advanced Filters -->
+                <div
+                    v-if="showFilters"
+                    class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200"
+                >
+                    <div>
+                        <InputLabel
+                            for="program-filter"
+                            value="Filter by Program"
+                        />
+                        <select
+                            id="program-filter"
+                            v-model="selectedProgram"
+                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
                         >
-                            {{ program.name }}
-                        </option>
-                    </select>
+                            <option value="">All Programs</option>
+                            <option
+                                v-for="program in programs"
+                                :key="program.program_id"
+                                :value="program.name"
+                            >
+                                {{ program.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <InputLabel
+                            for="enrollment-type-filter"
+                            value="Enrollment Type"
+                        />
+                        <select
+                            id="enrollment-type-filter"
+                            v-model="selectedEnrollmentType"
+                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
+                        >
+                            <option value="">All Types</option>
+                            <option value="regular">Regular</option>
+                            <option value="scholar">Scholar</option>
+                        </select>
+                    </div>
+                    <div>
+                        <InputLabel for="status-filter" value="Status" />
+                        <select
+                            id="status-filter"
+                            v-model="selectedStatus"
+                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
+                        >
+                            <option
+                                v-for="option in statusOptions"
+                                :key="option.value"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <InputLabel for="per_page" value="Items per page" />
+                        <select
+                            id="per_page"
+                            v-model="perPage"
+                            @change="changePerPage"
+                            class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
+                        >
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date Range Filters -->
+                <div
+                    v-if="showFilters"
+                    class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200"
+                >
+                    <div>
+                        <InputLabel
+                            for="date-from"
+                            value="Date Enrolled From"
+                        />
+                        <TextInput
+                            id="date-from"
+                            v-model="dateFrom"
+                            type="date"
+                            class="mt-1 block w-full"
+                        />
+                    </div>
+                    <div>
+                        <InputLabel for="date-to" value="Date Enrolled To" />
+                        <TextInput
+                            id="date-to"
+                            v-model="dateTo"
+                            type="date"
+                            class="mt-1 block w-full"
+                        />
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <SecondaryButton
+                            @click="clearFilters"
+                            v-if="hasActiveFilters"
+                            class="flex items-center gap-2 text-red-600 hover:text-red-700"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                            Clear Filters
+                        </SecondaryButton>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                <div
+                    v-if="hasActiveFilters && showFilters"
+                    class="flex flex-wrap gap-2 pt-4 border-t border-gray-200 mt-4"
+                >
+                    <span class="text-sm text-gray-600">Active filters:</span>
+                    <span
+                        v-if="searchQuery"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                        Search: "{{ searchQuery }}"
+                    </span>
+                    <span
+                        v-if="selectedProgram"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                        Program: {{ selectedProgram }}
+                    </span>
+                    <span
+                        v-if="selectedEnrollmentType"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                    >
+                        Type:
+                        {{
+                            selectedEnrollmentType.charAt(0).toUpperCase() +
+                            selectedEnrollmentType.slice(1)
+                        }}
+                    </span>
+                    <span
+                        v-if="selectedStatus"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
+                    >
+                        Status:
+                        {{
+                            statusOptions.find((s) => s.value == selectedStatus)
+                                ?.label || selectedStatus
+                        }}
+                    </span>
+                    <span
+                        v-if="dateFrom || dateTo"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                    >
+                        Date: {{ dateFrom || "Any" }} - {{ dateTo || "Any" }}
+                    </span>
                 </div>
             </div>
 

@@ -115,17 +115,6 @@ class Assessment extends Model
         // Check if this is a re-assessment - if so, use the original assessment ID
         $originalAssessmentId = $this->is_reassessment ? $this->original_assessment_id : $this->id;
 
-        // Get the highest attempt number for this assessment chain
-        $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
-            $query->where('id', $originalAssessmentId)
-                  ->orWhere('original_assessment_id', $originalAssessmentId);
-        })->max('attempt_number');
-
-        // Maximum of 3 attempts allowed - after 3rd attempt, must re-enroll
-        if ($maxAttemptNumber >= 3) {
-            return false;
-        }
-
         // Check if there's already a pending re-assessment for this original assessment
         $hasPendingReassessment = Assessment::where('original_assessment_id', $originalAssessmentId)
             ->where('status', 'pending')
@@ -135,26 +124,13 @@ class Assessment extends Model
     }
 
     /**
-     * Check if re-enrollment is required (3rd attempt failed)
+     * Check if re-enrollment is required
+     * Note: Unlimited reassessments are now allowed, so this always returns false
      */
     public function requiresReenrollment()
     {
-        // Only applies to failed assessments (not_yet_competent or absent)
-        if (!($this->result === 'not_yet_competent' || $this->result === 'absent')) {
-            return false;
-        }
-
-        // Check if this is a re-assessment - if so, use the original assessment ID
-        $originalAssessmentId = $this->is_reassessment ? $this->original_assessment_id : $this->id;
-
-        // Get the highest attempt number for this assessment chain
-        $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
-            $query->where('id', $originalAssessmentId)
-                  ->orWhere('original_assessment_id', $originalAssessmentId);
-        })->max('attempt_number');
-
-        // Re-enrollment required after 3rd failed attempt
-        return $maxAttemptNumber >= 3;
+        // Unlimited reassessments allowed - re-enrollment never required
+        return false;
     }
 
     /**

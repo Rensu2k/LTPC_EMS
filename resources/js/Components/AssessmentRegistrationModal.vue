@@ -532,8 +532,8 @@ const filteredTrainers = computed(() => {
                         <SearchableSelect
                             v-model="form.trainer_id"
                             :options="filteredTrainers"
-                            label="Trainer/Assessor *"
-                            placeholder="Type trainer name..."
+                            label="Assessor *"
+                            placeholder="Type assesor name..."
                             display-key="full_name"
                             value-key="id"
                             :required="true"

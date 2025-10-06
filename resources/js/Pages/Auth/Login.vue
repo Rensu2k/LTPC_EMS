@@ -111,7 +111,7 @@ onMounted(() => {
                                             : ''
                                     "
                                     placeholder="Enter your username"
-                                />
+                                /> 
                             </div>
                             <div
                                 v-if="form.errors.username"

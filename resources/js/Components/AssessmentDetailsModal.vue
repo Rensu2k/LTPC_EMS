@@ -237,7 +237,7 @@ const reassessment = () => {
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-sm font-medium text-gray-500"
-                                >Trainer/Assessor:</span
+                                >Assessor:</span
                             >
                             <span class="text-sm text-gray-900">
                                 {{ assessment.trainer_name || "N/A" }}

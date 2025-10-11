@@ -3,6 +3,8 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head } from "@inertiajs/vue3";
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useNotifications } from "@/composables/useNotifications";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 // Define props to receive data from backend
 const notifications = useNotifications();
@@ -36,6 +38,11 @@ const activeTab = ref("generated");
 
 const searchQuery = ref("");
 
+// Filter state
+const dateFrom = ref("");
+const dateTo = ref("");
+const fundTypeFilter = ref("all"); // 'all', 'General Fund', 'Trust Fund'
+
 // Track which trainee sections are expanded
 const expandedTrainees = ref(new Set());
 
@@ -58,50 +65,126 @@ const setActiveTab = (tab) => {
     activeTab.value = tab;
 };
 
-// Computed filtered receipts based on search
+// Clear all filters
+const clearFilters = () => {
+    dateFrom.value = "";
+    dateTo.value = "";
+    fundTypeFilter.value = "all";
+    searchQuery.value = "";
+};
+
+// Computed filtered receipts based on search, date, and fund type
 const filteredGroupedReceipts = computed(() => {
-    if (!searchQuery.value) {
-        return groupedReceipts.value;
+    let filtered = groupedReceipts.value;
+
+    // Filter by search query
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter((group) => {
+            // Search in trainee info
+            const traineeMatch =
+                group.trainee_name.toLowerCase().includes(query) ||
+                group.trainee_id_number.toLowerCase().includes(query) ||
+                (group.trainee_uli_number &&
+                    group.trainee_uli_number.toLowerCase().includes(query));
+
+            // Search in receipts
+            const receiptMatch = group.receipts.some(
+                (receipt) =>
+                    receipt.id.toLowerCase().includes(query) ||
+                    receipt.program.toLowerCase().includes(query) ||
+                    receipt.type.toLowerCase().includes(query)
+            );
+
+            return traineeMatch || receiptMatch;
+        });
     }
 
-    const query = searchQuery.value.toLowerCase();
-    return groupedReceipts.value.filter((group) => {
-        // Search in trainee info
-        const traineeMatch =
-            group.trainee_name.toLowerCase().includes(query) ||
-            group.trainee_id_number.toLowerCase().includes(query) ||
-            (group.trainee_uli_number &&
-                group.trainee_uli_number.toLowerCase().includes(query));
+    // Filter by date range and fund type for receipts within each group
+    filtered = filtered
+        .map((group) => {
+            let filteredReceipts = [...group.receipts];
 
-        // Search in receipts
-        const receiptMatch = group.receipts.some(
-            (receipt) =>
-                receipt.id.toLowerCase().includes(query) ||
-                receipt.program.toLowerCase().includes(query) ||
-                receipt.type.toLowerCase().includes(query)
-        );
+            // Filter by date range
+            if (dateFrom.value || dateTo.value) {
+                filteredReceipts = filteredReceipts.filter((receipt) => {
+                    const receiptDate = new Date(receipt.dateGenerated);
+                    const fromDate = dateFrom.value
+                        ? new Date(dateFrom.value)
+                        : null;
+                    const toDate = dateTo.value ? new Date(dateTo.value) : null;
 
-        return traineeMatch || receiptMatch;
-    });
+                    if (fromDate && receiptDate < fromDate) return false;
+                    if (toDate && receiptDate > toDate) return false;
+                    return true;
+                });
+            }
+
+            // Filter by fund type
+            if (fundTypeFilter.value !== "all") {
+                filteredReceipts = filteredReceipts.filter(
+                    (receipt) =>
+                        (receipt.fund_type || "General Fund") ===
+                        fundTypeFilter.value
+                );
+            }
+
+            return {
+                ...group,
+                receipts: filteredReceipts,
+                total_receipts: filteredReceipts.length,
+                total_amount: filteredReceipts.reduce(
+                    (sum, r) => sum + Number(r.amount || 0),
+                    0
+                ),
+            };
+        })
+        .filter((group) => group.receipts.length > 0); // Remove groups with no matching receipts
+
+    return filtered;
 });
 
-// Computed filtered cancelled receipts based on search
+// Computed filtered cancelled receipts based on search, date, and fund type
 const filteredCancelledReceipts = computed(() => {
-    if (!searchQuery.value) {
-        return cancelledReceipts.value;
+    let filtered = cancelledReceipts.value;
+
+    // Filter by search query
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        filtered = filtered.filter((receipt) => {
+            return (
+                receipt.id.toLowerCase().includes(query) ||
+                receipt.trainee.name.toLowerCase().includes(query) ||
+                receipt.trainee.id.toLowerCase().includes(query) ||
+                receipt.program.toLowerCase().includes(query) ||
+                (receipt.cancellation_reason &&
+                    receipt.cancellation_reason.toLowerCase().includes(query))
+            );
+        });
     }
 
-    const query = searchQuery.value.toLowerCase();
-    return cancelledReceipts.value.filter((receipt) => {
-        return (
-            receipt.id.toLowerCase().includes(query) ||
-            receipt.trainee.name.toLowerCase().includes(query) ||
-            receipt.trainee.id.toLowerCase().includes(query) ||
-            receipt.program.toLowerCase().includes(query) ||
-            (receipt.cancellation_reason &&
-                receipt.cancellation_reason.toLowerCase().includes(query))
+    // Filter by date range
+    if (dateFrom.value || dateTo.value) {
+        filtered = filtered.filter((receipt) => {
+            const receiptDate = new Date(receipt.dateGenerated);
+            const fromDate = dateFrom.value ? new Date(dateFrom.value) : null;
+            const toDate = dateTo.value ? new Date(dateTo.value) : null;
+
+            if (fromDate && receiptDate < fromDate) return false;
+            if (toDate && receiptDate > toDate) return false;
+            return true;
+        });
+    }
+
+    // Filter by fund type
+    if (fundTypeFilter.value !== "all") {
+        filtered = filtered.filter(
+            (receipt) =>
+                (receipt.fund_type || "General Fund") === fundTypeFilter.value
         );
-    });
+    }
+
+    return filtered;
 });
 
 const formatCurrency = (amount) => {
@@ -204,6 +287,176 @@ const printReceipt = (receipt) => {
 };
 
 // showSuccessFeedback function removed - using notifications system now
+
+const exportToExcel = async () => {
+    try {
+        // Create a new workbook
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Receipts");
+
+        // Add title
+        worksheet.mergeCells("A1:H1");
+        const titleCell = worksheet.getCell("A1");
+        titleCell.value = "LTPC Receipts Report";
+        titleCell.font = { size: 16, bold: true };
+        titleCell.alignment = { horizontal: "center", vertical: "middle" };
+        titleCell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4F7942" },
+        };
+        titleCell.font = { ...titleCell.font, color: { argb: "FFFFFFFF" } };
+        worksheet.getRow(1).height = 30;
+
+        // Add date and filter info
+        worksheet.mergeCells("A2:H2");
+        const dateCell = worksheet.getCell("A2");
+        let filterText = `Generated on: ${new Date().toLocaleString("en-PH")}`;
+
+        // Add date range filter info
+        if (dateFrom.value || dateTo.value) {
+            const fromText = dateFrom.value || "beginning";
+            const toText = dateTo.value || "present";
+            filterText += ` | Date Range: ${fromText} to ${toText}`;
+        }
+
+        // Add fund type filter info
+        if (fundTypeFilter.value !== "all") {
+            filterText += ` | Fund Type: ${fundTypeFilter.value}`;
+        }
+
+        dateCell.value = filterText;
+        dateCell.alignment = { horizontal: "center" };
+        dateCell.font = { size: 10, italic: true };
+        worksheet.getRow(2).height = 20;
+
+        // Add spacing
+        worksheet.addRow([]);
+
+        // Add headers
+        const headers = [
+            "Receipt No.",
+            "Trainee Name",
+            "ULI Number",
+            "Trainee ID",
+            "Program",
+            "Fund Type",
+            "Amount",
+            "Date Generated",
+        ];
+        worksheet.addRow(headers);
+        const headerRow = worksheet.getRow(4);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4F7942" },
+        };
+        headerRow.eachCell((cell) => {
+            cell.font = { ...cell.font, color: { argb: "FFFFFFFF" } };
+            cell.border = {
+                top: { style: "thin" },
+                left: { style: "thin" },
+                bottom: { style: "thin" },
+                right: { style: "thin" },
+            };
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+        });
+
+        // Add data rows from grouped receipts
+        let totalAmount = 0;
+        filteredGroupedReceipts.value.forEach((group) => {
+            group.receipts.forEach((receipt) => {
+                worksheet.addRow([
+                    receipt.id,
+                    receipt.trainee.name,
+                    receipt.trainee.uli_number || "N/A",
+                    receipt.trainee.id,
+                    receipt.program || "N/A",
+                    receipt.fund_type || "General Fund",
+                    formatCurrency(receipt.amount),
+                    receipt.dateGenerated,
+                ]);
+                totalAmount += Number(receipt.amount || 0);
+            });
+        });
+
+        // Style data rows
+        const lastRow = worksheet.lastRow.number;
+        for (let i = 5; i <= lastRow; i++) {
+            const row = worksheet.getRow(i);
+            row.eachCell((cell) => {
+                cell.border = {
+                    top: { style: "thin" },
+                    left: { style: "thin" },
+                    bottom: { style: "thin" },
+                    right: { style: "thin" },
+                };
+            });
+            // Alternate row colors
+            if ((i - 5) % 2 === 0) {
+                row.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "FFF9F9F9" },
+                };
+            }
+        }
+
+        // Add totals row
+        const totalRow = worksheet.addRow([
+            "",
+            "",
+            "",
+            "",
+            "",
+            "TOTAL",
+            formatCurrency(totalAmount),
+            "",
+        ]);
+        totalRow.font = { bold: true };
+        totalRow.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD0E0FF" },
+        };
+        totalRow.eachCell((cell) => {
+            cell.border = {
+                top: { style: "double" },
+                left: { style: "thin" },
+                bottom: { style: "double" },
+                right: { style: "thin" },
+            };
+        });
+
+        // Set column widths
+        worksheet.columns = [
+            { width: 15 }, // Receipt No
+            { width: 25 }, // Trainee Name
+            { width: 15 }, // ULI Number
+            { width: 15 }, // Trainee ID
+            { width: 30 }, // Program
+            { width: 15 }, // Fund Type
+            { width: 15 }, // Amount
+            { width: 15 }, // Date Generated
+        ];
+
+        // Generate Excel file
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const fileName = `Receipts_Report_${
+            new Date().toISOString().split("T")[0]
+        }.xlsx`;
+        saveAs(blob, fileName);
+
+        notifications.success("Excel file generated successfully!");
+    } catch (error) {
+        console.error("Error generating Excel file:", error);
+        notifications.error("Failed to generate Excel file. Please try again.");
+    }
+};
 
 const convertNumberToWords = (amount) => {
     const numAmount = safeNumber(amount);
@@ -368,6 +621,7 @@ PTR: 0125364-01-07-2024
                       No. ${receipt.id}
 
 Date: ${formattedDate}
+Fund Type: ${receipt.fund_type || "General Fund"}
 Received from: ${receipt.trainee.name}
 ULI No: ${receipt.trainee.uli_number || "N/A"}
 Trainee ID: ${receipt.trainee.id}
@@ -658,6 +912,13 @@ const generateReceiptHTML = (receipt) => {
             <div class="date-right">${formattedDate}</div>
         </div>
 
+        <div class="date-section">
+            <div class="date-left">Fund Type:</div>
+            <div class="date-right"><strong>${
+                receipt.fund_type || "General Fund"
+            }</strong></div>
+        </div>
+
         <div class="payor-section">
             <div class="payor-left">
                 <strong>Received from:</strong> ${receipt.trainee.name}<br>
@@ -768,6 +1029,25 @@ onUnmounted(() => {
                         View and manage generated and cancelled receipts.
                     </p>
                 </div>
+                <button
+                    @click="exportToExcel"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors duration-200 flex items-center gap-2"
+                >
+                    <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        ></path>
+                    </svg>
+                    Export to Excel
+                </button>
             </div>
 
             <!-- Tabs -->
@@ -923,6 +1203,75 @@ onUnmounted(() => {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Filters Section -->
+                    <div
+                        class="mt-4 flex flex-wrap items-center gap-4 pt-4 border-t border-gray-200"
+                    >
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-700"
+                                >Date From:</label
+                            >
+                            <input
+                                v-model="dateFrom"
+                                type="date"
+                                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-700"
+                                >Date To:</label
+                            >
+                            <input
+                                v-model="dateTo"
+                                type="date"
+                                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-700"
+                                >Fund Type:</label
+                            >
+                            <select
+                                v-model="fundTypeFilter"
+                                class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                <option value="all">All Funds</option>
+                                <option value="General Fund">
+                                    General Fund
+                                </option>
+                                <option value="Trust Fund">Trust Fund</option>
+                            </select>
+                        </div>
+
+                        <button
+                            v-if="
+                                dateFrom ||
+                                dateTo ||
+                                fundTypeFilter !== 'all' ||
+                                searchQuery
+                            "
+                            @click="clearFilters"
+                            class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                ></path>
+                            </svg>
+                            Clear Filters
+                        </button>
                     </div>
                 </div>
             </div>

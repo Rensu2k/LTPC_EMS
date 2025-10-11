@@ -234,6 +234,7 @@ const showReceiptModal = ref(false);
 const selectedReceiptData = ref(null);
 const editableReceiptData = ref({
     receiptNo: "",
+    fundType: "General Fund", // Default to General Fund
     trainee: {
         name: "",
         uli_number: "",
@@ -277,6 +278,7 @@ const generateReceiptForPaidPayment = (payment) => {
     // Prepare editable receipt data
     editableReceiptData.value = {
         receiptNo: "",
+        fundType: "General Fund", // Default to General Fund
         trainee: {
             name: payment.trainee.name,
             uli_number: payment.trainee.uli_number || "Not assigned",
@@ -353,6 +355,7 @@ const saveCancelledReceipt = () => {
         receiptNo: editableReceiptData.value.receiptNo,
         paymentId: selectedReceiptData.value.id,
         type: selectedReceiptData.value.type,
+        fund_type: editableReceiptData.value.fundType,
         trainee: {
             name: editableReceiptData.value.trainee.name,
             id: String(traineeId),
@@ -441,6 +444,7 @@ const saveReceipt = () => {
         receiptNo: editableReceiptData.value.receiptNo,
         paymentId: selectedReceiptData.value.id,
         type: selectedReceiptData.value.type,
+        fund_type: editableReceiptData.value.fundType,
         trainee: {
             name: editableReceiptData.value.trainee.name,
             id: selectedReceiptData.value.trainee.id,
@@ -1700,6 +1704,26 @@ watch(searchQuery, () => {
                                             type="date"
                                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="block text-sm font-medium text-gray-700"
+                                            >Fund Type</label
+                                        >
+                                        <select
+                                            v-model="
+                                                editableReceiptData.fundType
+                                            "
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value="General Fund">
+                                                General Fund
+                                            </option>
+                                            <option value="Trust Fund">
+                                                Trust Fund
+                                            </option>
+                                        </select>
                                     </div>
 
                                     <div>

@@ -78,18 +78,29 @@ const filteredTrainees = computed(() => {
     let filtered = props.trainees?.data || [];
 
     if (searchQuery.value) {
-        filtered = filtered.filter(
-            (trainee) =>
-                trainee.name
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                trainee.uli_number
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase()) ||
-                trainee.email
-                    ?.toLowerCase()
-                    .includes(searchQuery.value.toLowerCase())
-        );
+        const searchLower = searchQuery.value.toLowerCase();
+        filtered = filtered.filter((trainee) => {
+            const firstName = trainee.first_name?.toLowerCase() || "";
+            const lastName = trainee.last_name?.toLowerCase() || "";
+            const middleName = trainee.middle_name?.toLowerCase() || "";
+            const fullName = `${firstName} ${lastName}`.trim();
+            const fullNameWithMiddle =
+                `${firstName} ${middleName} ${lastName}`.trim();
+            const uliNumber = trainee.uli_number?.toLowerCase() || "";
+            const email =
+                trainee.email_facebook?.toLowerCase() ||
+                trainee.email?.toLowerCase() ||
+                "";
+
+            return (
+                firstName.includes(searchLower) ||
+                lastName.includes(searchLower) ||
+                fullName.includes(searchLower) ||
+                fullNameWithMiddle.includes(searchLower) ||
+                uliNumber.includes(searchLower) ||
+                email.includes(searchLower)
+            );
+        });
     }
 
     if (selectedProgram.value) {

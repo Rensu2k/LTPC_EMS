@@ -700,6 +700,20 @@ watch(
     },
     { deep: true }
 );
+
+// Watch search query with debounce for auto-search
+let searchTimeout = null;
+watch(searchQuery, (newValue) => {
+    // Clear previous timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout to search after 500ms of no typing
+    searchTimeout = setTimeout(() => {
+        performSearch();
+    }, 500);
+});
 </script>
 
 <template>

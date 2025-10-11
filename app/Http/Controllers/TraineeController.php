@@ -38,7 +38,9 @@ class TraineeController extends Controller
                   ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('uli_number', 'like', "%{$search}%")
                   ->orWhere('email_facebook', 'like', "%{$search}%")
-                  ->orWhere('program_qualification', 'like', "%{$search}%");
+                  ->orWhere('program_qualification', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
+                  ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
             });
         }
 
@@ -391,7 +393,9 @@ class TraineeController extends Controller
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('uli_number', 'like', "%{$search}%")
-                  ->orWhere('email_facebook', 'like', "%{$search}%");
+                  ->orWhere('email_facebook', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
+                  ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
             });
         }
 

@@ -13,6 +13,7 @@ class CustomReceipt extends Model
         'receipt_number',
         'payment_id',
         'type',
+        'fund_type',
         'trainee_name',
         'trainee_id_number',
         'trainee_uli_number',

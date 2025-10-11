@@ -374,6 +374,7 @@ class CashierController extends Controller
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
                     'type' => $receipt->type,
+                    'fund_type' => $receipt->fund_type,
                     'trainee' => [
                         'name' => $receipt->trainee_name,
                         'id' => $receipt->trainee_id_number,
@@ -404,6 +405,7 @@ class CashierController extends Controller
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
                     'type' => $receipt->type,
+                    'fund_type' => $receipt->fund_type,
                     'trainee' => [
                         'name' => $receipt->trainee_name,
                         'id' => $receipt->trainee_id_number,
@@ -435,6 +437,7 @@ class CashierController extends Controller
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
                     'type' => $receipt->type,
+                    'fund_type' => $receipt->fund_type,
                     'trainee' => [
                         'name' => $receipt->trainee_name,
                         'id' => $receipt->trainee_id_number,
@@ -465,6 +468,7 @@ class CashierController extends Controller
                     'id' => $receipt->receipt_number,
                     'paymentId' => $receipt->payment_id,
                     'type' => $receipt->type,
+                    'fund_type' => $receipt->fund_type,
                     'trainee' => [
                         'name' => $receipt->trainee_name,
                         'id' => $receipt->trainee_id_number,
@@ -642,6 +646,7 @@ class CashierController extends Controller
             'receiptNo' => 'required|string',
             'paymentId' => 'required|string',
             'type' => 'required|in:enrollment,assessment,registration',
+            'fund_type' => 'required|in:General Fund,Trust Fund',
             'trainee' => 'required|array',
             'trainee.name' => 'required|string',
             'trainee.id' => 'required|string',
@@ -685,6 +690,7 @@ class CashierController extends Controller
             'receipt_number' => $receiptNo,
             'payment_id' => $request->paymentId,
             'type' => $request->type,
+            'fund_type' => $request->fund_type,
             'trainee_name' => $request->trainee['name'],
             'trainee_id_number' => $request->trainee['id'],
             'trainee_uli_number' => $request->trainee['uli_number'],

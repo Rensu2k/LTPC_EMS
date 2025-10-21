@@ -401,7 +401,10 @@ class TraineeController extends Controller
 
         // Apply program filter if provided
         if ($program && $program !== 'All Programs') {
-            $query->where('program_qualification', $program);
+            // Filter by program_id from enrollments relationship
+            $query->whereHas('enrollments', function($q) use ($program) {
+                $q->where('program_id', $program);
+            });
         }
 
         // Apply status filter if provided

@@ -74,72 +74,9 @@ const form = useForm({
     enrollment_type: "regular",
 });
 
-const filteredTrainees = computed(() => {
-    let filtered = props.trainees?.data || [];
-
-    if (searchQuery.value) {
-        const searchLower = searchQuery.value.toLowerCase();
-        filtered = filtered.filter((trainee) => {
-            const firstName = trainee.first_name?.toLowerCase() || "";
-            const lastName = trainee.last_name?.toLowerCase() || "";
-            const middleName = trainee.middle_name?.toLowerCase() || "";
-            const fullName = `${firstName} ${lastName}`.trim();
-            const fullNameWithMiddle =
-                `${firstName} ${middleName} ${lastName}`.trim();
-            const uliNumber = trainee.uli_number?.toLowerCase() || "";
-            const email =
-                trainee.email_facebook?.toLowerCase() ||
-                trainee.email?.toLowerCase() ||
-                "";
-
-            return (
-                firstName.includes(searchLower) ||
-                lastName.includes(searchLower) ||
-                fullName.includes(searchLower) ||
-                fullNameWithMiddle.includes(searchLower) ||
-                uliNumber.includes(searchLower) ||
-                email.includes(searchLower)
-            );
-        });
-    }
-
-    if (selectedProgram.value) {
-        filtered = filtered.filter(
-            (trainee) =>
-                Array.isArray(trainee.enrollments) &&
-                trainee.enrollments.some(
-                    (enrollment) =>
-                        enrollment.program_id == selectedProgram.value
-                )
-        );
-    }
-
-    if (selectedEnrollmentType.value) {
-        filtered = filtered.filter(
-            (trainee) =>
-                trainee.enrollment_type === selectedEnrollmentType.value
-        );
-    }
-
-    if (selectedStatus.value) {
-        filtered = filtered.filter(
-            (trainee) => trainee.status === selectedStatus.value
-        );
-    }
-
-    if (dateFrom.value) {
-        filtered = filtered.filter(
-            (trainee) => trainee.entry_date >= dateFrom.value
-        );
-    }
-
-    if (dateTo.value) {
-        filtered = filtered.filter(
-            (trainee) => trainee.entry_date <= dateTo.value
-        );
-    }
-
-    return filtered;
+// Use trainees data directly since filtering is done server-side
+const displayedTrainees = computed(() => {
+    return props.trainees?.data || [];
 });
 
 // Add search functionality
@@ -185,10 +122,10 @@ const statusOptions = [
     { value: "dropped", label: "Dropped" },
 ];
 
-const totalTrainees = computed(() => filteredTrainees.value.length);
+const totalTrainees = computed(() => displayedTrainees.value.length);
 
 const summaryStats = computed(() => {
-    const trainees = filteredTrainees.value;
+    const trainees = displayedTrainees.value;
     return {
         total: trainees.length,
         active: trainees.filter((t) => t.status === "active").length,
@@ -347,7 +284,7 @@ const exportToPDF = () => {
     doc.setTextColor(0, 0, 0);
 
     // Add data rows
-    filteredTrainees.value.forEach((trainee, index) => {
+    displayedTrainees.value.forEach((trainee, index) => {
         // Check if we need a new page
         if (yPosition > pageHeight) {
             doc.addPage();
@@ -396,7 +333,7 @@ const exportToPDF = () => {
 };
 
 const exportToExcel = async () => {
-    const trainees = filteredTrainees.value;
+    const trainees = displayedTrainees.value;
 
     // Create a new workbook
     const workbook = new ExcelJS.Workbook();
@@ -1059,7 +996,7 @@ const getEnrollmentTypeColor = (type) => {
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr
-                                v-for="trainee in filteredTrainees"
+                                v-for="trainee in displayedTrainees"
                                 :key="trainee.id"
                                 class="hover:bg-gray-50 transition-colors duration-200 group"
                             >

@@ -175,21 +175,21 @@ const navigateToStats = (section) => {
 <template>
     <Head title="Enrollment Officer Dashboard" />
     <AuthenticatedLayout>
-        <div class="py-8 px-8 bg-gray-50 min-h-screen">
+        <div class="py-8 px-8 bg-black-50 min-h-screen">
             <!-- Enhanced Header Section -->
             <div class="mb-8 animate-fade-in">
                 <div
                     class="flex flex-col lg:flex-row lg:items-center lg:justify-between"
                 >
                     <div>
-                        <h1 class="text-3xl font-extrabold text-gray-900">
+                        <h1 class="text-3xl font-extrabold text-black-900">
                             Enrollment Officer Dashboard
                         </h1>
-                        <p class="text-base text-gray-500 mt-1">
+                        <p class="text-base text-black-500 mt-1">
                             {{ currentGreeting }}, Enrollment Officer. Welcome
                             to your dashboard.
                         </p>
-                        <p class="text-sm text-gray-400 mt-1">
+                        <p class="text-sm text-black-400 mt-1">
                             {{ currentDate }}
                         </p>
                     </div>
@@ -590,37 +590,37 @@ const navigateToStats = (section) => {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     ID
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Trainee Name
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Program
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Trainer
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Status
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Payment
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Actions
                                 </th>
@@ -798,28 +798,28 @@ const navigateToStats = (section) => {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-bla-500 uppercase tracking-wider"
                                 >
                                     Assessment
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Applicant
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Program
                                 </th>
 
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Status
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Date
                                 </th>

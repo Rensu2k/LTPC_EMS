@@ -64,7 +64,7 @@ const quickStats = computed(() => [
     {
         title: "Payment Status",
         value: `${dashboardStats.value.pending_payments} Pending`,
-        icon: "💵",
+        icon: "₱",  
         color: "bg-yellow-500",
         bgColor: "bg-yellow-50",
         textColor: "text-yellow-900",
@@ -88,9 +88,9 @@ const quickStats = computed(() => [
 const getActivityIcon = (type) => {
     const icons = {
         enrollment: "📝",
-        payment: "💰",
+        payment: "💸",
         completion: "✅",
-        assessment: "🏆",
+        assessment: "📅",
         trainer: "👨‍🏫",
         default: "📋",
     };
@@ -99,12 +99,12 @@ const getActivityIcon = (type) => {
 
 const getActivityTypeColor = (type) => {
     const colors = {
-        enrollment: "bg-blue-100 text-blue-800",
-        payment: "bg-green-100 text-green-800",
-        completion: "bg-purple-100 text-purple-800",
-        assessment: "bg-indigo-100 text-indigo-800",
-        trainer: "bg-yellow-100 text-yellow-800",
-        default: "bg-gray-100 text-gray-800",
+        enrollment: "bg-blue-500 text-black",
+        payment: "bg-green-500 text-black",
+        completion: "bg-orange-500 text-black",
+        assessment: "bg-yellow-500 text-black",
+        trainer: "bg-purple-500 text-black",
+        default: "bg-red-100 text-black",
     };
     return colors[type] || colors.default;
 };
@@ -177,7 +177,7 @@ const getActivityTypeLabel = (type) => {
                     <div
                         class="bg-white rounded-xl shadow-sm overflow-hidden animate-fade-in border border-gray-100"
                     >
-                        <div class="p-6 border-b border-gray-200">
+                        <div class="p-6 border-b border-black-200">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h3
@@ -185,7 +185,7 @@ const getActivityTypeLabel = (type) => {
                                     >
                                         Recent Officer & Cashier Activities
                                     </h3>
-                                    <p class="text-sm text-gray-500">
+                                    <p class="text-sm text-black-500">
                                         Latest actions performed by enrollment
                                         officers and cashiers
                                     </p>

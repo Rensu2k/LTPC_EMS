@@ -253,21 +253,8 @@ const handleEditFromDetails = (trainer) => {
                                 v-model="searchQuery"
                                 type="text"
                                 placeholder="Search by name, email, or phone..."
-                                class="pl-10 pr-4 py-2 border-2 border-transparent rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300 w-full transition-all"
+                                class="px-4 py-2 border-2 border-transparent rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 hover:border-green-300 w-full transition-all"
                             />
-                            <svg
-                                class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                />
-                            </svg>
                         </div>
                         <div class="relative">
                             <label
@@ -420,12 +407,12 @@ const handleEditFromDetails = (trainer) => {
                                         <div
                                             class="h-10 w-10 rounded-full bg-green-600 flex items-center justify-center text-white font-semibold mr-3"
                                         >
-                                            {{ trainer.avatar }}
+                                            {{ trainer.full_name?.split(" ").map((n) => n[0]).join("") || trainer.avatar || "" }}
                                         </div>
                                         <div
                                             class="text-sm font-medium text-gray-900"
                                         >
-                                            {{ trainer.name }}
+                                            {{ trainer.full_name || trainer.name }}
                                         </div>
                                     </div>
                                 </td>
@@ -649,6 +636,7 @@ const handleEditFromDetails = (trainer) => {
         <TrainerDetailsModal
             :show="showDetailsModal"
             :trainer="selectedTrainer"
+            :is-officer="isOfficer"
             @close="closeDetailsModal"
             @edit="handleEditFromDetails"
         />

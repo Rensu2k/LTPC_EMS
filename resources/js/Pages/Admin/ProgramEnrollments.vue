@@ -45,18 +45,21 @@ const filteredEnrollments = computed(() => {
     // Filter by date range
     if (startDate.value) {
         filtered = filtered.filter((enrollment) => {
-            const enrollmentDate = new Date(enrollment.enrollment_date);
-            const start = new Date(startDate.value);
-            return enrollmentDate >= start;
+            if (!enrollment.enrollment_date) return false;
+            
+            // Extract date-only string directly to avoid timezone conversion issues
+            const enrollmentDateStr = String(enrollment.enrollment_date).split('T')[0].split(' ')[0];
+            return enrollmentDateStr >= startDate.value;
         });
     }
 
     if (endDate.value) {
         filtered = filtered.filter((enrollment) => {
-            const enrollmentDate = new Date(enrollment.enrollment_date);
-            const end = new Date(endDate.value);
-            end.setHours(23, 59, 59, 999); // Set to end of day
-            return enrollmentDate <= end;
+            if (!enrollment.enrollment_date) return false;
+            
+            // Extract date-only string directly to avoid timezone conversion issues
+            const enrollmentDateStr = String(enrollment.enrollment_date).split('T')[0].split(' ')[0];
+            return enrollmentDateStr <= endDate.value;
         });
     }
 

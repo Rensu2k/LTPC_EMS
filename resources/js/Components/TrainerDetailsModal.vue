@@ -7,6 +7,7 @@ import SecondaryButton from "@/Components/SecondaryButton.vue";
 const props = defineProps({
     show: Boolean,
     trainer: Object,
+    isOfficer: Boolean,
 });
 
 const emit = defineEmits(["close", "edit"]);
@@ -487,6 +488,7 @@ const expertiseString = computed(() => {
             <div class="flex justify-end gap-3 mt-8 pt-6 border-t">
                 <SecondaryButton @click="closeModal"> Close </SecondaryButton>
                 <PrimaryButton
+                    v-if="isOfficer"
                     @click="editTrainer"
                     class="bg-blue-600 hover:bg-blue-700"
                 >

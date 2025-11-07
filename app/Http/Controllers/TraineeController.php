@@ -67,12 +67,28 @@ class TraineeController extends Controller
             }
         }
 
-        // Apply date range filter if provided
+        // Apply date range filter if provided - filter by enrollment_date from enrollments
         if ($dateFrom) {
-            $query->where('entry_date', '>=', $dateFrom);
+            $query->where(function($q) use ($dateFrom) {
+                $q->whereHas('enrollments', function($subQ) use ($dateFrom) {
+                    $subQ->whereDate('enrollment_date', '>=', $dateFrom);
+                })->orWhere(function($subQ) use ($dateFrom) {
+                    // Fallback for legacy trainees without enrollments
+                    $subQ->whereDoesntHave('enrollments')
+                          ->whereDate('entry_date', '>=', $dateFrom);
+                });
+            });
         }
         if ($dateTo) {
-            $query->where('entry_date', '<=', $dateTo);
+            $query->where(function($q) use ($dateTo) {
+                $q->whereHas('enrollments', function($subQ) use ($dateTo) {
+                    $subQ->whereDate('enrollment_date', '<=', $dateTo);
+                })->orWhere(function($subQ) use ($dateTo) {
+                    // Fallback for legacy trainees without enrollments
+                    $subQ->whereDoesntHave('enrollments')
+                          ->whereDate('entry_date', '<=', $dateTo);
+                });
+            });
         }
 
         // Get paginated results
@@ -425,12 +441,28 @@ class TraineeController extends Controller
             }
         }
 
-        // Apply date range filter if provided
+        // Apply date range filter if provided - filter by enrollment_date from enrollments
         if ($dateFrom) {
-            $query->where('entry_date', '>=', $dateFrom);
+            $query->where(function($q) use ($dateFrom) {
+                $q->whereHas('enrollments', function($subQ) use ($dateFrom) {
+                    $subQ->whereDate('enrollment_date', '>=', $dateFrom);
+                })->orWhere(function($subQ) use ($dateFrom) {
+                    // Fallback for legacy trainees without enrollments
+                    $subQ->whereDoesntHave('enrollments')
+                          ->whereDate('entry_date', '>=', $dateFrom);
+                });
+            });
         }
         if ($dateTo) {
-            $query->where('entry_date', '<=', $dateTo);
+            $query->where(function($q) use ($dateTo) {
+                $q->whereHas('enrollments', function($subQ) use ($dateTo) {
+                    $subQ->whereDate('enrollment_date', '<=', $dateTo);
+                })->orWhere(function($subQ) use ($dateTo) {
+                    // Fallback for legacy trainees without enrollments
+                    $subQ->whereDoesntHave('enrollments')
+                          ->whereDate('entry_date', '<=', $dateTo);
+                });
+            });
         }
 
         $trainees = $query->latest()

@@ -45,7 +45,7 @@ class AssessmentController extends Controller
         }
 
         // Apply status filter if provided
-        if ($status && $status !== 'All Statuses') {
+        if ($status && $status !== 'All Statuses' && $status !== '') {
             $query->where('status', $status);
         }
 

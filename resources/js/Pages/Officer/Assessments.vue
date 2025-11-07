@@ -33,8 +33,7 @@ watch(
 );
 
 const searchQuery = ref(props.filters?.search || "");
-const selectedType = ref(props.filters?.type || "All Types");
-const selectedStatus = ref(props.filters?.status || "All Status");
+const selectedStatus = ref(props.filters?.status || "All Statuses");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showReassessmentModal = ref(false);
@@ -243,15 +242,8 @@ const viewAssessmentHistory = (assessment) => {
 const filteredAssessments = computed(() => {
     let filtered = assessmentsList.value;
 
-    // Filter by type
-    if (selectedType.value !== "All Types") {
-        filtered = filtered.filter(
-            (assessment) => assessment.type === selectedType.value
-        );
-    }
-
     // Filter by status
-    if (selectedStatus.value !== "All Status") {
+    if (selectedStatus.value !== "All Statuses") {
         filtered = filtered.filter(
             (assessment) => assessment.status === selectedStatus.value
         );
@@ -291,8 +283,7 @@ const performSearch = () => {
         router.visit(route("officer.assessments"), {
             data: {
                 search: searchQuery.value,
-                status: selectedStatus.value,
-                program: selectedType.value,
+                status: selectedStatus.value !== "All Statuses" ? selectedStatus.value : "",
                 per_page: props.filters?.per_page || 20,
             },
             preserveState: true,
@@ -307,10 +298,6 @@ watch(searchQuery, () => {
 });
 
 watch(selectedStatus, () => {
-    performSearch();
-});
-
-watch(selectedType, () => {
     performSearch();
 });
 </script>
@@ -403,27 +390,13 @@ watch(selectedType, () => {
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-medium text-gray-700"
-                            >Filter by Type:</span
-                        >
-                        <select
-                            v-model="selectedType"
-                            class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="All Types">All Types</option>
-                            <option value="practical">Practical</option>
-                            <option value="theoretical">Theoretical</option>
-                            <option value="both">Both</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm font-medium text-gray-700"
                             >Filter by Status:</span
                         >
                         <select
                             v-model="selectedStatus"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                            <option value="All Status">All Status</option>
+                            <option value="All Statuses">All Statuses</option>
                             <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
                             <option value="graded">Graded</option>

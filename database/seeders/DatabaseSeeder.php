@@ -8,12 +8,9 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
+
     public function run(): void
     {
-        // Seed default users
         User::firstOrCreate(
             ['username' => 'admin'],
             [
@@ -42,7 +39,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Seed programs
         $this->call([
             ProgramSeeder::class,
         ]);

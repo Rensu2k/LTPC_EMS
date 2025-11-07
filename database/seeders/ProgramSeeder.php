@@ -8,13 +8,10 @@ use Carbon\Carbon;
 
 class ProgramSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+   
     public function run(): void
     {
         $programs = [
-            // Computer and Information Technology Programs
             [
                 'program_id' => 'PROG-CSS-NCII-001',
                 'name' => 'Computer Systems Servicing NCII',

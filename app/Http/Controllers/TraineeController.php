@@ -19,7 +19,6 @@ class TraineeController extends Controller
         $dateFrom = $request->get('date_from', '');
         $dateTo = $request->get('date_to', '');
 
-        // Build the query
         $query = Trainee::with([
             'enrollments' => function($query) {
                 $query->select('id', 'trainee_id', 'program_id', 'batch', 'enrollment_date', 'date_started', 'date_ended', 'completion_date', 'status', 'payment_status', 'created_at', 'updated_at');

@@ -24,9 +24,4 @@ class Training extends Model
     {
         return $this->belongsTo(Trainer::class);
     }
-
-    public function results()
-    {
-        return $this->hasMany(TrainingResult::class);
-    }
 }

@@ -50,16 +50,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/payments', [PaymentController::class, 'adminIndex'])->name('payments');
         
-        Route::get('/trainings', function () {
-            return Inertia::render('Admin/TrainingResults');
-        })->name('trainings');
-        Route::post('/trainings', function () {            
-        })->name('trainings.store');
-        Route::put('/trainings/{id}', function ($id) {            
-        })->name('trainings.update');
-        Route::delete('/trainings/{id}', function ($id) {            
-        })->name('trainings.destroy');
-        
         Route::get('/assessments', [AssessmentResultsController::class, 'index'])->name('assessments');
         Route::post('/assessments', [AssessmentResultsController::class, 'store'])->name('assessments.store');
         Route::put('/assessments/{assessment}', [AssessmentResultsController::class, 'update'])->name('assessments.update');

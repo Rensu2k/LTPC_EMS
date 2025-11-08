@@ -8,6 +8,8 @@ import AssessmentDetailsModal from "@/Components/AssessmentDetailsModal.vue";
 import AssessmentReassessmentModal from "@/Components/AssessmentReassessmentModal.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import Pagination from "@/Components/Pagination.vue";
+import TextInput from "@/Components/TextInput.vue";
+import InputLabel from "@/Components/InputLabel.vue";
 import { useNotifications } from "@/composables/useNotifications";
 
 const props = defineProps({
@@ -34,6 +36,10 @@ watch(
 
 const searchQuery = ref(props.filters?.search || "");
 const selectedStatus = ref(props.filters?.status || "All Statuses");
+const selectedResult = ref(props.filters?.result || "All Results");
+const selectedProgram = ref(props.filters?.program || "");
+const dateFrom = ref(props.filters?.date_from || "");
+const dateTo = ref(props.filters?.date_to || "");
 const showRegistrationModal = ref(false);
 const showDetailsModal = ref(false);
 const showReassessmentModal = ref(false);
@@ -77,7 +83,8 @@ const assessmentsList = computed(() => {
         applicant_name: assessment.applicant_name,
         applicant_type: assessment.applicant_type,
         trainer_name: assessment.trainer_name,
-        assessment_date: new Date(
+        assessment_date: assessment.assessment_date, // Keep raw date for filtering
+        assessment_date_formatted: new Date(
             assessment.assessment_date
         ).toLocaleDateString(),
         assessment_fee: assessment.assessment_fee,
@@ -249,6 +256,45 @@ const filteredAssessments = computed(() => {
         );
     }
 
+    // Filter by result
+    if (selectedResult.value !== "All Results") {
+        if (selectedResult.value === "Not Evaluated") {
+            filtered = filtered.filter(
+                (assessment) => !assessment.result || assessment.result === null
+            );
+        } else {
+            filtered = filtered.filter(
+                (assessment) => assessment.result === selectedResult.value
+            );
+        }
+    }
+
+    // Filter by program
+    if (selectedProgram.value && selectedProgram.value !== "") {
+        filtered = filtered.filter(
+            (assessment) => assessment.program_id === selectedProgram.value
+        );
+    }
+
+    // Filter by date range
+    if (dateFrom.value) {
+        filtered = filtered.filter((assessment) => {
+            if (!assessment.assessment_date) return false;
+            // Extract date-only string directly to avoid timezone conversion issues
+            const assessmentDateStr = String(assessment.assessment_date).split('T')[0].split(' ')[0];
+            return assessmentDateStr >= dateFrom.value;
+        });
+    }
+
+    if (dateTo.value) {
+        filtered = filtered.filter((assessment) => {
+            if (!assessment.assessment_date) return false;
+            // Extract date-only string directly to avoid timezone conversion issues
+            const assessmentDateStr = String(assessment.assessment_date).split('T')[0].split(' ')[0];
+            return assessmentDateStr <= dateTo.value;
+        });
+    }
+
     // Filter by search query
     if (searchQuery.value) {
         filtered = filtered.filter(
@@ -284,6 +330,10 @@ const performSearch = () => {
             data: {
                 search: searchQuery.value,
                 status: selectedStatus.value !== "All Statuses" ? selectedStatus.value : "",
+                result: selectedResult.value !== "All Results" ? selectedResult.value : "",
+                program: selectedProgram.value || "",
+                date_from: dateFrom.value || "",
+                date_to: dateTo.value || "",
                 per_page: props.filters?.per_page || 20,
             },
             preserveState: true,
@@ -300,6 +350,41 @@ watch(searchQuery, () => {
 watch(selectedStatus, () => {
     performSearch();
 });
+
+watch(selectedResult, () => {
+    performSearch();
+});
+
+watch(selectedProgram, () => {
+    performSearch();
+});
+
+watch([dateFrom, dateTo], () => {
+    performSearch();
+});
+
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+    return (
+        searchQuery.value ||
+        selectedStatus.value !== "All Statuses" ||
+        selectedResult.value !== "All Results" ||
+        selectedProgram.value ||
+        dateFrom.value ||
+        dateTo.value
+    );
+});
+
+// Clear all filters
+const clearFilters = () => {
+    searchQuery.value = "";
+    selectedStatus.value = "All Statuses";
+    selectedResult.value = "All Results";
+    selectedProgram.value = "";
+    dateFrom.value = "";
+    dateTo.value = "";
+    performSearch();
+};
 </script>
 
 <template>
@@ -387,25 +472,92 @@ watch(selectedStatus, () => {
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm font-medium text-gray-700"
-                            >Filter by Status:</span
-                        >
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <InputLabel for="program" value="Filter by Program" />
                         <select
+                            id="program"
+                            v-model="selectedProgram"
+                            class="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="">All Programs</option>
+                            <option
+                                v-for="program in programs"
+                                :key="program.program_id"
+                                :value="program.program_id"
+                            >
+                                {{ program.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <InputLabel for="status" value="Filter by Status" />
+                        <select
+                            id="status"
                             v-model="selectedStatus"
-                            class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            class="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                             <option value="All Statuses">All Statuses</option>
                             <option value="pending">Pending</option>
                             <option value="completed">Completed</option>
-                            <option value="graded">Graded</option>
+                        </select>
+                    </div>
+                    <div>
+                        <InputLabel for="result" value="Filter by Result" />
+                        <select
+                            id="result"
+                            v-model="selectedResult"
+                            class="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="All Results">All Results</option>
                             <option value="competent">Competent</option>
                             <option value="not_yet_competent">
                                 Not Yet Competent
                             </option>
+                            <option value="absent">Absent</option>
                         </select>
                     </div>
+                    <div>
+                        <InputLabel for="dateFrom" value="From Date" />
+                        <TextInput
+                            id="dateFrom"
+                            v-model="dateFrom"
+                            type="date"
+                            class="mt-1 block w-full"
+                        />
+                    </div>
+                    <div>
+                        <InputLabel for="dateTo" value="To Date" />
+                        <TextInput
+                            id="dateTo"
+                            v-model="dateTo"
+                            type="date"
+                            class="mt-1 block w-full"
+                        />
+                    </div>
+                </div>
+
+                <!-- Clear Filters Button -->
+                <div v-if="hasActiveFilters" class="mt-4 flex justify-end">
+                    <button
+                        @click="clearFilters"
+                        class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors duration-200"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                        Clear Filters
+                    </button>
                 </div>
             </div>
 
@@ -603,7 +755,7 @@ watch(selectedStatus, () => {
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
                                 >
-                                    {{ assessment.assessment_date }}
+                                    {{ assessment.assessment_date_formatted }}
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium"

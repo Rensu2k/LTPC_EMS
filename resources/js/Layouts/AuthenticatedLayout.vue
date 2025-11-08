@@ -18,7 +18,6 @@ const pageTitle = computed(() => {
     if (currentRoute === "admin.trainees") return "Manage Trainees";
     if (currentRoute === "admin.trainers") return "Manage Trainers";
     if (currentRoute === "admin.payments") return "Manage Payments";
-    if (currentRoute === "admin.trainings") return "Trainings Results";
     if (currentRoute === "admin.assessments") return "Assessments Results";
     if (currentRoute === "admin.employments") return "Employments Referrals";
 
@@ -253,40 +252,6 @@ function logout() {
                                         : 'text-lg text-white/80 group-hover:text-white'
                                 "
                                 >Payments</span
-                            >
-                        </span>
-                    </NavLink>
-                    <NavLink
-                        :href="route('admin.trainings')"
-                        :active="route().current('admin.trainings')"
-                        class="group py-3 px-2 rounded-lg"
-                    >
-                        <span class="flex items-center gap-4">
-                            <svg
-                                class="h-6 w-6"
-                                :class="
-                                    route().current('admin.trainings')
-                                        ? 'text-white'
-                                        : 'text-white/70 group-hover:text-white'
-                                "
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                            </svg>
-                            <span
-                                :class="
-                                    route().current('admin.trainings')
-                                        ? 'font-semibold text-lg text-white'
-                                        : 'text-lg text-white/80 group-hover:text-white'
-                                "
-                                >Training Results</span
                             >
                         </span>
                     </NavLink>

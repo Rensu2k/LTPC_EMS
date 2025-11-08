@@ -20,7 +20,7 @@ const showResultsModal = ref(false);
 const viewingAssessment = ref(null);
 const searchQuery = ref(props.filters?.search || "");
 const selectedProgram = ref(props.filters?.program || "");
-const selectedStatus = ref(props.filters?.status || "");
+const selectedResult = ref(props.filters?.result || "");
 const dateFrom = ref(props.filters?.date_from || "");
 const dateTo = ref(props.filters?.date_to || "");
 const perPage = ref(props.filters?.per_page || 10);
@@ -28,12 +28,12 @@ const showFilters = ref(false);
 
 // Add search functionality
 const performSearch = () => {
-    router.get(
+        router.get(
         route("admin.assessments"),
         {
             search: searchQuery.value,
             program: selectedProgram.value,
-            status: selectedStatus.value,
+            result: selectedResult.value || "",
             date_from: dateFrom.value,
             date_to: dateTo.value,
             per_page: perPage.value,
@@ -55,7 +55,7 @@ const changePerPage = () => {
 // Watch for filter changes and trigger search automatically
 let searchTimeout = null;
 watch(
-    [selectedProgram, selectedStatus, dateFrom, dateTo, searchQuery],
+    [selectedProgram, selectedResult, dateFrom, dateTo, searchQuery],
     () => {
         // Clear previous timeout
         if (searchTimeout) {
@@ -83,7 +83,7 @@ const hasActiveFilters = computed(() => {
     return (
         searchQuery.value ||
         selectedProgram.value ||
-        selectedStatus.value ||
+        selectedResult.value ||
         dateFrom.value ||
         dateTo.value
     );
@@ -187,9 +187,10 @@ const viewAssessmentHistory = (assessment) => {
 const clearFilters = () => {
     searchQuery.value = "";
     selectedProgram.value = "";
-    selectedStatus.value = "";
+    selectedResult.value = "";
     dateFrom.value = "";
     dateTo.value = "";
+    performSearch();
 };
 
 const getStatusColor = (status) => {
@@ -348,16 +349,19 @@ const exportAssessmentResults = () => {
                                 <label
                                     class="block text-sm font-medium text-gray-700 mb-1"
                                 >
-                                    Filter by Status
+                                    Filter by Result
                                 </label>
                                 <select
-                                    id="status-filter"
-                                    v-model="selectedStatus"
+                                    id="result-filter"
+                                    v-model="selectedResult"
                                     class="mt-1 block w-full border-2 border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300 px-3 py-2"
                                 >
-                                    <option value="">All Statuses</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="completed">Completed</option>
+                                    <option value="">All Results</option>
+                                    <option value="competent">Competent</option>
+                                    <option value="not_yet_competent">
+                                        Not Yet Competent
+                                    </option>
+                                    <option value="absent">Absent</option>
                                 </select>
                             </div>
                             <div>
@@ -387,6 +391,29 @@ const exportAssessmentResults = () => {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Clear Filters Button -->
+                    <div v-if="hasActiveFilters" class="mt-4 flex justify-end">
+                        <button
+                            @click="clearFilters"
+                            class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium rounded-lg transition-colors duration-200"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                            Clear Filters
+                        </button>
                     </div>
                 </div>
 

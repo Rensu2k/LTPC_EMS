@@ -24,6 +24,9 @@ class AssessmentController extends Controller
         $search = $request->get('search', '');
         $status = $request->get('status', '');
         $program = $request->get('program', '');
+        $result = $request->get('result', '');
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
 
         // Build the query
         $query = Assessment::with(['program', 'trainee', 'trainer']);
@@ -49,11 +52,26 @@ class AssessmentController extends Controller
             $query->where('status', $status);
         }
 
+        // Apply result filter if provided
+        if ($result && $result !== 'All Results' && $result !== '') {
+            if ($result === 'Not Evaluated') {
+                $query->whereNull('result');
+            } else {
+                $query->where('result', $result);
+            }
+        }
+
         // Apply program filter if provided
-        if ($program && $program !== 'All Programs') {
-            $query->whereHas('program', function ($programQuery) use ($program) {
-                $programQuery->where('name', $program);
-            });
+        if ($program && $program !== 'All Programs' && $program !== '') {
+            $query->where('program_id', $program);
+        }
+
+        // Apply date range filter if provided
+        if ($dateFrom) {
+            $query->whereDate('assessment_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('assessment_date', '<=', $dateTo);
         }
 
         // Get all assessments and group them by their original assessment
@@ -102,7 +120,7 @@ class AssessmentController extends Controller
                         'scholarship_package' => $assessment->trainee->scholarship_package,
                     ] : null,
                     'trainer_name' => $assessment->trainer->full_name ?? 'N/A',
-                    'assessment_date' => $assessment->assessment_date,
+                    'assessment_date' => $assessment->assessment_date ? \Carbon\Carbon::parse($assessment->assessment_date)->format('Y-m-d') : null,
                     'assessment_fee' => $assessment->assessment_fee,
                     'payment_status' => $assessment->payment_status,
                     'payment_required' => $assessment->payment_required,
@@ -161,7 +179,10 @@ class AssessmentController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'result' => $result,
                 'program' => $program,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'per_page' => $perPage,
             ]
         ]);

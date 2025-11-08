@@ -18,11 +18,12 @@ class AssessmentResultsController extends Controller
         $perPage = $request->get('per_page', 10); // Default to 10 items per page
         $search = $request->get('search', '');
         $program = $request->get('program', '');
-        $status = $request->get('status', '');
+        $result = $request->get('result', '');
         $dateFrom = $request->get('date_from', '');
         $dateTo = $request->get('date_to', '');
 
-        $query = Assessment::with(['program', 'trainee', 'trainer']);
+        $query = Assessment::with(['program', 'trainee', 'trainer'])
+            ->where('status', 'completed'); // Only show completed assessments
 
         // Apply search filter if provided
         if ($search) {
@@ -43,17 +44,21 @@ class AssessmentResultsController extends Controller
             $query->where('program_id', $program);
         }
 
-        // Apply status filter if provided
-        if ($status && $status !== 'All Statuses') {
-            $query->where('status', $status);
+        // Apply result filter if provided
+        if ($result && $result !== 'All Results' && $result !== '') {
+            if ($result === 'Not Evaluated') {
+                $query->whereNull('result');
+            } else {
+                $query->where('result', $result);
+            }
         }
 
         // Apply date range filter if provided
         if ($dateFrom) {
-            $query->where('assessment_date', '>=', $dateFrom);
+            $query->whereDate('assessment_date', '>=', $dateFrom);
         }
         if ($dateTo) {
-            $query->where('assessment_date', '<=', $dateTo);
+            $query->whereDate('assessment_date', '<=', $dateTo);
         }
 
         // Get only the latest assessment per trainee/assessment type/program combination
@@ -115,7 +120,8 @@ class AssessmentResultsController extends Controller
             });
 
         // Get comprehensive statistics data (ALL assessments, not just latest)
-        $comprehensiveQuery = Assessment::query();
+        $comprehensiveQuery = Assessment::query()
+            ->where('status', 'completed'); // Only show completed assessments
 
         // Apply the same filters to comprehensive statistics
         if ($search) {
@@ -135,15 +141,19 @@ class AssessmentResultsController extends Controller
             $comprehensiveQuery->where('program_id', $program);
         }
 
-        if ($status && $status !== 'All Statuses') {
-            $comprehensiveQuery->where('status', $status);
+        if ($result && $result !== 'All Results' && $result !== '') {
+            if ($result === 'Not Evaluated') {
+                $comprehensiveQuery->whereNull('result');
+            } else {
+                $comprehensiveQuery->where('result', $result);
+            }
         }
 
         if ($dateFrom) {
-            $comprehensiveQuery->where('assessment_date', '>=', $dateFrom);
+            $comprehensiveQuery->whereDate('assessment_date', '>=', $dateFrom);
         }
         if ($dateTo) {
-            $comprehensiveQuery->where('assessment_date', '<=', $dateTo);
+            $comprehensiveQuery->whereDate('assessment_date', '<=', $dateTo);
         }
 
         $comprehensiveAssessments = $comprehensiveQuery->with(['trainee', 'program', 'trainer'])->get()->map(function ($assessment) {
@@ -181,7 +191,7 @@ class AssessmentResultsController extends Controller
             'filters' => [
                 'search' => $search,
                 'program' => $program,
-                'status' => $status,
+                'result' => $result,
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'per_page' => $perPage,

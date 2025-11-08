@@ -446,11 +446,12 @@ const filteredTrainers = computed(() => {
                             </div>
 
                             <!-- Trainer Selection -->
+                             <!-- Assessor should be dynamic -->
                             <div>
                                 <SearchableSelect
                                     v-model="form.trainer_id"
                                     :options="filteredTrainers"
-                                    label="Trainer/Assessor *"
+                                    label="Trainer/Assessor *" 
                                     placeholder="Type trainer name..."
                                     display-key="full_name"
                                     value-key="id"

@@ -798,7 +798,7 @@ const navigateToStats = (section) => {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-bold text-bla-500 uppercase tracking-wider"
+                                    class="px-6 py-3 text-left text-xs font-bold text-black-500 uppercase tracking-wider"
                                 >
                                     Assessment
                                 </th>

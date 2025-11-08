@@ -3,6 +3,16 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
+import {
+    UserGroupIcon,
+    BuildingOfficeIcon,
+    CheckBadgeIcon,
+    ClipboardDocumentCheckIcon,
+    BanknotesIcon,
+    BriefcaseIcon,
+    ClipboardDocumentListIcon,
+    DocumentTextIcon,
+} from "@heroicons/vue/24/outline";
 
 const props = defineProps({
     stats: Object,
@@ -42,7 +52,8 @@ const quickStats = computed(() => [
     {
         title: "Total Enrollments",
         value: dashboardStats.value.total_enrollments,
-        icon: "📊",
+        icon: UserGroupIcon,
+        iconColor: "text-blue-600",
         color: "bg-blue-500",
         bgColor: "bg-blue-50",
         textColor: "text-blue-900",
@@ -53,7 +64,8 @@ const quickStats = computed(() => [
     {
         title: "Program Progress",
         value: `${dashboardStats.value.active_programs} Active`,
-        icon: "📈",
+        icon: BuildingOfficeIcon,
+        iconColor: "text-green-600",
         color: "bg-green-500",
         bgColor: "bg-green-50",
         textColor: "text-green-900",
@@ -64,7 +76,8 @@ const quickStats = computed(() => [
     {
         title: "Payment Status",
         value: `${dashboardStats.value.pending_payments} Pending`,
-        icon: "₱",  
+        icon: BanknotesIcon,
+        iconColor: "text-yellow-600",
         color: "bg-yellow-500",
         bgColor: "bg-yellow-50",
         textColor: "text-yellow-900",
@@ -75,7 +88,8 @@ const quickStats = computed(() => [
     {
         title: "Employment Rate",
         value: `${dashboardStats.value.employment_rate}%`,
-        icon: "💼",
+        icon: BriefcaseIcon,
+        iconColor: "text-pink-600",
         color: "bg-pink-500",
         bgColor: "bg-pink-50",
         textColor: "text-pink-900",
@@ -87,24 +101,24 @@ const quickStats = computed(() => [
 
 const getActivityIcon = (type) => {
     const icons = {
-        enrollment: "📝",
-        payment: "💸",
-        completion: "✅",
-        assessment: "📅",
-        trainer: "👨‍🏫",
-        default: "📋",
+        enrollment: ClipboardDocumentListIcon,
+        payment: BanknotesIcon,
+        completion: CheckBadgeIcon,
+        assessment: ClipboardDocumentCheckIcon,
+        trainer: BuildingOfficeIcon,
+        default: DocumentTextIcon,
     };
     return icons[type] || icons.default;
 };
 
 const getActivityTypeColor = (type) => {
     const colors = {
-        enrollment: "bg-blue-500 text-black",
-        payment: "bg-green-500 text-black",
-        completion: "bg-orange-500 text-black",
-        assessment: "bg-yellow-500 text-black",
-        trainer: "bg-purple-500 text-black",
-        default: "bg-red-100 text-black",
+        enrollment: "bg-blue-100 text-blue-700",
+        payment: "bg-green-100 text-green-700",
+        completion: "bg-orange-100 text-orange-700",
+        assessment: "bg-yellow-100 text-yellow-700",
+        trainer: "bg-purple-100 text-purple-700",
+        default: "bg-gray-100 text-gray-700",
     };
     return colors[type] || colors.default;
 };
@@ -129,7 +143,7 @@ const getActivityTypeLabel = (type) => {
             <!-- Monitoring Overview -->
             <div class="mb-8 animate-fade-in">
                 <h3
-                    class="text-lg font-semibold text-gray-800 mb-4 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-gradient-to-r after:rounded"
+                    class="text-lg font-semibold text-gray-700 mb-4 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-gradient-to-r after:rounded"
                 >
                     System Monitoring Overview
                 </h3>
@@ -140,8 +154,7 @@ const getActivityTypeLabel = (type) => {
                         v-for="stat in quickStats"
                         :key="stat.title"
                         :href="stat.link"
-                        :class="stat.bgColor"
-                        class="p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100 hover:scale-105"
+                        class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-200 hover:border-gray-300 hover:scale-105 p-6"
                     >
                         <div class="flex items-center justify-between">
                             <div>
@@ -161,8 +174,11 @@ const getActivityTypeLabel = (type) => {
                                     {{ stat.subtitle }}
                                 </p>
                             </div>
-                            <div class="text-4xl">
-                                {{ stat.icon }}
+                            <div :class="`${stat.bgColor} rounded-full p-3`">
+                                <component
+                                    :is="stat.icon"
+                                    :class="`${stat.iconColor} h-6 w-6`"
+                                />
                             </div>
                         </div>
                     </Link>
@@ -177,15 +193,15 @@ const getActivityTypeLabel = (type) => {
                     <div
                         class="bg-white rounded-xl shadow-sm overflow-hidden animate-fade-in border border-gray-100"
                     >
-                        <div class="p-6 border-b border-black-200">
+                        <div class="p-6 border-b border-gray-200">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h3
-                                        class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-24 after:h-0.5 after:bg-gradient-to-r afte:rounded"
+                                        class="text-lg font-semibold text-gray-800 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-24 after:h-0.5 after:bg-gradient-to-r after:rounded"
                                     >
                                         Recent Officer & Cashier Activities
                                     </h3>
-                                    <p class="text-sm text-black-500">
+                                    <p class="text-sm text-gray-600">
                                         Latest actions performed by enrollment
                                         officers and cashiers
                                     </p>
@@ -202,11 +218,16 @@ const getActivityTypeLabel = (type) => {
                                     <!-- Activity Icon -->
                                     <div class="flex-shrink-0">
                                         <div
-                                            class="h-10 w-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-2 border-gray-300"
+                                            class="h-10 w-10 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center border border-gray-200"
                                         >
-                                            <span class="text-xl">{{
-                                                getActivityIcon(activity.type)
-                                            }}</span>
+                                            <component
+                                                :is="
+                                                    getActivityIcon(
+                                                        activity.type
+                                                    )
+                                                "
+                                                class="h-5 w-5 text-gray-600"
+                                            />
                                         </div>
                                     </div>
 
@@ -234,7 +255,7 @@ const getActivityTypeLabel = (type) => {
                                                 </span>
                                                 <span
                                                     v-if="activity.officer"
-                                                    class="text-sm font-medium text-gray-900"
+                                                    class="text-sm font-medium text-gray-700"
                                                 >
                                                     {{ activity.officer }}
                                                 </span>
@@ -244,7 +265,7 @@ const getActivityTypeLabel = (type) => {
                                                 >{{ activity.time }}</span
                                             >
                                         </div>
-                                        <p class="mt-1 text-sm text-gray-900">
+                                        <p class="mt-1 text-sm text-gray-700">
                                             {{ activity.message }}
                                         </p>
                                         <div
@@ -277,7 +298,7 @@ const getActivityTypeLabel = (type) => {
                                         />
                                     </svg>
                                     <h3
-                                        class="mt-2 text-sm font-medium text-gray-900"
+                                        class="mt-2 text-sm font-medium text-gray-700"
                                     >
                                         No recent activities
                                     </h3>
@@ -299,7 +320,7 @@ const getActivityTypeLabel = (type) => {
                     >
                         <div class="p-6 border-b border-gray-200">
                             <h3
-                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
+                                class="text-lg font-semibold text-gray-800 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-16 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Trainee Status
                             </h3>
@@ -344,7 +365,7 @@ const getActivityTypeLabel = (type) => {
                     >
                         <div class="p-6 border-b border-gray-200">
                             <h3
-                                class="text-lg font-semibold text-gray-900 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
+                                class="text-lg font-semibold text-gray-800 relative pb-2 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-20 after:h-0.5 after:bg-gradient-to-r after:rounded"
                             >
                                 Payment Monitoring
                             </h3>
@@ -352,7 +373,7 @@ const getActivityTypeLabel = (type) => {
                                 Regular trainees only
                             </p>
                         </div>
-                            <div class="p-6 space-y-4">
+                        <div class="p-6 space-y-4">
                             <div
                                 class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200"
                             >

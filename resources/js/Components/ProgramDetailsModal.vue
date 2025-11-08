@@ -28,7 +28,7 @@
             <div v-if="program" class="space-y-6">
                 <!-- Program Header -->
                 <div
-                    class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6"
+                    class="bg-gray-50 rounded-lg p-6 border border-gray-200"
                 >
                     <div class="flex justify-between items-start">
                         <div>
@@ -45,11 +45,11 @@
                             </p>
                             <div class="flex items-center gap-4">
                                 <span
-                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
                                     :class="{
-                                        'bg-green-100 text-green-800':
+                                        'bg-green-50 text-green-700 border-green-200':
                                             program.status === 'active',
-                                        'bg-gray-100 text-gray-800':
+                                        'bg-gray-100 text-gray-700':
                                             program.status === 'inactive',
                                     }"
                                 >
@@ -90,7 +90,7 @@
                 <!-- Program Information Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Duration -->
-                    <div class="bg-white border rounded-lg p-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                         <div class="flex items-center">
                             <div class="bg-blue-50 rounded-full p-2 mr-3">
                                 <svg
@@ -117,7 +117,7 @@
                     </div>
 
                     <!-- Enrollments -->
-                    <div class="bg-white border rounded-lg p-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                         <div class="flex items-center">
                             <div class="bg-green-50 rounded-full p-2 mr-3">
                                 <svg
@@ -146,7 +146,7 @@
                     </div>
 
                     <!-- Trainers Count -->
-                    <div class="bg-white border rounded-lg p-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                         <div class="flex items-center">
                             <div class="bg-purple-50 rounded-full p-2 mr-3">
                                 <svg
@@ -176,7 +176,7 @@
                 </div>
 
                 <!-- Assigned Trainers -->
-                <div class="bg-white border rounded-lg p-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
                     <h4 class="text-lg font-semibold text-gray-900 mb-4">
                         Assigned Trainers
                     </h4>
@@ -229,7 +229,7 @@
                 </div>
 
                 <!-- Current Batch Status -->
-                <div class="bg-white border rounded-lg p-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
                     <h4 class="text-lg font-semibold text-gray-900 mb-4">
                         Current Batch Status
                     </h4>
@@ -302,7 +302,7 @@
                 <!-- Program Dates -->
                 <div
                     v-if="program.start_date || program.end_date"
-                    class="bg-white border rounded-lg p-6"
+                    class="bg-gray-50 border border-gray-200 rounded-lg p-6"
                 >
                     <h4 class="text-lg font-semibold text-gray-900 mb-4">
                         Program Schedule

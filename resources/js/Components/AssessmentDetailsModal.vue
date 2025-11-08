@@ -32,24 +32,24 @@ const formattedDate = computed(() => {
 const statusColor = computed(() => {
     switch (props.assessment?.status) {
         case "pending":
-            return "bg-yellow-100 text-yellow-800";
+            return "bg-yellow-50 text-yellow-700 border border-yellow-200";
         case "completed":
-            return "bg-blue-100 text-blue-800";
+            return "bg-blue-50 text-blue-700 border border-blue-200";
         default:
-            return "bg-gray-100 text-gray-800";
+            return "bg-gray-100 text-gray-700";
     }
 });
 
 const typeColor = computed(() => {
     switch (props.assessment?.type) {
         case "theoretical":
-            return "bg-blue-100 text-blue-800";
+            return "bg-blue-50 text-blue-700 border border-blue-200";
         case "practical":
-            return "bg-green-100 text-green-800";
+            return "bg-green-50 text-green-700 border border-green-200";
         case "both":
-            return "bg-purple-100 text-purple-800";
+            return "bg-purple-50 text-purple-700 border border-purple-200";
         default:
-            return "bg-gray-100 text-gray-800";
+            return "bg-gray-100 text-gray-700";
     }
 });
 
@@ -142,7 +142,7 @@ const reassessment = () => {
             <!-- Content Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Assessment Information -->
-                <div class="bg-gray-50 rounded-lg p-6">
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                     <h3
                         class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                     >
@@ -207,7 +207,7 @@ const reassessment = () => {
                 </div>
 
                 <!-- Participants Information -->
-                <div class="bg-gray-50 rounded-lg p-6">
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                     <h3
                         class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                     >
@@ -248,12 +248,12 @@ const reassessment = () => {
 
                 <!-- Assessment Status Information -->
                 <div class="lg:col-span-2">
-                    <div class="bg-blue-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-blue-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"

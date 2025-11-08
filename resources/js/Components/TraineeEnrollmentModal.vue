@@ -2,7 +2,7 @@
     <Modal :show="show" @close="close" custom-width="70vw">
         <div class="p-6">
             <div class="flex items-center gap-3 mb-6">
-                <div class="p-2 bg-green-100 rounded-lg">
+                <div class="p-2 bg-gray-100 rounded-lg">
                     <svg
                         class="h-6 w-6 text-green-600"
                         fill="none"
@@ -32,9 +32,22 @@
             <!-- Current Enrollments Summary -->
             <div
                 v-if="enrollmentHistory && enrollmentHistory.length > 0"
-                class="mb-6 p-4 bg-blue-50 rounded-lg"
+                class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200"
             >
-                <h3 class="text-sm font-medium text-blue-900 mb-2">
+                <h3 class="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                    <svg
+                        class="w-4 h-4 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                    </svg>
                     Current Enrollment History
                 </h3>
                 <div class="space-y-2">
@@ -53,15 +66,15 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span
-                                class="px-2 py-1 rounded-full text-xs font-medium"
+                                class="px-2 py-1 rounded-full text-xs font-medium border"
                                 :class="{
-                                    'bg-green-100 text-green-800':
+                                    'bg-green-50 text-green-700 border-green-200':
                                         enrollment.status === 'completed',
-                                    'bg-blue-100 text-blue-800':
+                                    'bg-blue-50 text-blue-700 border-blue-200':
                                         enrollment.status === 'active',
-                                    'bg-red-100 text-red-800':
+                                    'bg-red-50 text-red-700 border-red-200':
                                         enrollment.status === 'dropped',
-                                    'bg-yellow-100 text-yellow-800':
+                                    'bg-yellow-50 text-yellow-700 border-yellow-200':
                                         enrollment.status === 'pending',
                                 }"
                             >
@@ -100,13 +113,13 @@
 
                 <!-- Batch System Information -->
                 <div
-                    class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+                    class="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg"
                 >
                     <h3
-                        class="text-sm font-medium text-blue-900 mb-2 flex items-center gap-2"
+                        class="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2"
                     >
                         <svg
-                            class="h-4 w-4"
+                            class="w-4 h-4 text-blue-600"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -120,7 +133,7 @@
                         </svg>
                         Batch System Information
                     </h3>
-                    <p class="text-sm text-blue-800">
+                    <p class="text-sm text-gray-700">
                         Programs use a batch system with a maximum of
                         <strong>25 trainees per batch</strong>. Programs have
                         unlimited enrollment capacity - when a batch reaches 25

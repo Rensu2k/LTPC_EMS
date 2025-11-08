@@ -59,7 +59,7 @@ const expertiseString = computed(() => {
             <div class="flex justify-between items-start mb-8">
                 <div class="flex items-center gap-4">
                     <div
-                        class="h-16 w-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-xl font-bold"
+                        class="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-bold"
                     >
                         {{
                             trainer?.full_name
@@ -75,9 +75,9 @@ const expertiseString = computed(() => {
                         <div class="flex items-center gap-2 mt-1">
                             <span
                                 :class="{
-                                    'bg-green-100 text-green-800':
+                                    'bg-green-50 text-green-700 border border-green-200':
                                         trainer?.status === 'active',
-                                    'bg-gray-100 text-gray-800':
+                                    'bg-gray-100 text-gray-700':
                                         trainer?.status === 'inactive',
                                 }"
                                 class="inline-flex px-3 py-1 text-sm font-semibold rounded-full"
@@ -117,12 +117,12 @@ const expertiseString = computed(() => {
                 <!-- Left Column: Basic Information -->
                 <div class="space-y-6">
                     <!-- Personal Information -->
-                    <div class="bg-blue-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-blue-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -138,7 +138,7 @@ const expertiseString = computed(() => {
                         </h3>
                         <div class="space-y-3">
                             <div class="flex justify-between">
-                                <span class="text-blue-700 font-medium"
+                                <span class="text-gray-700 font-medium"
                                     >Full Name:</span
                                 >
                                 <span class="text-gray-900">{{
@@ -146,12 +146,12 @@ const expertiseString = computed(() => {
                                 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-blue-700 font-medium"
+                                <span class="text-gray-700 font-medium"
                                     >Status:</span
                                 >
                                 <span
                                     :class="{
-                                        'text-green-600':
+                                        'text-gray-600':
                                             trainer?.status === 'active',
                                         'text-gray-600':
                                             trainer?.status === 'inactive',
@@ -171,12 +171,12 @@ const expertiseString = computed(() => {
                     </div>
 
                     <!-- Contact Information -->
-                    <div class="bg-green-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-green-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -192,7 +192,7 @@ const expertiseString = computed(() => {
                         </h3>
                         <div class="space-y-3">
                             <div class="flex justify-between">
-                                <span class="text-green-700 font-medium"
+                                <span class="text-gray-700 font-medium"
                                     >Email:</span
                                 >
                                 <span class="text-gray-900">{{
@@ -200,7 +200,7 @@ const expertiseString = computed(() => {
                                 }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-green-700 font-medium"
+                                <span class="text-gray-700 font-medium"
                                     >Phone:</span
                                 >
                                 <span class="text-gray-900">{{
@@ -211,12 +211,12 @@ const expertiseString = computed(() => {
                     </div>
 
                     <!-- Expertise -->
-                    <div class="bg-orange-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-orange-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-orange-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -238,7 +238,7 @@ const expertiseString = computed(() => {
                                 <span
                                     v-for="expertise in trainerExpertise"
                                     :key="expertise"
-                                    class="inline-flex px-3 py-1 text-sm font-medium bg-orange-100 text-orange-800 rounded-full"
+                                    class="inline-flex px-3 py-1 text-sm font-medium bg-orange-100 text-orange-800 rounded-full border border-orange-200"
                                 >
                                     {{ expertise }}
                                 </span>
@@ -251,14 +251,14 @@ const expertiseString = computed(() => {
 
                     <!-- Biography -->
                     <div
-                        class="bg-purple-50 rounded-lg p-6"
+                        class="bg-gray-50 rounded-lg p-6 border border-gray-200"
                         v-if="trainer?.biography"
                     >
                         <h3
-                            class="text-lg font-semibold text-purple-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-purple-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -281,12 +281,12 @@ const expertiseString = computed(() => {
                 <!-- Right Column: Schedule & Statistics -->
                 <div class="space-y-6">
                     <!-- Available Days -->
-                    <div class="bg-green-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-green-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -304,7 +304,7 @@ const expertiseString = computed(() => {
                             <div
                                 v-for="day in availableSchedule"
                                 :key="day.day"
-                                class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-green-500"
+                                class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-green-400"
                             >
                                 <span class="font-medium text-gray-900">{{
                                     day.day
@@ -370,12 +370,12 @@ const expertiseString = computed(() => {
                     </div>
 
                     <!-- Training Statistics -->
-                    <div class="bg-blue-50 rounded-lg p-6">
+                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                         <h3
-                            class="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-blue-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -391,34 +391,34 @@ const expertiseString = computed(() => {
                         </h3>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="text-center">
-                                <div class="text-2xl font-bold text-blue-900">
+                                <div class="text-2xl font-bold text-blue-700">
                                     {{ trainer?.active_programs_count || 0 }}
                                 </div>
-                                <div class="text-sm text-blue-700">
+                                <div class="text-sm text-gray-700">
                                     Active Programs
                                 </div>
                             </div>
                             <div class="text-center">
-                                <div class="text-2xl font-bold text-blue-900">
+                                <div class="text-2xl font-bold text-gray-900">
                                     {{ trainer?.total_trainees_count || 0 }}
                                 </div>
-                                <div class="text-sm text-blue-700">
+                                <div class="text-sm text-gray-700">
                                     Total Trainees
                                 </div>
                             </div>
                             <div class="text-center">
-                                <div class="text-2xl font-bold text-green-900">
+                                <div class="text-2xl font-bold text-green-700">
                                     {{ trainer?.active_trainees_count || 0 }}
                                 </div>
-                                <div class="text-sm text-green-700">
+                                <div class="text-sm text-gray-700">
                                     Active Trainees
                                 </div>
                             </div>
                             <div class="text-center">
-                                <div class="text-2xl font-bold text-purple-900">
+                                <div class="text-2xl font-bold text-purple-700">
                                     {{ trainer?.completed_trainees_count || 0 }}
                                 </div>
-                                <div class="text-sm text-purple-700">
+                                <div class="text-sm text-gray-700">
                                     Completed
                                 </div>
                             </div>
@@ -427,17 +427,17 @@ const expertiseString = computed(() => {
 
                     <!-- Assigned Programs -->
                     <div
-                        class="bg-indigo-50 rounded-lg p-6"
+                        class="bg-gray-50 rounded-lg p-6 border border-gray-200"
                         v-if="
                             trainer?.assigned_programs &&
                             trainer.assigned_programs.length > 0
                         "
                     >
                         <h3
-                            class="text-lg font-semibold text-indigo-900 mb-4 flex items-center gap-2"
+                            class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >
                             <svg
-                                class="w-5 h-5"
+                                class="w-5 h-5 text-indigo-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -455,7 +455,7 @@ const expertiseString = computed(() => {
                             <div
                                 v-for="program in trainer.assigned_programs"
                                 :key="program.id"
-                                class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-indigo-500"
+                                class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-indigo-400"
                             >
                                 <div>
                                     <span class="font-medium text-gray-900">{{
@@ -467,11 +467,11 @@ const expertiseString = computed(() => {
                                 </div>
                                 <span
                                     :class="{
-                                        'bg-green-100 text-green-800':
+                                        'bg-green-50 text-green-700 border border-green-200':
                                             program.status === 'active',
-                                        'bg-gray-100 text-gray-800':
+                                        'bg-gray-100 text-gray-700':
                                             program.status === 'inactive',
-                                        'bg-yellow-100 text-yellow-800':
+                                        'bg-yellow-50 text-yellow-700 border border-yellow-200':
                                             program.status === 'pending',
                                     }"
                                     class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"

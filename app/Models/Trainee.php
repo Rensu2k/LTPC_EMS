@@ -168,6 +168,11 @@ class Trainee extends Model
             throw new \Exception("Trainee is already enrolled in this program");
         }
 
+        // Check if trainee has already completed this program
+        if ($this->hasCompletedProgram($programId)) {
+            throw new \Exception("Trainee has already completed this program and cannot re-enroll");
+        }
+
         // Determine batch number
         if (!$batchNumber) {
             $batchNumber = $program->getNextAvailableBatch();

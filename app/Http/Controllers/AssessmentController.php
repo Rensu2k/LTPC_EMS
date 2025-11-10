@@ -318,6 +318,7 @@ class AssessmentController extends Controller
                 }
                 
                 // Check for existing assessments for this trainee in the same program
+                // Only block if creating a NEW first assessment (not a reassessment)
                 if (!$validated['is_reassessment']) {
                     $existingAssessment = Assessment::where('trainee_id', $validated['trainee_id'])
                         ->where('program_id', $validated['program_id'])
@@ -342,6 +343,33 @@ class AssessmentController extends Controller
                     $validated['payment_status'] = 'paid';
                     $validated['payment_method'] = 'scholarship_exemption';
                     $validated['payment_notes'] = 'Payment exempted due to ' . $trainee->scholarship_package . ' scholarship package (first attempt only)';
+                }
+            }
+
+            // Additional validation: If external applicant, check for existing assessments in the same program
+            if ($validated['applicant_type'] === 'external_applicant') {
+                // Only block if creating a NEW first assessment (not a reassessment)
+                if (!$validated['is_reassessment']) {
+                    // Check for existing assessments by email (primary identifier) for the same program
+                    // Email is the most reliable identifier for external applicants
+                    $existingAssessment = Assessment::where('applicant_type', 'external_applicant')
+                        ->where('program_id', $validated['program_id'])
+                        ->where('is_reassessment', false)
+                        ->where('external_applicant_email', $validated['external_applicant_email'])
+                        ->first();
+                    
+                    if ($existingAssessment) {
+                        Log::warning('Duplicate external applicant assessment attempt', [
+                            'external_applicant_email' => $validated['external_applicant_email'],
+                            'external_applicant_name' => $validated['external_applicant_name'],
+                            'program_id' => $validated['program_id'],
+                            'existing_assessment_id' => $existingAssessment->id
+                        ]);
+                        return redirect()->back()->withErrors([
+                            'external_applicant_email' => 'This applicant already has an assessment for this program. Use the re-assessment option instead.',
+                            'external_applicant_name' => 'This applicant already has an assessment for this program. Use the re-assessment option instead.'
+                        ]);
+                    }
                 }
             }
 

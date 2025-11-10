@@ -21,14 +21,23 @@ class TraineeEnrollmentController extends Controller
             return redirect()->back()->with('error', 'Trainee already has an active enrollment and cannot enroll in a new program. Complete or drop the active enrollment first.');
         }
 
-        // Get available programs (exclude programs trainee is already enrolled in)
+        // Get available programs (exclude programs trainee is already enrolled in OR has completed)
         $enrolledProgramIds = $trainee->enrollments()
             ->where('status', 'active')
             ->pluck('program_id')
             ->toArray();
 
+        // Get programs trainee has already completed
+        $completedProgramIds = $trainee->enrollments()
+            ->where('status', 'completed')
+            ->pluck('program_id')
+            ->toArray();
+
+        // Combine both lists to exclude from available programs
+        $excludedProgramIds = array_unique(array_merge($enrolledProgramIds, $completedProgramIds));
+
         $availablePrograms = Program::where('status', 'active')
-            ->whereNotIn('program_id', $enrolledProgramIds)
+            ->whereNotIn('program_id', $excludedProgramIds)
             ->get(['program_id', 'name', 'description', 'duration', 'enrollment_fee']);
 
         // Get trainee's enrollment history
@@ -65,6 +74,11 @@ class TraineeEnrollmentController extends Controller
         try {
             // Get the program
             $program = Program::find($validated['program_id']);
+
+            // Check if trainee has already completed this program
+            if ($trainee->hasCompletedProgram($validated['program_id'])) {
+                return redirect()->back()->with('error', 'This trainee has already completed this program and cannot re-enroll.');
+            }
             
             // TODO: Enable prerequisite checking when implemented
             // if ($program->prerequisites && !$this->checkPrerequisites($trainee, $program)) {
@@ -199,14 +213,23 @@ class TraineeEnrollmentController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Get available programs for new enrollment
+        // Get available programs for new enrollment (exclude active enrollments and completed programs)
         $enrolledProgramIds = $trainee->enrollments()
             ->where('status', 'active')
             ->pluck('program_id')
             ->toArray();
 
+        // Get programs trainee has already completed
+        $completedProgramIds = $trainee->enrollments()
+            ->where('status', 'completed')
+            ->pluck('program_id')
+            ->toArray();
+
+        // Combine both lists to exclude from available programs
+        $excludedProgramIds = array_unique(array_merge($enrolledProgramIds, $completedProgramIds));
+
         $availablePrograms = Program::where('status', 'active')
-            ->whereNotIn('program_id', $enrolledProgramIds)
+            ->whereNotIn('program_id', $excludedProgramIds)
             ->get(['program_id', 'name', 'description', 'duration', 'enrollment_fee']);
 
         return Inertia::render('Officer/TraineeEnrollmentHistory', [
@@ -230,7 +253,7 @@ class TraineeEnrollmentController extends Controller
     }
 
     /**
-     * Get available programs for a trainee (excluding already enrolled programs)
+     * Get available programs for a trainee (excluding already enrolled and completed programs)
      */
     public function getAvailablePrograms(Trainee $trainee)
     {
@@ -239,8 +262,17 @@ class TraineeEnrollmentController extends Controller
             ->pluck('program_id')
             ->toArray();
 
+        // Get programs trainee has already completed
+        $completedProgramIds = $trainee->enrollments()
+            ->where('status', 'completed')
+            ->pluck('program_id')
+            ->toArray();
+
+        // Combine both lists to exclude from available programs
+        $excludedProgramIds = array_unique(array_merge($enrolledProgramIds, $completedProgramIds));
+
         $availablePrograms = Program::where('status', 'active')
-            ->whereNotIn('program_id', $enrolledProgramIds)
+            ->whereNotIn('program_id', $excludedProgramIds)
             ->get(['program_id', 'name', 'description', 'duration', 'enrollment_fee']);
 
         return response()->json($availablePrograms);

@@ -248,7 +248,9 @@ const reassessment = () => {
 
                 <!-- Assessment Status Information -->
                 <div class="lg:col-span-2">
-                    <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <div
+                        class="bg-gray-50 rounded-lg p-6 border border-gray-200"
+                    >
                         <h3
                             class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"
                         >

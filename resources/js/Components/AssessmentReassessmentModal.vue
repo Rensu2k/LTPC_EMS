@@ -1,6 +1,6 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
-import { computed, watch } from "vue";
+import { computed, watch, ref } from "vue";
 import Modal from "@/Components/Modal.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
@@ -21,13 +21,40 @@ const emit = defineEmits(["close", "submitted"]);
 const form = useForm({
     assessment_date: "",
     trainer_id: "",
+    assessor_name: "",
     assessment_fee: "",
 });
 
+// Track whether to use manual assessor input or select from trainers
+const useManualAssessor = ref(false);
+
 const submit = () => {
+    // Transform data to ensure proper types for backend
+    form.transform((data) => {
+        const transformed = {
+            ...data,
+            assessment_fee: parseFloat(data.assessment_fee) || 0,
+        };
+        
+        // If using manual assessor, clear trainer_id and ensure assessor_name is set
+        if (useManualAssessor.value) {
+            transformed.trainer_id = null;
+            if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
+                // This will be caught by validation
+                transformed.assessor_name = '';
+            }
+        } else {
+            // If using trainer selection, clear assessor_name
+            transformed.assessor_name = null;
+        }
+        
+        return transformed;
+    });
+
     form.post(route("officer.assessments.reassessment", props.assessment.id), {
         onSuccess: () => {
             form.reset();
+            useManualAssessor.value = false;
             emit("submitted");
             emit("close");
         },
@@ -36,6 +63,7 @@ const submit = () => {
 
 const close = () => {
     form.reset();
+    useManualAssessor.value = false;
     form.clearErrors();
     emit("close");
 };
@@ -183,7 +211,7 @@ const isScholar = computed(() => {
                 </div>
 
                 <!-- Re-assessment Details -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-6">
                     <!-- Assessment Date -->
                     <div>
                         <InputLabel
@@ -203,16 +231,45 @@ const isScholar = computed(() => {
                         />
                     </div>
 
-                    <!-- Trainer Selection -->
+                    <!-- Assessor Selection -->
                     <div>
+                        <InputLabel for="assessor_type" value="Assessor Type *" />
+                        <div class="mt-2 space-y-3">
+                            <label class="flex items-center">
+                                <input
+                                    type="radio"
+                                    v-model="useManualAssessor"
+                                    :value="false"
+                                    class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                />
+                                <span class="ml-2 text-sm text-gray-700"
+                                    >Select from Trainers</span
+                                >
+                            </label>
+                            <label class="flex items-center">
+                                <input
+                                    type="radio"
+                                    v-model="useManualAssessor"
+                                    :value="true"
+                                    class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                />
+                                <span class="ml-2 text-sm text-gray-700"
+                                    >Manual Input</span
+                                >
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Trainer Selection (when not using manual input) -->
+                    <div v-if="!useManualAssessor">
                         <SearchableSelect
                             v-model="form.trainer_id"
                             :options="filteredTrainers"
-                            label="Trainer/Assessor *"
+                            label="Assessor *"
                             placeholder="Select trainer..."
                             display-key="full_name"
                             value-key="id"
-                            :required="true"
+                            :required="!useManualAssessor"
                             :error="form.errors.trainer_id"
                             :empty-message="
                                 !assessment.program_id
@@ -220,6 +277,26 @@ const isScholar = computed(() => {
                                     : 'No trainers assigned to this program'
                             "
                         />
+                    </div>
+
+                    <!-- Manual Assessor Input (when using manual input) -->
+                    <div v-else>
+                        <InputLabel for="assessor_name" value="Assessor Name *" />
+                        <TextInput
+                            id="assessor_name"
+                            v-model="form.assessor_name"
+                            type="text"
+                            class="mt-1 block w-full"
+                            placeholder="Enter assessor name manually..."
+                            :required="useManualAssessor"
+                        />
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.assessor_name"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Enter the name of the assessor who will conduct this re-assessment.
+                        </p>
                     </div>
                 </div>
 

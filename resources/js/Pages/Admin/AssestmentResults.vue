@@ -28,7 +28,7 @@ const showFilters = ref(false);
 
 // Add search functionality
 const performSearch = () => {
-        router.get(
+    router.get(
         route("admin.assessments"),
         {
             search: searchQuery.value,
@@ -1067,7 +1067,7 @@ const exportAssessmentResults = () => {
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-medium text-gray-500"
-                                    >Trainer/Assessor:</span
+                                    >Assessor:</span
                                 >
                                 <span class="text-sm text-gray-900">
                                     {{

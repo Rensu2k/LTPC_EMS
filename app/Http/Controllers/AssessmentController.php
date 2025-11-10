@@ -211,7 +211,8 @@ class AssessmentController extends Controller
                 'status' => 'required|in:pending,completed',
                 'result' => 'nullable|in:competent,not_yet_competent,absent',
                 'program_id' => 'required|exists:programs,program_id',
-                'trainer_id' => 'required|exists:trainers,id',
+                'trainer_id' => 'nullable|exists:trainers,id',
+                'assessor_name' => 'nullable|string|max:255',
                 'assessment_date' => 'required|date',
                 'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
                 'trainee_id' => 'nullable|exists:trainees,id|required_if:applicant_type,enrolled_trainee',
@@ -227,6 +228,21 @@ class AssessmentController extends Controller
                 'original_assessment_id' => 'nullable|exists:assessments,id',
                 'is_reassessment' => 'nullable|boolean',
             ]);
+
+            // Validate that either trainer_id or assessor_name is provided
+            if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
+                return redirect()->back()->withErrors([
+                    'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
+                    'assessor_name' => 'Either a trainer must be selected or an assessor name must be provided.'
+                ])->withInput();
+            }
+
+            // Ensure only one is set (clear the other)
+            if (!empty($validated['trainer_id'])) {
+                $validated['assessor_name'] = null;
+            } else {
+                $validated['trainer_id'] = null;
+            }
 
             Log::info('Assessment validation passed', ['validated_data' => $validated]);
 
@@ -428,7 +444,8 @@ class AssessmentController extends Controller
             'status' => 'required|in:pending,completed',
             'result' => 'nullable|in:competent,not_yet_competent,absent',
             'program_id' => 'required|exists:programs,program_id',
-            'trainer_id' => 'required|exists:trainers,id',
+            'trainer_id' => 'nullable|exists:trainers,id',
+            'assessor_name' => 'nullable|string|max:255',
             'assessment_date' => 'required|date',
             'applicant_type' => 'required|in:enrolled_trainee,external_applicant',
             'trainee_id' => 'nullable|exists:trainees,id|required_if:applicant_type,enrolled_trainee',
@@ -441,6 +458,21 @@ class AssessmentController extends Controller
             'payment_reference' => 'nullable|string|required_if:payment_status,paid',
             'payment_notes' => 'nullable|string',
         ]);
+
+        // Validate that either trainer_id or assessor_name is provided
+        if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
+            return redirect()->back()->withErrors([
+                'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
+                'assessor_name' => 'Either a trainer must be selected or an assessor name must be provided.'
+            ])->withInput();
+        }
+
+        // Ensure only one is set (clear the other)
+        if (!empty($validated['trainer_id'])) {
+            $validated['assessor_name'] = null;
+        } else {
+            $validated['trainer_id'] = null;
+        }
 
         // Additional validation: If enrolled trainee, check if they are completed
         if ($validated['applicant_type'] === 'enrolled_trainee' && $validated['trainee_id']) {
@@ -534,9 +566,25 @@ class AssessmentController extends Controller
 
         $validated = $request->validate([
             'assessment_date' => 'required|date',
-            'trainer_id' => 'required|exists:trainers,id',
+            'trainer_id' => 'nullable|exists:trainers,id',
+            'assessor_name' => 'nullable|string|max:255',
             'assessment_fee' => 'required|numeric|min:0',
         ]);
+
+        // Validate that either trainer_id or assessor_name is provided
+        if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
+            return redirect()->back()->withErrors([
+                'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
+                'assessor_name' => 'Either a trainer must be selected or an assessor name must be provided.'
+            ])->withInput();
+        }
+
+        // Ensure only one is set (clear the other)
+        if (!empty($validated['trainer_id'])) {
+            $validated['assessor_name'] = null;
+        } else {
+            $validated['trainer_id'] = null;
+        }
 
         // Find the original assessment ID to determine the correct attempt number
         $originalAssessmentId = $assessment->is_reassessment ? $assessment->original_assessment_id : $assessment->id;
@@ -565,6 +613,7 @@ class AssessmentController extends Controller
             // New data from request
             'assessment_date' => $validated['assessment_date'],
             'trainer_id' => $validated['trainer_id'],
+            'assessor_name' => $validated['assessor_name'],
             'assessment_fee' => $validated['assessment_fee'],
             // Payment will be handled by cashier - set default values
             'payment_status' => 'pending',

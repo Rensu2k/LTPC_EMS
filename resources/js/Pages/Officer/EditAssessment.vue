@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router, useForm } from "@inertiajs/vue3";
-import { computed, watch } from "vue";
+import { computed, watch, ref } from "vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputError from "@/Components/InputError.vue";
@@ -25,6 +25,7 @@ const form = useForm({
     program_id: props.assessment.program_id || "",
     trainee_id: props.assessment.trainee_id || "",
     trainer_id: props.assessment.trainer_id || "",
+    assessor_name: props.assessment.assessor_name || "",
     assessment_date: props.assessment.assessment_date
         ? props.assessment.assessment_date.split("T")[0]
         : "", // Format date for input
@@ -41,6 +42,10 @@ const form = useForm({
     payment_reference: props.assessment.payment_reference || "",
     payment_notes: props.assessment.payment_notes || "",
 });
+
+// Track whether to use manual assessor input or select from trainers
+// Initialize based on whether assessor_name exists
+const useManualAssessor = ref(!!props.assessment.assessor_name && !props.assessment.trainer_id);
 
 // Watch for changes to numeric fields and ensure they remain strings
 watch(
@@ -66,12 +71,28 @@ watch(
 
 const submit = () => {
     // Convert numeric fields for backend
-    form.transform((data) => ({
-        ...data,
-        assessment_fee: data.assessment_fee
-            ? parseFloat(data.assessment_fee)
-            : 0,
-    }));
+    form.transform((data) => {
+        const transformed = {
+            ...data,
+            assessment_fee: data.assessment_fee
+                ? parseFloat(data.assessment_fee)
+                : 0,
+        };
+        
+        // If using manual assessor, clear trainer_id and ensure assessor_name is set
+        if (useManualAssessor.value) {
+            transformed.trainer_id = null;
+            if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
+                // This will be caught by validation
+                transformed.assessor_name = '';
+            }
+        } else {
+            // If using trainer selection, clear assessor_name
+            transformed.assessor_name = null;
+        }
+        
+        return transformed;
+    });
 
     form.put(route("officer.assessments.update", props.assessment.id), {
         onSuccess: () => {
@@ -87,7 +108,19 @@ const cancel = () => {
     router.visit(route("officer.assessments"));
 };
 
-// Program and applicant are read-only in edit mode, so no need to watch for changes
+// Watch for manual assessor toggle to reset fields
+watch(
+    () => useManualAssessor.value,
+    (newValue) => {
+        if (newValue) {
+            // Clear trainer_id when switching to manual input
+            form.trainer_id = "";
+        } else {
+            // Clear assessor_name when switching to trainer selection
+            form.assessor_name = "";
+        }
+    }
+);
 
 // Computed property for filtered trainees based on selected program
 const filteredTrainees = computed(() => {
@@ -445,17 +478,45 @@ const filteredTrainers = computed(() => {
                                 </p>
                             </div>
 
-                            <!-- Trainer Selection -->
-                             <!-- Assessor should be dynamic -->
-                            <div>
+                            <!-- Assessor Selection -->
+                            <div class="md:col-span-3">
+                                <InputLabel for="assessor_type" value="Assessor Type *" />
+                                <div class="mt-2 space-y-3">
+                                    <label class="flex items-center">
+                                        <input
+                                            type="radio"
+                                            v-model="useManualAssessor"
+                                            :value="false"
+                                            class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-700"
+                                            >Select from Trainers</span
+                                        >
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input
+                                            type="radio"
+                                            v-model="useManualAssessor"
+                                            :value="true"
+                                            class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                        />
+                                        <span class="ml-2 text-sm text-gray-700"
+                                            >Manual Input</span
+                                        >
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Trainer Selection (when not using manual input) -->
+                            <div v-if="!useManualAssessor" class="md:col-span-3">
                                 <SearchableSelect
                                     v-model="form.trainer_id"
                                     :options="filteredTrainers"
-                                    label="Trainer/Assessor *" 
-                                    placeholder="Type trainer name..."
+                                    label="Assessor *" 
+                                    placeholder="Type assessor name..."
                                     display-key="full_name"
                                     value-key="id"
-                                    :required="true"
+                                    :required="!useManualAssessor"
                                     :error="form.errors.trainer_id"
                                     :disabled="!form.program_id"
                                     :empty-message="
@@ -464,6 +525,26 @@ const filteredTrainers = computed(() => {
                                             : 'No trainers assigned to this program'
                                     "
                                 />
+                            </div>
+
+                            <!-- Manual Assessor Input (when using manual input) -->
+                            <div v-else class="md:col-span-3">
+                                <InputLabel for="assessor_name" value="Assessor Name *" />
+                                <TextInput
+                                    id="assessor_name"
+                                    v-model="form.assessor_name"
+                                    type="text"
+                                    class="mt-1 block w-full"
+                                    placeholder="Enter assessor name manually..."
+                                    :required="useManualAssessor"
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="form.errors.assessor_name"
+                                />
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Enter the name of the assessor who will conduct this assessment.
+                                </p>
                             </div>
                         </div>
                     </div>

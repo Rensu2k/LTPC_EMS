@@ -42,6 +42,7 @@ const form = useForm({
     external_applicant_email: "",
     external_applicant_phone: "",
     trainer_id: "",
+    assessor_name: "",
     assessment_date: "",
     assessment_fee: "0",
     payment_status: "pending",
@@ -51,16 +52,36 @@ const form = useForm({
     is_reassessment: false,
 });
 
+// Track whether to use manual assessor input or select from trainers
+const useManualAssessor = ref(false);
+
 const submit = () => {
     // Transform data to ensure proper types for backend
-    form.transform((data) => ({
-        ...data,
-        assessment_fee: parseFloat(data.assessment_fee) || 0,
-    }));
+    form.transform((data) => {
+        const transformed = {
+            ...data,
+            assessment_fee: parseFloat(data.assessment_fee) || 0,
+        };
+        
+        // If using manual assessor, clear trainer_id and ensure assessor_name is set
+        if (useManualAssessor.value) {
+            transformed.trainer_id = null;
+            if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
+                // This will be caught by validation
+                transformed.assessor_name = '';
+            }
+        } else {
+            // If using trainer selection, clear assessor_name
+            transformed.assessor_name = null;
+        }
+        
+        return transformed;
+    });
 
     form.post(route("officer.assessments.store"), {
         onSuccess: () => {
             form.reset();
+            useManualAssessor.value = false;
             emit("submitted");
             emit("close");
         },
@@ -72,6 +93,7 @@ const submit = () => {
 
 const close = () => {
     form.reset();
+    useManualAssessor.value = false;
     form.clearErrors();
     emit("close");
 };
@@ -187,6 +209,21 @@ watch(
         // Reset trainee and trainer selections when program changes
         form.trainee_id = "";
         form.trainer_id = "";
+        form.assessor_name = "";
+    }
+);
+
+// Watch for manual assessor toggle to reset fields
+watch(
+    () => useManualAssessor.value,
+    (newValue) => {
+        if (newValue) {
+            // Clear trainer_id when switching to manual input
+            form.trainer_id = "";
+        } else {
+            // Clear assessor_name when switching to trainer selection
+            form.assessor_name = "";
+        }
     }
 );
 
@@ -527,16 +564,45 @@ const filteredTrainers = computed(() => {
                         </div>
                     </div>
 
-                    <!-- Trainer Selection -->
-                    <div>
+                    <!-- Assessor Selection -->
+                    <div class="md:col-span-2">
+                        <InputLabel for="assessor_type" value="Assessor Type *" />
+                        <div class="mt-2 space-y-3">
+                            <label class="flex items-center">
+                                <input
+                                    type="radio"
+                                    v-model="useManualAssessor"
+                                    :value="false"
+                                    class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                />
+                                <span class="ml-2 text-sm text-gray-700"
+                                    >Select from Trainers</span
+                                >
+                            </label>
+                            <label class="flex items-center">
+                                <input
+                                    type="radio"
+                                    v-model="useManualAssessor"
+                                    :value="true"
+                                    class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
+                                />
+                                <span class="ml-2 text-sm text-gray-700"
+                                    >Manual Input</span
+                                >
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Trainer Selection (when not using manual input) -->
+                    <div v-if="!useManualAssessor">
                         <SearchableSelect
                             v-model="form.trainer_id"
                             :options="filteredTrainers"
                             label="Assessor *"
-                            placeholder="Type assesor name..."
+                            placeholder="Type assessor name..."
                             display-key="full_name"
                             value-key="id"
-                            :required="true"
+                            :required="!useManualAssessor"
                             :error="form.errors.trainer_id"
                             :disabled="!form.program_id"
                             :empty-message="
@@ -545,6 +611,26 @@ const filteredTrainers = computed(() => {
                                     : 'No trainers assigned to this program'
                             "
                         />
+                    </div>
+
+                    <!-- Manual Assessor Input (when using manual input) -->
+                    <div v-else>
+                        <InputLabel for="assessor_name" value="Assessor Name *" />
+                        <TextInput
+                            id="assessor_name"
+                            v-model="form.assessor_name"
+                            type="text"
+                            class="mt-1 block w-full"
+                            placeholder="Enter assessor name manually..."
+                            :required="useManualAssessor"
+                        />
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.assessor_name"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            Enter the name of the assessor who will conduct this assessment.
+                        </p>
                     </div>
 
                     <!-- Assessment Date -->

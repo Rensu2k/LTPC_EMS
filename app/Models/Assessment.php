@@ -18,6 +18,7 @@ class Assessment extends Model
         'program_id',
         'trainee_id',
         'trainer_id',
+        'assessor_name',
         'assessment_date',
         'applicant_type',
         'external_applicant_name',

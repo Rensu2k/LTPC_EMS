@@ -11,6 +11,7 @@ import Pagination from "@/Components/Pagination.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import { useNotifications } from "@/composables/useNotifications";
+import jsPDF from "jspdf";
 
 const props = defineProps({
     assessments: [Object, Array], // Support both pagination object and legacy array
@@ -281,7 +282,9 @@ const filteredAssessments = computed(() => {
         filtered = filtered.filter((assessment) => {
             if (!assessment.assessment_date) return false;
             // Extract date-only string directly to avoid timezone conversion issues
-            const assessmentDateStr = String(assessment.assessment_date).split('T')[0].split(' ')[0];
+            const assessmentDateStr = String(assessment.assessment_date)
+                .split("T")[0]
+                .split(" ")[0];
             return assessmentDateStr >= dateFrom.value;
         });
     }
@@ -290,7 +293,9 @@ const filteredAssessments = computed(() => {
         filtered = filtered.filter((assessment) => {
             if (!assessment.assessment_date) return false;
             // Extract date-only string directly to avoid timezone conversion issues
-            const assessmentDateStr = String(assessment.assessment_date).split('T')[0].split(' ')[0];
+            const assessmentDateStr = String(assessment.assessment_date)
+                .split("T")[0]
+                .split(" ")[0];
             return assessmentDateStr <= dateTo.value;
         });
     }
@@ -329,8 +334,14 @@ const performSearch = () => {
         router.visit(route("officer.assessments"), {
             data: {
                 search: searchQuery.value,
-                status: selectedStatus.value !== "All Statuses" ? selectedStatus.value : "",
-                result: selectedResult.value !== "All Results" ? selectedResult.value : "",
+                status:
+                    selectedStatus.value !== "All Statuses"
+                        ? selectedStatus.value
+                        : "",
+                result:
+                    selectedResult.value !== "All Results"
+                        ? selectedResult.value
+                        : "",
                 program: selectedProgram.value || "",
                 date_from: dateFrom.value || "",
                 date_to: dateTo.value || "",
@@ -384,6 +395,137 @@ const clearFilters = () => {
     dateFrom.value = "";
     dateTo.value = "";
     performSearch();
+};
+
+// Print certificate for competent assessments
+const printCertificate = (assessment) => {
+    if (!assessment || assessment.result !== "competent") {
+        notifications.warning(
+            "Certificate can only be printed for competent assessments."
+        );
+        return;
+    }
+
+    const doc = new jsPDF("landscape", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+
+    // Draw decorative border
+    doc.setLineWidth(2);
+    doc.setDrawColor(0, 0, 0);
+    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+
+    // Inner border
+    doc.setLineWidth(1);
+    doc.rect(
+        margin + 5,
+        margin + 5,
+        pageWidth - 2 * margin - 10,
+        pageHeight - 2 * margin - 10
+    );
+
+    // Header - Certificate of Competency
+    doc.setFontSize(28);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const headerText = "CERTIFICATE OF COMPETENCY";
+    const headerWidth = doc.getTextWidth(headerText);
+    doc.text(headerText, (pageWidth - headerWidth) / 2, margin + 30);
+
+    // Subtitle
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    const subtitleText = "This is to certify that";
+    const subtitleWidth = doc.getTextWidth(subtitleText);
+    doc.text(subtitleText, (pageWidth - subtitleWidth) / 2, margin + 50);
+
+    // Applicant Name (prominent)
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const applicantName = assessment.applicant_name || "N/A";
+    const nameWidth = doc.getTextWidth(applicantName);
+    doc.text(applicantName, (pageWidth - nameWidth) / 2, margin + 70);
+
+    // Program information
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const programText = `has successfully completed the assessment for`;
+    const programTextWidth = doc.getTextWidth(programText);
+    doc.text(programText, (pageWidth - programTextWidth) / 2, margin + 90);
+
+    // Program name
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    const programName = assessment.program_name || "N/A";
+    const programNameWidth = doc.getTextWidth(programName);
+    doc.text(programName, (pageWidth - programNameWidth) / 2, margin + 110);
+
+    // Assessment details
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+
+    // Assessment date
+    const assessmentDate = assessment.assessment_date
+        ? new Date(assessment.assessment_date).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+          })
+        : "N/A";
+    const dateText = `Assessment Date: ${assessmentDate}`;
+    const dateTextWidth = doc.getTextWidth(dateText);
+    doc.text(dateText, (pageWidth - dateTextWidth) / 2, margin + 135);
+
+    // Certificate number
+    const certNumber = `Certificate Number: CERT-${String(
+        assessment.id
+    ).padStart(6, "0")}`;
+    const certNumberWidth = doc.getTextWidth(certNumber);
+    doc.text(certNumber, (pageWidth - certNumberWidth) / 2, margin + 150);
+
+    // Assessor/Trainer name
+    const assessorText = `Assessed by: ${assessment.trainer_name || "N/A"}`;
+    const assessorTextWidth = doc.getTextWidth(assessorText);
+    doc.text(assessorText, (pageWidth - assessorTextWidth) / 2, margin + 165);
+
+    // Result
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 139, 34); // Green color
+    const resultText = "RESULT: COMPETENT";
+    const resultTextWidth = doc.getTextWidth(resultText);
+    doc.text(resultText, (pageWidth - resultTextWidth) / 2, margin + 185);
+
+    // Footer - Date issued
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    const issuedDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+    const footerText = `Certificate issued on ${issuedDate}`;
+    const footerTextWidth = doc.getTextWidth(footerText);
+    doc.text(
+        footerText,
+        (pageWidth - footerTextWidth) / 2,
+        pageHeight - margin - 20
+    );
+
+    // Generate filename
+    const sanitizedName = applicantName
+        .replace(/[^a-z0-9]/gi, "_")
+        .toLowerCase();
+    const filename = `certificate_${sanitizedName}_${assessment.id}.pdf`;
+
+    // Save the PDF
+    doc.save(filename);
 };
 </script>
 
@@ -472,7 +614,9 @@ const clearFilters = () => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"
+                >
                     <div>
                         <InputLabel for="program" value="Filter by Program" />
                         <select
@@ -783,6 +927,31 @@ const clearFilters = () => {
                                                     stroke-linejoin="round"
                                                     stroke-width="2"
                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            v-if="
+                                                assessment.result ===
+                                                'competent'
+                                            "
+                                            @click="
+                                                printCertificate(assessment)
+                                            "
+                                            class="text-purple-600 hover:text-purple-900 p-2 rounded"
+                                            title="Print Certificate"
+                                        >
+                                            <svg
+                                                class="h-6 w-6 md:h-7 md:w-7"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
                                                 />
                                             </svg>
                                         </button>

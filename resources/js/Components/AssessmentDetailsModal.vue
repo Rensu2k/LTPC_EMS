@@ -3,6 +3,7 @@ import { computed } from "vue";
 import Modal from "@/Components/Modal.vue";
 import SecondaryButton from "@/Components/SecondaryButton.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
+import jsPDF from "jspdf";
 
 const props = defineProps({
     show: {
@@ -63,6 +64,122 @@ const editAssessment = () => {
 
 const reassessment = () => {
     emit("reassessment", props.assessment);
+};
+
+// Print certificate for competent assessments
+const printCertificate = () => {
+    const assessment = props.assessment;
+    if (!assessment || assessment.result !== "competent") {
+        return;
+    }
+
+    const doc = new jsPDF("landscape", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+
+    // Draw decorative border
+    doc.setLineWidth(2);
+    doc.setDrawColor(0, 0, 0);
+    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+
+    // Inner border
+    doc.setLineWidth(1);
+    doc.rect(margin + 5, margin + 5, pageWidth - 2 * margin - 10, pageHeight - 2 * margin - 10);
+
+    // Header - Certificate of Competency
+    doc.setFontSize(28);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const headerText = "CERTIFICATE OF COMPETENCY";
+    const headerWidth = doc.getTextWidth(headerText);
+    doc.text(headerText, (pageWidth - headerWidth) / 2, margin + 30);
+
+    // Subtitle
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    const subtitleText = "This is to certify that";
+    const subtitleWidth = doc.getTextWidth(subtitleText);
+    doc.text(subtitleText, (pageWidth - subtitleWidth) / 2, margin + 50);
+
+    // Applicant Name (prominent)
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const applicantName = assessment.applicant_name || "N/A";
+    const nameWidth = doc.getTextWidth(applicantName);
+    doc.text(applicantName, (pageWidth - nameWidth) / 2, margin + 70);
+
+    // Program information
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const programText = `has successfully completed the assessment for`;
+    const programTextWidth = doc.getTextWidth(programText);
+    doc.text(programText, (pageWidth - programTextWidth) / 2, margin + 90);
+
+    // Program name
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    const programName = assessment.program_name || "N/A";
+    const programNameWidth = doc.getTextWidth(programName);
+    doc.text(programName, (pageWidth - programNameWidth) / 2, margin + 110);
+
+    // Assessment details
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    
+    // Assessment date
+    const assessmentDate = assessment.assessment_date
+        ? new Date(assessment.assessment_date).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+          })
+        : "N/A";
+    const dateText = `Assessment Date: ${assessmentDate}`;
+    const dateTextWidth = doc.getTextWidth(dateText);
+    doc.text(dateText, (pageWidth - dateTextWidth) / 2, margin + 135);
+
+    // Certificate number
+    const certNumber = `Certificate Number: CERT-${String(assessment.id).padStart(6, "0")}`;
+    const certNumberWidth = doc.getTextWidth(certNumber);
+    doc.text(certNumber, (pageWidth - certNumberWidth) / 2, margin + 150);
+
+    // Assessor/Trainer name
+    const assessorText = `Assessed by: ${assessment.trainer_name || "N/A"}`;
+    const assessorTextWidth = doc.getTextWidth(assessorText);
+    doc.text(assessorText, (pageWidth - assessorTextWidth) / 2, margin + 165);
+
+    // Result
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 139, 34); // Green color
+    const resultText = "RESULT: COMPETENT";
+    const resultTextWidth = doc.getTextWidth(resultText);
+    doc.text(resultText, (pageWidth - resultTextWidth) / 2, margin + 185);
+
+    // Footer - Date issued
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    const issuedDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+    const footerText = `Certificate issued on ${issuedDate}`;
+    const footerTextWidth = doc.getTextWidth(footerText);
+    doc.text(footerText, (pageWidth - footerTextWidth) / 2, pageHeight - margin - 20);
+
+    // Generate filename
+    const sanitizedName = applicantName.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    const filename = `certificate_${sanitizedName}_${assessment.id}.pdf`;
+
+    // Save the PDF
+    doc.save(filename);
 };
 </script>
 
@@ -324,6 +441,26 @@ const reassessment = () => {
                         />
                     </svg>
                     Schedule Re-assessment
+                </PrimaryButton>
+                <PrimaryButton
+                    v-if="assessment.result === 'competent'"
+                    @click="printCertificate"
+                    class="bg-purple-600 hover:bg-purple-700"
+                >
+                    <svg
+                        class="-ml-1 mr-2 h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                        />
+                    </svg>
+                    Print Certificate
                 </PrimaryButton>
                 <PrimaryButton
                     @click="editAssessment"

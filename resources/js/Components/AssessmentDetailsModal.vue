@@ -66,8 +66,31 @@ const reassessment = () => {
     emit("reassessment", props.assessment);
 };
 
+// Helper function to load image as base64
+const loadImageAsBase64 = (url) => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            try {
+                const base64 = canvas.toDataURL("image/png");
+                resolve(base64);
+            } catch (e) {
+                reject(e);
+            }
+        };
+        img.onerror = reject;
+        img.src = url;
+    });
+};
+
 // Print certificate for competent assessments
-const printCertificate = () => {
+const printCertificate = async () => {
     const assessment = props.assessment;
     if (!assessment || assessment.result !== "competent") {
         return;
@@ -76,62 +99,146 @@ const printCertificate = () => {
     const doc = new jsPDF("landscape", "mm", "a4");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
 
-    // Draw decorative border
+    // Blue color for borders and title (dark blue: RGB 0, 51, 102)
+    const blueColor = [0, 51, 102];
+    const borderMargin = 15;
+
+    // Draw outer blue border (thicker)
     doc.setLineWidth(2);
-    doc.setDrawColor(0, 0, 0);
-    doc.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+    doc.setDrawColor(...blueColor);
+    doc.rect(
+        borderMargin,
+        borderMargin,
+        pageWidth - 2 * borderMargin,
+        pageHeight - 2 * borderMargin
+    );
 
-    // Inner border
+    // Draw inner blue border (thinner)
     doc.setLineWidth(1);
-    doc.rect(margin + 5, margin + 5, pageWidth - 2 * margin - 10, pageHeight - 2 * margin - 10);
+    doc.setDrawColor(...blueColor);
+    doc.rect(
+        borderMargin + 3,
+        borderMargin + 3,
+        pageWidth - 2 * borderMargin - 6,
+        pageHeight - 2 * borderMargin - 6
+    );
 
-    // Header - Certificate of Competency
-    doc.setFontSize(28);
+    // Load logos
+    try {
+        const ltpcLogoUrl = "/images/ltpc-logo.png";
+        const pesdoLogoUrl = "/images/pesdo-logo.png";
+
+        const ltpcLogo = await loadImageAsBase64(ltpcLogoUrl);
+        const pesdoLogo = await loadImageAsBase64(pesdoLogoUrl);
+
+        // Add logos at the top
+        const logoHeight = 18; // Height in mm
+        const logoWidth = 22; // Width in mm
+        const logoTopY = borderMargin + 8;
+
+        // LTPC logo at top left
+        doc.addImage(
+            ltpcLogo,
+            "PNG",
+            borderMargin + 8,
+            logoTopY,
+            logoWidth,
+            logoHeight
+        );
+
+        // PESDO logo at top right
+        doc.addImage(
+            pesdoLogo,
+            "PNG",
+            pageWidth - borderMargin - 8 - logoWidth,
+            logoTopY,
+            logoWidth,
+            logoHeight
+        );
+    } catch (error) {
+        console.warn("Could not load logos:", error);
+        // Continue without logos if they fail to load
+    }
+
+    // Title - "CERTIFICATE OF COMPETENCY" (styled like TESDA)
+    doc.setFontSize(32);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    const headerText = "CERTIFICATE OF COMPETENCY";
-    const headerWidth = doc.getTextWidth(headerText);
-    doc.text(headerText, (pageWidth - headerWidth) / 2, margin + 30);
+    doc.setTextColor(...blueColor);
+    const titlePart1 = "CERTIFICATE";
+    const titlePart1Width = doc.getTextWidth(titlePart1);
+    doc.text(
+        titlePart1,
+        (pageWidth - titlePart1Width) / 2,
+        borderMargin + 45
+    );
 
-    // Subtitle
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    const subtitleText = "This is to certify that";
-    const subtitleWidth = doc.getTextWidth(subtitleText);
-    doc.text(subtitleText, (pageWidth - subtitleWidth) / 2, margin + 50);
-
-    // Applicant Name (prominent)
     doc.setFontSize(24);
+    const titlePart2 = "OF COMPETENCY";
+    const titlePart2Width = doc.getTextWidth(titlePart2);
+    doc.text(
+        titlePart2,
+        (pageWidth - titlePart2Width) / 2,
+        borderMargin + 55
+    );
+
+    // Main body text - "This is to certify that"
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const certifyText = "This is to certify that";
+    const certifyTextWidth = doc.getTextWidth(certifyText);
+    doc.text(
+        certifyText,
+        (pageWidth - certifyTextWidth) / 2,
+        borderMargin + 75
+    );
+
+    // Applicant Name (prominent, bold)
+    doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     const applicantName = assessment.applicant_name || "N/A";
     const nameWidth = doc.getTextWidth(applicantName);
-    doc.text(applicantName, (pageWidth - nameWidth) / 2, margin + 70);
+    doc.text(
+        applicantName,
+        (pageWidth - nameWidth) / 2,
+        borderMargin + 90
+    );
 
-    // Program information
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
-    const programText = `has successfully completed the assessment for`;
-    const programTextWidth = doc.getTextWidth(programText);
-    doc.text(programText, (pageWidth - programTextWidth) / 2, margin + 90);
-
-    // Program name
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    const programName = assessment.program_name || "N/A";
-    const programNameWidth = doc.getTextWidth(programName);
-    doc.text(programName, (pageWidth - programNameWidth) / 2, margin + 110);
-
-    // Assessment details
+    // Program information - "has completed the assessment for"
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    
-    // Assessment date
+    doc.setTextColor(0, 0, 0);
+    const programText = "has completed the assessment for";
+    const programTextWidth = doc.getTextWidth(programText);
+    doc.text(
+        programText,
+        (pageWidth - programTextWidth) / 2,
+        borderMargin + 105
+    );
+
+    // Program name (bold, larger)
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const programName = assessment.program_name || "N/A";
+    const programNameWidth = doc.getTextWidth(programName);
+    doc.text(
+        programName,
+        (pageWidth - programNameWidth) / 2,
+        borderMargin + 120
+    );
+
+    // "on" text
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const onText = "on";
+    const onTextWidth = doc.getTextWidth(onText);
+    doc.text(onText, (pageWidth - onTextWidth) / 2, borderMargin + 135);
+
+    // Assessment date (bold, larger)
     const assessmentDate = assessment.assessment_date
         ? new Date(assessment.assessment_date).toLocaleDateString("en-US", {
               year: "numeric",
@@ -139,40 +246,64 @@ const printCertificate = () => {
               day: "numeric",
           })
         : "N/A";
-    const dateText = `Assessment Date: ${assessmentDate}`;
-    const dateTextWidth = doc.getTextWidth(dateText);
-    doc.text(dateText, (pageWidth - dateTextWidth) / 2, margin + 135);
-
-    // Certificate number
-    const certNumber = `Certificate Number: CERT-${String(assessment.id).padStart(6, "0")}`;
-    const certNumberWidth = doc.getTextWidth(certNumber);
-    doc.text(certNumber, (pageWidth - certNumberWidth) / 2, margin + 150);
-
-    // Assessor/Trainer name
-    const assessorText = `Assessed by: ${assessment.trainer_name || "N/A"}`;
-    const assessorTextWidth = doc.getTextWidth(assessorText);
-    doc.text(assessorText, (pageWidth - assessorTextWidth) / 2, margin + 165);
-
-    // Result
     doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    const dateWidth = doc.getTextWidth(assessmentDate);
+    doc.text(
+        assessmentDate,
+        (pageWidth - dateWidth) / 2,
+        borderMargin + 150
+    );
+
+    // Result - "RESULT: COMPETENT" (green, bold)
+    doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(34, 139, 34); // Green color
     const resultText = "RESULT: COMPETENT";
     const resultTextWidth = doc.getTextWidth(resultText);
-    doc.text(resultText, (pageWidth - resultTextWidth) / 2, margin + 185);
+    doc.text(
+        resultText,
+        (pageWidth - resultTextWidth) / 2,
+        borderMargin + 170
+    );
 
-    // Footer - Date issued
-    doc.setFontSize(10);
+    // Disclaimer text (centered, smaller, gray)
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 100, 100);
-    const issuedDate = new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
-    const footerText = `Certificate issued on ${issuedDate}`;
-    const footerTextWidth = doc.getTextWidth(footerText);
-    doc.text(footerText, (pageWidth - footerTextWidth) / 2, pageHeight - margin - 20);
+    doc.setTextColor(120, 120, 120);
+    const disclaimerText =
+        "This is a computer generated certificate, it is valid even without signature.";
+    const disclaimerWidth = doc.getTextWidth(disclaimerText);
+    doc.text(
+        disclaimerText,
+        (pageWidth - disclaimerWidth) / 2,
+        borderMargin + 185
+    );
+
+    // Footer section
+    const footerY = pageHeight - borderMargin - 25;
+
+    // Left side - Verification details
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text("For verification purposes, contact:", borderMargin + 8, footerY);
+    doc.text("LTPC Assessment Office", borderMargin + 8, footerY + 5);
+    doc.text("ltpc@example.com", borderMargin + 8, footerY + 10);
+    doc.text("(02) 123 - 4567", borderMargin + 8, footerY + 15);
+
+    // Right side - Certificate number
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(150, 150, 150);
+    const certNumber = `CERT-${String(assessment.id).padStart(6, "0")}`;
+    const certNumberWidth = doc.getTextWidth(certNumber);
+    doc.text(
+        certNumber,
+        pageWidth - borderMargin - 8 - certNumberWidth,
+        footerY + 10
+    );
 
     // Generate filename
     const sanitizedName = applicantName.replace(/[^a-z0-9]/gi, "_").toLowerCase();

@@ -11,18 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('training_results', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('training_id'); // references trainings.id
-            $table->unsignedBigInteger('trainee_id'); // references trainees.id
-            $table->enum('completion_status', ['complete', 'incomplete'])->default('incomplete');
-            $table->text('notes')->nullable();
-            $table->date('date_completed')->nullable();
-            $table->timestamps();
-
-            $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-            $table->foreign('trainee_id')->references('id')->on('trainees')->onDelete('cascade');
-        });
+        Schema::dropIfExists('training_results');
     }
 
     /**
@@ -30,6 +19,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('training_results');
+        Schema::create('training_results', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('training_id');
+            $table->unsignedBigInteger('trainee_id');
+            $table->enum('completion_status', ['complete', 'incomplete'])->default('incomplete');
+            $table->date('date_completed')->nullable();
+            $table->timestamps();
+
+            $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
+            $table->foreign('trainee_id')->references('id')->on('trainees')->onDelete('cascade');
+        });
     }
 };

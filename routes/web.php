@@ -128,7 +128,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::prefix('cashier')->name('cashier.')->middleware('role:cashier')->group(function () {
         Route::get('/dashboard', [CashierController::class, 'dashboard'])->name('dashboard');
-        Route::get('/payments', [CashierController::class, 'payments'])->name('payments');
+        
+        // Separate payment routes
+        Route::get('/payments/enrollment', [CashierController::class, 'enrollmentPayments'])->name('payments.enrollment');
+        Route::get('/payments/additional', [CashierController::class, 'additionalPayments'])->name('payments.additional');
+        Route::get('/payments/assessment', [CashierController::class, 'assessmentPayments'])->name('payments.assessment');
+        
+        // Keep old route for backward compatibility (redirects to enrollment)
+        Route::get('/payments', function() {
+            return redirect()->route('cashier.payments.enrollment');
+        })->name('payments');
+        
         Route::get('/receipts', [CashierController::class, 'receipts'])->name('receipts');
         Route::get('/reports', [CashierController::class, 'reports'])->name('reports');
         Route::post('/payments/process', [CashierController::class, 'processPayment'])->name('payments.process');

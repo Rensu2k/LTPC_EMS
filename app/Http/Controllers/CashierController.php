@@ -48,14 +48,37 @@ class CashierController extends Controller
     }
 
     /**
-     * Display payments management page
+     * Display enrollment payments page (registration fees for new trainees)
      */
-    public function payments(Request $request)
+    public function enrollmentPayments(Request $request)
     {
-        $perPage = $request->get('per_page', 20); // Default to 20 items per page
+        return $this->renderPaymentPage($request, 'registration');
+    }
+
+    /**
+     * Display additional payments page (additional fees for enrolled trainees)
+     */
+    public function additionalPayments(Request $request)
+    {
+        return $this->renderPaymentPage($request, 'enrollment');
+    }
+
+    /**
+     * Display assessment payments page
+     */
+    public function assessmentPayments(Request $request)
+    {
+        return $this->renderPaymentPage($request, 'assessment');
+    }
+
+    /**
+     * Helper method to render payment page by type
+     */
+    private function renderPaymentPage(Request $request, $type)
+    {
+        $perPage = $request->get('per_page', 20);
         $search = $request->get('search', '');
         $status = $request->get('status', '');
-        $type = $request->get('type', '');
 
         // Get enrollment payment records (including scholars for additional fees)
         // Scholars should appear in Additional Fees tab with additional fees (Trainee ID, Certificate, etc.)
@@ -282,8 +305,25 @@ class CashierController extends Controller
         // Get collections by program
         $collectionsByProgram = $this->getCollectionsByProgram();
         
-        // Paginate the combined results
-        $allPayments = $allEnrollmentPayments->concat($assessmentPayments)->sortByDesc('date')->values();
+        // Calculate total counts for each payment type (for tab labels)
+        $registrationCount = $registrationPayments->count();
+        $enrollmentCount = $enrollmentPayments->count();
+        $assessmentCount = $assessmentPayments->count();
+
+        // Filter by type before pagination
+        $paymentsToDisplay = collect();
+        if ($type === 'registration') {
+            $paymentsToDisplay = $registrationPayments;
+        } elseif ($type === 'enrollment') {
+            $paymentsToDisplay = $enrollmentPayments;
+        } elseif ($type === 'assessment') {
+            $paymentsToDisplay = $assessmentPayments;
+        } else {
+            // Default to registration if type is not specified or invalid
+            $paymentsToDisplay = $registrationPayments;
+        }
+
+        // Paginate the filtered results
         $currentPage = $request->get('page', 1);
         
         // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
@@ -294,25 +334,44 @@ class CashierController extends Controller
         }
         
         $paginatedPayments = new \Illuminate\Pagination\LengthAwarePaginator(
-            $allPayments->forPage($currentPage, $perPage),
-            $allPayments->count(),
+            $paymentsToDisplay->forPage($currentPage, $perPage)->values(),
+            $paymentsToDisplay->count(),
             $perPage,
             $currentPage,
             ['path' => $path]
         );
+
+        // Calculate total counts for each payment type (for tab labels)
+        $registrationCount = $registrationPayments->count();
+        $enrollmentCount = $enrollmentPayments->count();
+        $assessmentCount = $assessmentPayments->count();
 
         return Inertia::render('Cashier/Payments', [
             'enrollmentPayments' => $paginatedPayments,
             'assessmentPayments' => $assessmentPayments,
             'summaryStats' => $summaryStats,
             'collectionsByProgram' => $collectionsByProgram,
+            'paymentCounts' => [
+                'registration' => $registrationCount,
+                'enrollment' => $enrollmentCount,
+                'assessment' => $assessmentCount,
+            ],
             'filters' => [
                 'search' => $search,
                 'status' => $status,
                 'type' => $type,
                 'per_page' => $perPage,
-            ]
+            ],
+            'paymentType' => $type, // Pass the payment type to the view
         ]);
+    }
+
+    /**
+     * Display payments management page (legacy - redirects to enrollment)
+     */
+    public function payments(Request $request)
+    {
+        return redirect()->route('cashier.payments.enrollment');
     }
 
     /**

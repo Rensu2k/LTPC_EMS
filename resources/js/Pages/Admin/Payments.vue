@@ -8,7 +8,7 @@ import InputLabel from "@/Components/InputLabel.vue";
 import Dropdown from "@/Components/Dropdown.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
 import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const props = defineProps({
@@ -311,62 +311,78 @@ const exportToPDF = () => {
     doc.save(filename);
 };
 
-const exportToExcel = () => {
-    // Prepare data for Excel
-    const excelData = filteredTrainees.value.map((trainee) => ({
-        "Trainee Name": trainee.trainee_name || "N/A",
-        "ULI Number": trainee.uli_number || "N/A",
-        Program: trainee.program || "N/A",
-        "Total Receipts": trainee.receipts.length,
-        "Total Amount": trainee.total_amount,
-        "Latest Payment Date":
+const exportToExcel = async () => {
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Payments");
+
+    // Add summary information at the top
+    worksheet.addRow(["Report Date:", new Date().toLocaleDateString()]);
+    worksheet.addRow([""]);
+    worksheet.addRow(["Summary Statistics:"]);
+    worksheet.addRow(["Total Trainees:", filteredTrainees.value.length]);
+    worksheet.addRow(["Total Receipts:", totalFilteredReceipts.value]);
+    worksheet.addRow(["Total Amount:", totalFilteredAmount.value]);
+    worksheet.addRow([""]);
+
+    // Add headers
+    const headers = [
+        "Trainee Name",
+        "ULI Number",
+        "Program",
+        "Total Receipts",
+        "Total Amount",
+        "Latest Payment Date",
+        "Payment Status",
+    ];
+    worksheet.addRow(headers);
+
+    // Style header row
+    const headerRow = worksheet.getRow(8);
+    headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF228B22" },
+    };
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+    // Add data rows
+    filteredTrainees.value.forEach((trainee) => {
+        worksheet.addRow([
+            trainee.trainee_name || "N/A",
+            trainee.uli_number || "N/A",
+            trainee.program || "N/A",
+            trainee.receipts.length,
+            trainee.total_amount,
             trainee.receipts.length > 0
                 ? formatDate(trainee.receipts[0].payment_date)
                 : "N/A",
-        "Payment Status": trainee.receipts.some((r) => r.status === "paid")
-            ? "Paid"
-            : "Pending",
-    }));
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
-
-    // Add summary information at the top
-    const summaryData = [
-        ["Report Date:", new Date().toLocaleDateString()],
-        [""],
-        ["Summary Statistics:"],
-        ["Total Trainees:", filteredTrainees.value.length],
-        ["Total Receipts:", totalFilteredReceipts.value],
-        ["Total Amount:", totalFilteredAmount.value],
-        [""],
-    ];
-
-    // Insert summary data at the beginning
-    XLSX.utils.sheet_add_aoa(ws, summaryData, { origin: "A1" });
+            trainee.receipts.some((r) => r.status === "paid")
+                ? "Paid"
+                : "Pending",
+        ]);
+    });
 
     // Adjust column widths
-    const colWidths = [
-        { wch: 25 }, // Trainee Name
-        { wch: 15 }, // ULI Number
-        { wch: 25 }, // Program
-        { wch: 15 }, // Total Receipts
-        { wch: 15 }, // Total Amount
-        { wch: 20 }, // Latest Payment Date
-        { wch: 15 }, // Payment Status
-    ];
-    ws["!cols"] = colWidths;
-
-    // Add the worksheet to the workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+    worksheet.getColumn(1).width = 25; // Trainee Name
+    worksheet.getColumn(2).width = 15; // ULI Number
+    worksheet.getColumn(3).width = 25; // Program
+    worksheet.getColumn(4).width = 15; // Total Receipts
+    worksheet.getColumn(5).width = 15; // Total Amount
+    worksheet.getColumn(6).width = 20; // Latest Payment Date
+    worksheet.getColumn(7).width = 15; // Payment Status
 
     // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `payments_report_${timestamp}.xlsx`;
 
-    // Save the Excel file
-    XLSX.writeFile(wb, filename);
+    // Write to buffer and save
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, filename);
 };
 
 const exportPaymentReport = () => {

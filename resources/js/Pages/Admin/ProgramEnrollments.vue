@@ -6,7 +6,7 @@ import SecondaryButton from "@/Components/SecondaryButton.vue";
 import TextInput from "@/Components/TextInput.vue";
 import InputLabel from "@/Components/InputLabel.vue";
 import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 const props = defineProps({
@@ -243,29 +243,10 @@ const exportToPDF = () => {
     doc.save(filename);
 };
 
-const exportToExcel = () => {
-    // Prepare data for Excel
-    const excelData = filteredEnrollments.value.map((enrollment) => ({
-        "Student Name": enrollment.trainee?.full_name || "N/A",
-        Email: enrollment.trainee?.email || "N/A",
-        "Contact Number": enrollment.trainee?.contact_number || "N/A",
-        Batch: enrollment.batch,
-        "Enrollment Date": enrollment.enrollment_date
-            ? formatDate(enrollment.enrollment_date)
-            : "N/A",
-        Status: enrollment.status,
-        "Payment Status": enrollment.payment_status,
-        "Enrollment Fee": enrollment.enrollment_fee
-            ? formatCurrency(enrollment.enrollment_fee)
-            : "N/A",
-        "Completion Date": enrollment.completion_date
-            ? formatDate(enrollment.completion_date)
-            : "N/A",
-    }));
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
+const exportToExcel = async () => {
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Enrollments");
 
     // Calculate counts for summary
     const totalCount = filteredEnrollments.value.length;
@@ -283,38 +264,84 @@ const exportToExcel = () => {
     ).length;
 
     // Add summary information at the top
-    const summaryData = [
-        ["Program:", props.program?.name],
-        ["Report Date:", new Date().toLocaleDateString()],
-        [""],
-        ["Summary Statistics:"],
-        ["Total Enrollments:", totalCount],
-        ["Completed:", `${completedCount} (${completionPercentage.value}%)`],
-        ["Active:", `${activeCount} (${activePercentage.value}%)`],
-        ["Dropped:", `${droppedCount} (${droppedPercentage.value}%)`],
-        ["Pending:", `${pendingCount} (${pendingPercentage.value}%)`],
-        [""],
-    ];
+    worksheet.addRow(["Program:", props.program?.name]);
+    worksheet.addRow(["Report Date:", new Date().toLocaleDateString()]);
+    worksheet.addRow([""]);
+    worksheet.addRow(["Summary Statistics:"]);
+    worksheet.addRow(["Total Enrollments:", totalCount]);
+    worksheet.addRow([
+        "Completed:",
+        `${completedCount} (${completionPercentage.value}%)`,
+    ]);
+    worksheet.addRow([
+        "Active:",
+        `${activeCount} (${activePercentage.value}%)`,
+    ]);
+    worksheet.addRow([
+        "Dropped:",
+        `${droppedCount} (${droppedPercentage.value}%)`,
+    ]);
+    worksheet.addRow([
+        "Pending:",
+        `${pendingCount} (${pendingPercentage.value}%)`,
+    ]);
+    worksheet.addRow([""]);
 
-    // Insert summary at the beginning
-    XLSX.utils.sheet_add_aoa(ws, summaryData, { origin: "A1" });
+    // Add headers
+    const headers = [
+        "Student Name",
+        "Email",
+        "Contact Number",
+        "Batch",
+        "Enrollment Date",
+        "Status",
+        "Payment Status",
+        "Enrollment Fee",
+        "Completion Date",
+    ];
+    worksheet.addRow(headers);
+
+    // Style header row
+    const headerRow = worksheet.getRow(12);
+    headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF228B22" },
+    };
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+    // Add data rows
+    filteredEnrollments.value.forEach((enrollment) => {
+        worksheet.addRow([
+            enrollment.trainee?.full_name || "N/A",
+            enrollment.trainee?.email || "N/A",
+            enrollment.trainee?.contact_number || "N/A",
+            enrollment.batch,
+            enrollment.enrollment_date
+                ? formatDate(enrollment.enrollment_date)
+                : "N/A",
+            enrollment.status,
+            enrollment.payment_status,
+            enrollment.enrollment_fee
+                ? formatCurrency(enrollment.enrollment_fee)
+                : "N/A",
+            enrollment.completion_date
+                ? formatDate(enrollment.completion_date)
+                : "N/A",
+        ]);
+    });
 
     // Adjust column widths
-    const colWidths = [
-        { wch: 25 }, // Student Name
-        { wch: 30 }, // Email
-        { wch: 15 }, // Contact Number
-        { wch: 10 }, // Batch
-        { wch: 15 }, // Enrollment Date
-        { wch: 12 }, // Status
-        { wch: 15 }, // Payment Status
-        { wch: 15 }, // Enrollment Fee
-        { wch: 15 }, // Completion Date
-    ];
-    ws["!cols"] = colWidths;
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Enrollments");
+    worksheet.getColumn(1).width = 25; // Student Name
+    worksheet.getColumn(2).width = 30; // Email
+    worksheet.getColumn(3).width = 15; // Contact Number
+    worksheet.getColumn(4).width = 10; // Batch
+    worksheet.getColumn(5).width = 15; // Enrollment Date
+    worksheet.getColumn(6).width = 12; // Status
+    worksheet.getColumn(7).width = 15; // Payment Status
+    worksheet.getColumn(8).width = 15; // Enrollment Fee
+    worksheet.getColumn(9).width = 15; // Completion Date
 
     // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
@@ -323,9 +350,11 @@ const exportToExcel = () => {
         "_"
     )}_enrollments_${timestamp}.xlsx`;
 
-    // Save the Excel file
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
+    // Write to buffer and save
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     saveAs(blob, filename);
 };
 </script>

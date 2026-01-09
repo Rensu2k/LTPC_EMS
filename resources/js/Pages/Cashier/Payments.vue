@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, usePage, router } from "@inertiajs/vue3";
+import { Head, Link, usePage, router } from "@inertiajs/vue3";
 import { ref, computed, onMounted, watch } from "vue";
 import { useNotifications } from "@/composables/useNotifications";
 import Pagination from "@/Components/Pagination.vue";
@@ -9,8 +9,10 @@ import Pagination from "@/Components/Pagination.vue";
 const page = usePage();
 const notifications = useNotifications();
 
-// Active tab state - now separates by payment type
-const activeTab = ref("registrations");
+// Payment type from props
+const paymentType = computed(
+    () => props.paymentType || props.filters?.type || "registration"
+);
 
 // Payment details modal state
 const showPaymentDetails = ref(false);
@@ -42,58 +44,69 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentCounts: {
+        type: Object,
+        default: () => ({
+            registration: 0,
+            enrollment: 0,
+            assessment: 0,
+        }),
+    },
+    paymentType: {
+        type: String,
+        default: "registration",
+    },
 });
 
 // Convert props to reactive refs and separate registration vs enrollment payments
 const allPayments = computed(() => {
-    const paymentsData =
-        props.enrollmentPayments?.data || props.enrollmentPayments;
-    return paymentsData || [];
+    // Handle pagination object
+    if (
+        props.enrollmentPayments &&
+        typeof props.enrollmentPayments === "object"
+    ) {
+        // Check if it's a pagination object with data property
+        if (props.enrollmentPayments.data !== undefined) {
+            // Laravel pagination object - data is an array
+            if (Array.isArray(props.enrollmentPayments.data)) {
+                return props.enrollmentPayments.data;
+            }
+            // If data exists but is not an array, it might be empty or malformed
+            return [];
+        }
+        // Check if it's already an array (legacy support)
+        if (Array.isArray(props.enrollmentPayments)) {
+            return props.enrollmentPayments;
+        }
+    }
+    // Fallback to empty array
+    return [];
 });
 
-const registrationPayments = computed(() =>
-    allPayments.value.filter((p) => p.type === "registration")
-);
-const enrollmentPayments = computed(() =>
-    allPayments.value.filter((p) => p.type === "enrollment")
-);
+// Since we're now doing server-side filtering, we just display what's received
+const currentPayments = computed(() => {
+    return allPayments.value;
+});
+
+// Server already filters, so filteredPayments is just currentPayments
+const filteredPayments = computed(() => {
+    return currentPayments.value;
+});
+
+// Keep these for backward compatibility with code that might reference them
+const registrationPayments = computed(() => {
+    return allPayments.value.filter((p) => p.type === "registration");
+});
+
+const enrollmentPaymentsList = computed(() => {
+    return allPayments.value.filter((p) => p.type === "enrollment");
+});
+
 const assessmentPayments = ref(props.assessmentPayments);
 const summaryStats = ref(props.summaryStats);
 const collectionsByProgram = ref(props.collectionsByProgram);
 
 const searchQuery = ref(props.filters?.search || "");
-
-// Get current payment data based on active tab
-const currentPayments = computed(() => {
-    if (activeTab.value === "registrations") {
-        return registrationPayments.value;
-    } else if (activeTab.value === "enrollments") {
-        return enrollmentPayments.value;
-    } else if (activeTab.value === "assessments") {
-        return assessmentPayments.value;
-    }
-    return [];
-});
-
-// Computed filtered payments based on search
-const filteredPayments = computed(() => {
-    let filtered = currentPayments.value;
-
-    // Filter by search query
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        filtered = filtered.filter(
-            (payment) =>
-                (payment.trainee?.name || "").toLowerCase().includes(query) ||
-                (payment.program || "").toLowerCase().includes(query) ||
-                (payment.receiptNo || "").toLowerCase().includes(query) ||
-                (payment.trainee?.id || "").toLowerCase().includes(query) ||
-                (payment.id || "").toLowerCase().includes(query)
-        );
-    }
-
-    return filtered;
-});
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-PH", {
@@ -103,9 +116,28 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-const setActiveTab = (tab) => {
-    activeTab.value = tab;
-};
+// Computed properties for page title and description
+const pageTitle = computed(() => {
+    if (paymentType.value === "registration") {
+        return "Enrollment Fees - New Trainees";
+    } else if (paymentType.value === "enrollment") {
+        return "Additional Fees - Enrolled Trainees";
+    } else if (paymentType.value === "assessment") {
+        return "Assessment Fees";
+    }
+    return "Payments";
+});
+
+const pageDescription = computed(() => {
+    if (paymentType.value === "registration") {
+        return "Enrollment fees from newly registered trainees awaiting payment to officially enroll in programs.";
+    } else if (paymentType.value === "enrollment") {
+        return "Additional fees for enrolled trainees including Trainee ID, Certification, and other supplementary charges.";
+    } else if (paymentType.value === "assessment") {
+        return "Assessment fees for trainees and external applicants taking program assessments.";
+    }
+    return "";
+});
 
 const exportReport = () => {
     // TODO: Implement export functionality
@@ -116,14 +148,8 @@ const recordPayment = () => {
 };
 
 const viewPayment = (paymentId) => {
-    // Search in all payment arrays
-    let payment = registrationPayments.value.find((p) => p.id === paymentId);
-    if (!payment) {
-        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
-    }
-    if (!payment) {
-        payment = assessmentPayments.value.find((p) => p.id === paymentId);
-    }
+    // Search in current payments (already filtered by server)
+    const payment = currentPayments.value.find((p) => p.id === paymentId);
 
     if (payment) {
         selectedPayment.value = payment;
@@ -137,21 +163,12 @@ const closePaymentDetails = () => {
 };
 
 const markAsPaid = (paymentId) => {
-    // Search in all payment arrays
-    let payment = registrationPayments.value.find((p) => p.id === paymentId);
-    let paymentType = "registration";
-
-    if (!payment) {
-        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
-        paymentType = "enrollment";
-    }
-
-    if (!payment) {
-        payment = assessmentPayments.value.find((p) => p.id === paymentId);
-        paymentType = "assessment";
-    }
+    // Search in current payments (already filtered by server)
+    const payment = currentPayments.value.find((p) => p.id === paymentId);
 
     if (!payment) return;
+
+    const paymentType = payment.type;
 
     // For registration payments (New Trainees), mark as paid first and then automatically show receipt modal
     if (paymentType === "registration") {
@@ -259,7 +276,7 @@ const generateReceipt = (paymentId) => {
     // Search in all payment arrays
     let payment = registrationPayments.value.find((p) => p.id === paymentId);
     if (!payment) {
-        payment = enrollmentPayments.value.find((p) => p.id === paymentId);
+        payment = enrollmentPaymentsList.value.find((p) => p.id === paymentId);
     }
     if (!payment) {
         payment = assessmentPayments.value.find((p) => p.id === paymentId);
@@ -579,7 +596,15 @@ let searchTimeout;
 const performSearch = () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        router.visit(route("cashier.payments"), {
+        // Determine the correct route based on payment type
+        let routeName = "cashier.payments.enrollment";
+        if (paymentType.value === "enrollment") {
+            routeName = "cashier.payments.additional";
+        } else if (paymentType.value === "assessment") {
+            routeName = "cashier.payments.assessment";
+        }
+
+        router.visit(route(routeName), {
             data: {
                 search: searchQuery.value,
                 per_page: props.filters?.per_page || 20,
@@ -604,8 +629,11 @@ watch(searchQuery, () => {
             <div class="flex items-center justify-between mb-8 animate-fade-in">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">
-                        Payments Management
+                        {{ pageTitle }}
                     </h1>
+                    <p v-if="pageDescription" class="text-gray-600 mt-1">
+                        {{ pageDescription }}
+                    </p>
                 </div>
                 <div class="flex items-center space-x-3">
                     <button
@@ -628,112 +656,6 @@ watch(searchQuery, () => {
                         Export Report
                     </button>
                 </div>
-            </div>
-
-            <!-- Tabs -->
-            <div class="mb-6 animate-fade-in">
-                <nav class="flex space-x-8">
-                    <button
-                        @click="setActiveTab('registrations')"
-                        :class="[
-                            'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'registrations'
-                                ? 'border-orange-500 text-orange-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                        ]"
-                    >
-                        <svg
-                            class="w-4 h-4 mr-2 inline"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                            ></path>
-                        </svg>
-                        Enrollment Fees - New Trainees ({{
-                            props.enrollmentPayments?.meta?.total ||
-                            registrationPayments.length
-                        }})
-                    </button>
-                    <button
-                        @click="setActiveTab('enrollments')"
-                        :class="[
-                            'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'enrollments'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                        ]"
-                    >
-                        <svg
-                            class="w-4 h-4 mr-2 inline"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                            ></path>
-                        </svg>
-                        Additional Fees - Enrolled Trainees ({{
-                            props.enrollmentPayments?.meta?.total ||
-                            enrollmentPayments.length
-                        }})
-                    </button>
-                    <button
-                        @click="setActiveTab('assessments')"
-                        :class="[
-                            'py-2 px-1 border-b-2 font-medium text-sm',
-                            activeTab === 'assessments'
-                                ? 'border-purple-500 text-purple-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                        ]"
-                    >
-                        <svg
-                            class="w-4 h-4 mr-2 inline"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                            ></path>
-                        </svg>
-                        Assessment Fees ({{
-                            props.enrollmentPayments?.meta?.total ||
-                            assessmentPayments.length
-                        }})
-                    </button>
-                    <Link
-                        :href="route('cashier.reports')"
-                        class="py-2 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    >
-                        <svg
-                            class="w-4 h-4 mr-2 inline"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                            ></path>
-                        </svg>
-                        Summary & Reports
-                    </Link>
-                </nav>
             </div>
 
             <!-- Search and Filters -->
@@ -774,22 +696,22 @@ watch(searchQuery, () => {
 
                 <!-- Results Count -->
                 <div class="mt-4 text-sm text-gray-600">
-                    <span v-if="props.enrollmentPayments?.meta?.total">
+                    <span v-if="props.enrollmentPayments?.total">
                         Showing
                         {{
-                            (props.enrollmentPayments.meta.current_page - 1) *
-                                props.enrollmentPayments.meta.per_page +
+                            (props.enrollmentPayments.current_page - 1) *
+                                props.enrollmentPayments.per_page +
                             1
                         }}
                         to
                         {{
                             Math.min(
-                                props.enrollmentPayments.meta.current_page *
-                                    props.enrollmentPayments.meta.per_page,
-                                props.enrollmentPayments.meta.total
+                                props.enrollmentPayments.current_page *
+                                    props.enrollmentPayments.per_page,
+                                props.enrollmentPayments.total
                             )
                         }}
-                        of {{ props.enrollmentPayments.meta.total }} results
+                        of {{ props.enrollmentPayments.total }} results
                     </span>
                     <span v-else>
                         {{ allPayments.length }} payments found
@@ -983,87 +905,65 @@ watch(searchQuery, () => {
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h2 class="text-lg font-semibold text-gray-900">
-                                <span
-                                    v-if="activeTab === 'registrations'"
-                                    class="flex items-center"
+                            <h2
+                                class="text-lg font-semibold text-gray-900 flex items-center"
+                            >
+                                <svg
+                                    v-if="paymentType === 'registration'"
+                                    class="w-5 h-5 mr-2 text-orange-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    <svg
-                                        class="w-5 h-5 mr-2 text-orange-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                                        ></path>
-                                    </svg>
-                                    Enrollment Fees - New Trainees
-                                </span>
-                                <span
-                                    v-else-if="activeTab === 'enrollments'"
-                                    class="flex items-center"
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                                    ></path>
+                                </svg>
+                                <svg
+                                    v-else-if="paymentType === 'enrollment'"
+                                    class="w-5 h-5 mr-2 text-blue-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    <svg
-                                        class="w-5 h-5 mr-2 text-blue-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                                        ></path>
-                                    </svg>
-                                    Additional Fees - Enrolled Trainees
-                                </span>
-                                <span
-                                    v-else-if="activeTab === 'assessments'"
-                                    class="flex items-center"
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                    ></path>
+                                </svg>
+                                <svg
+                                    v-else-if="paymentType === 'assessment'"
+                                    class="w-5 h-5 mr-2 text-purple-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    <svg
-                                        class="w-5 h-5 mr-2 text-purple-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                                        ></path>
-                                    </svg>
-                                    Assessment Fees
-                                </span>
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                    ></path>
+                                </svg>
+                                {{ pageTitle }}
                             </h2>
                             <p
-                                v-if="activeTab === 'registrations'"
-                                class="text-sm text-orange-600 mt-1"
+                                v-if="pageDescription"
+                                :class="[
+                                    'text-sm mt-1',
+                                    paymentType === 'registration'
+                                        ? 'text-orange-600'
+                                        : paymentType === 'enrollment'
+                                        ? 'text-blue-600'
+                                        : 'text-purple-600',
+                                ]"
                             >
-                                Enrollment fees from newly registered trainees
-                                awaiting payment to officially enroll in
-                                programs.
-                            </p>
-                            <p
-                                v-else-if="activeTab === 'enrollments'"
-                                class="text-sm text-blue-600 mt-1"
-                            >
-                                Additional fees from trainees already enrolled
-                                in programs (Trainee ID, Certificate, etc.).
-                            </p>
-                            <p
-                                v-else-if="activeTab === 'assessments'"
-                                class="text-sm text-purple-600 mt-1"
-                            >
-                                Assessment fees from internal trainees and
-                                external applicants taking competency
-                                assessments.
+                                {{ pageDescription }}
                             </p>
                         </div>
                         <div class="flex items-center space-x-3">
@@ -1347,14 +1247,35 @@ watch(searchQuery, () => {
                         ></path>
                     </svg>
                     <h3 class="mt-2 text-sm font-medium text-gray-900">
-                        No payments found
+                        No
+                        {{
+                            paymentType === "registration"
+                                ? "registration"
+                                : paymentType === "enrollment"
+                                ? "enrollment"
+                                : "assessment"
+                        }}
+                        payments found
                     </h3>
                     <p class="mt-1 text-sm text-gray-500">
-                        {{
-                            searchQuery
-                                ? "Try adjusting your search terms."
-                                : "Get started by recording a new payment."
-                        }}
+                        <span v-if="searchQuery">
+                            Try adjusting your search terms.
+                        </span>
+                        <span v-else-if="allPayments.length > 0">
+                            No
+                            {{
+                                paymentType === "registration"
+                                    ? "registration"
+                                    : paymentType === "enrollment"
+                                    ? "enrollment"
+                                    : "assessment"
+                            }}
+                            payments on this page. Try navigating to other
+                            pages.
+                        </span>
+                        <span v-else>
+                            Get started by recording a new payment.
+                        </span>
                     </p>
                 </div>
 

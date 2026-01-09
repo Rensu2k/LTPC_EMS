@@ -250,17 +250,33 @@ const changePage = (url) => {
         targetUrl = url.replace("http://", "https://");
     }
 
-    // Create a new URL object to preserve per_page parameter
+    // Create URL objects
     const currentUrl = new URL(window.location.href);
     const targetUrlObj = new URL(targetUrl);
 
-    // Preserve the current per_page value
-    const currentPerPage = currentUrl.searchParams.get("per_page");
-    if (currentPerPage) {
-        targetUrlObj.searchParams.set("per_page", currentPerPage);
-    }
+    // Preserve all query parameters from current URL (except page which comes from target)
+    const currentUrlParams = {};
+    currentUrl.searchParams.forEach((value, key) => {
+        if (key !== 'page') {
+            currentUrlParams[key] = value;
+        }
+    });
 
-    router.visit(targetUrlObj.toString(), {
+    // Build new URL with preserved parameters
+    const newUrl = new URL(targetUrlObj.pathname, targetUrlObj.origin);
+    
+    // Add page from target URL
+    const page = targetUrlObj.searchParams.get("page");
+    if (page) {
+        newUrl.searchParams.set("page", page);
+    }
+    
+    // Add all preserved parameters from current URL
+    Object.keys(currentUrlParams).forEach(key => {
+        newUrl.searchParams.set(key, currentUrlParams[key]);
+    });
+
+    router.visit(newUrl.toString(), {
         preserveState: props.preserveState,
         preserveScroll: true,
         replace: true,
@@ -269,10 +285,25 @@ const changePage = (url) => {
 
 const changePerPage = (perPage) => {
     const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set("per_page", perPage);
-    currentUrl.searchParams.delete("page"); // Reset to first page when changing per_page
+    
+    // Preserve all existing query parameters
+    const allParams = {};
+    currentUrl.searchParams.forEach((value, key) => {
+        if (key !== 'page' && key !== 'per_page') {
+            allParams[key] = value;
+        }
+    });
+    
+    // Build new URL with preserved parameters and new per_page
+    const newUrl = new URL(window.location.pathname, window.location.origin);
+    newUrl.searchParams.set("per_page", perPage);
+    
+    // Add back all preserved parameters
+    Object.keys(allParams).forEach(key => {
+        newUrl.searchParams.set(key, allParams[key]);
+    });
 
-    router.visit(currentUrl.toString(), {
+    router.visit(newUrl.toString(), {
         preserveState: props.preserveState,
         preserveScroll: false,
         replace: true,

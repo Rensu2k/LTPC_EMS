@@ -6,6 +6,8 @@ import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import { Link, usePage, router } from "@inertiajs/vue3";
 
 const showingNavigationDropdown = ref(false);
+// Keep payments dropdown open if on any payments page
+const showingPaymentsDropdown = ref(route().current('cashier.payments.*'));
 const user = computed(() => usePage().props.auth.user);
 
 // Dynamic topbar title based on current route
@@ -32,6 +34,9 @@ const pageTitle = computed(() => {
 
     // Cashier routes
     if (currentRoute === "cashier.dashboard") return "Cashier Dashboard";
+    if (currentRoute === "cashier.payments.enrollment") return "Enrollment Payments";
+    if (currentRoute === "cashier.payments.additional") return "Additional Payments";
+    if (currentRoute === "cashier.payments.assessment") return "Assessment Payments";
     if (currentRoute === "cashier.payments") return "Payments";
     if (currentRoute === "cashier.receipts") return "Receipts";
     if (currentRoute === "cashier.reports") return "Reports";
@@ -592,40 +597,173 @@ function logout() {
                             >
                         </span>
                     </NavLink>
-                    <NavLink
-                        :href="route('cashier.payments')"
-                        :active="route().current('cashier.payments')"
-                        class="group py-3 px-2 rounded-lg"
-                    >
-                        <span class="flex items-center gap-4">
+                    <!-- Payments Dropdown -->
+                    <div class="relative">
+                        <button
+                            @click="showingPaymentsDropdown = !showingPaymentsDropdown"
+                            :class="[
+                                'group w-full py-3 px-2 rounded-lg flex items-center justify-between',
+                                route().current('cashier.payments.*')
+                                    ? 'bg-blue-800'
+                                    : 'hover:bg-blue-800/50'
+                            ]"
+                        >
+                            <span class="flex items-center gap-4">
+                                <svg
+                                    class="h-6 w-6"
+                                    :class="
+                                        route().current('cashier.payments.*')
+                                            ? 'text-white'
+                                            : 'text-white/70 group-hover:text-white'
+                                    "
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m0 0h4m-4 0H8"
+                                    />
+                                </svg>
+                                <span
+                                    :class="
+                                        route().current('cashier.payments.*')
+                                            ? 'font-semibold text-lg text-white'
+                                            : 'text-lg text-white/80 group-hover:text-white'
+                                    "
+                                    >Payments</span
+                                >
+                            </span>
                             <svg
-                                class="h-6 w-6"
-                                :class="
-                                    route().current('cashier.payments')
+                                class="h-5 w-5 transition-transform"
+                                :class="[
+                                    showingPaymentsDropdown ? 'rotate-180' : '',
+                                    route().current('cashier.payments.*')
                                         ? 'text-white'
-                                        : 'text-white/70 group-hover:text-white'
-                                "
+                                        : 'text-white/70'
+                                ]"
                                 fill="none"
                                 stroke="currentColor"
-                                stroke-width="2"
                                 viewBox="0 0 24 24"
                             >
                                 <path
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
-                                    d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m0 0h4m-4 0H8"
+                                    stroke-width="2"
+                                    d="M19 9l-7 7-7-7"
                                 />
                             </svg>
-                            <span
-                                :class="
-                                    route().current('cashier.payments')
-                                        ? 'font-semibold text-lg text-white'
-                                        : 'text-lg text-white/80 group-hover:text-white'
-                                "
-                                >Payments</span
+                        </button>
+                        <div
+                            v-show="showingPaymentsDropdown || route().current('cashier.payments.*')"
+                            class="mt-1 ml-8 space-y-1"
+                        >
+                            <NavLink
+                                :href="route('cashier.payments.enrollment')"
+                                :active="route().current('cashier.payments.enrollment')"
+                                class="group py-2 px-3 rounded-lg text-sm"
                             >
-                        </span>
-                    </NavLink>
+                                <span class="flex items-center gap-3">
+                                    <svg
+                                        class="h-5 w-5"
+                                        :class="
+                                            route().current('cashier.payments.enrollment')
+                                                ? 'text-white'
+                                                : 'text-white/70 group-hover:text-white'
+                                        "
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                                        />
+                                    </svg>
+                                    <span
+                                        :class="
+                                            route().current('cashier.payments.enrollment')
+                                                ? 'font-semibold text-white'
+                                                : 'text-white/80 group-hover:text-white'
+                                        "
+                                        >Enrollment Fees</span
+                                    >
+                                </span>
+                            </NavLink>
+                            <NavLink
+                                :href="route('cashier.payments.additional')"
+                                :active="route().current('cashier.payments.additional')"
+                                class="group py-2 px-3 rounded-lg text-sm"
+                            >
+                                <span class="flex items-center gap-3">
+                                    <svg
+                                        class="h-5 w-5"
+                                        :class="
+                                            route().current('cashier.payments.additional')
+                                                ? 'text-white'
+                                                : 'text-white/70 group-hover:text-white'
+                                        "
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C20.168 18.477 18.582 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                        />
+                                    </svg>
+                                    <span
+                                        :class="
+                                            route().current('cashier.payments.additional')
+                                                ? 'font-semibold text-white'
+                                                : 'text-white/80 group-hover:text-white'
+                                        "
+                                        >Additional Fees</span
+                                    >
+                                </span>
+                            </NavLink>
+                            <NavLink
+                                :href="route('cashier.payments.assessment')"
+                                :active="route().current('cashier.payments.assessment')"
+                                class="group py-2 px-3 rounded-lg text-sm"
+                            >
+                                <span class="flex items-center gap-3">
+                                    <svg
+                                        class="h-5 w-5"
+                                        :class="
+                                            route().current('cashier.payments.assessment')
+                                                ? 'text-white'
+                                                : 'text-white/70 group-hover:text-white'
+                                        "
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                                        />
+                                    </svg>
+                                    <span
+                                        :class="
+                                            route().current('cashier.payments.assessment')
+                                                ? 'font-semibold text-white'
+                                                : 'text-white/80 group-hover:text-white'
+                                        "
+                                        >Assessment Fees</span
+                                    >
+                                </span>
+                            </NavLink>
+                        </div>
+                    </div>
                     <NavLink
                         :href="route('cashier.receipts')"
                         :active="route().current('cashier.receipts')"

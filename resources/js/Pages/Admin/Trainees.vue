@@ -12,7 +12,6 @@ import InputError from "@/Components/InputError.vue";
 import DeleteConfirmationModal from "@/Components/DeleteConfirmationModal.vue";
 import Pagination from "@/Components/Pagination.vue";
 import jsPDF from "jspdf";
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 

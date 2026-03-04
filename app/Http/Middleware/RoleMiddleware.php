@@ -10,7 +10,8 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, ...$roles)
     {
-        if (!Auth::user() || !in_array(Auth::user()->role, $roles)) {
+        $user = Auth::user();
+        if (!$user || !collect($roles)->contains(fn($role) => $user->hasRole($role))) {
             abort(403, 'Unauthorized');
         }
         return $next($request);

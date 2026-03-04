@@ -71,22 +71,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::patch('/users/{id}/status', [UserController::class, 'updateStatus'])->name('users.status');
         
-        Route::get('/analytics', function () {            
+        Route::get('/analytics', function () {
+            return Inertia::render('Admin/ComingSoon', ['feature' => 'Analytics']);
         })->name('analytics');
-        Route::get('/settings', function () {            
+        Route::get('/settings', function () {
+            return Inertia::render('Admin/ComingSoon', ['feature' => 'Settings']);
         })->name('settings');
-        Route::post('/backup', function () {            
+        Route::post('/backup', function () {
+            return redirect()->back()->with('info', 'Backup feature is coming soon.');
         })->name('backup');
     });
     
     Route::prefix('officer')->name('officer.')->middleware('role:officer')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'officer'])->name('dashboard');
         
-    Route::get('/programs', [ProgramController::class, 'index'])->name('programs');
-    Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
-    Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
-    Route::put('/programs/{program}', [ProgramController::class, 'update'])->name('programs.update');
-    Route::delete('/programs/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
+        Route::get('/programs', [ProgramController::class, 'index'])->name('programs');
+        Route::post('/programs', [ProgramController::class, 'store'])->name('programs.store');
+        Route::get('/programs/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
+        Route::put('/programs/{program}', [ProgramController::class, 'update'])->name('programs.update');
+        Route::delete('/programs/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
         
         Route::get('/trainees', [TraineeController::class, 'index'])->name('trainees');
         Route::post('/trainees', [TraineeController::class, 'store'])->name('trainees.store');
@@ -145,7 +148,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/receipts/save', [CashierController::class, 'saveCustomReceipt'])->name('receipts.save');
         Route::put('/receipts/{customReceipt}', [CashierController::class, 'updateCustomReceipt'])->name('receipts.update');
         
-        Route::get('/reports/financial', function () {            
+        Route::get('/reports/financial', function () {
+            return Inertia::render('Cashier/ComingSoon', ['feature' => 'Financial Reports']);
         })->name('reports.financial');
     });
 

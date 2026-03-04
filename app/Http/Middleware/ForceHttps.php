@@ -17,12 +17,13 @@ class ForceHttps
     public function handle(Request $request, Closure $next): Response
     {
         // Force HTTPS for all URLs when FORCE_HTTPS is enabled
-        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN)) {
+        if (config('app.force_https')) {
             URL::forceScheme('https');
             
             // Force root URL to ensure all generated URLs use HTTPS
-            if (env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
-                URL::forceRootUrl(env('APP_URL'));
+            $appUrl = config('app.url');
+            if ($appUrl && str_starts_with($appUrl, 'https://')) {
+                URL::forceRootUrl($appUrl);
             }
         }
 

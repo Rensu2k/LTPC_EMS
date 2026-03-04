@@ -9,6 +9,98 @@ use Inertia\Inertia;
 
 class TraineeController extends Controller
 {
+    /**
+     * Shared validation rules for trainee store/update operations.
+     */
+    private function traineeValidationRules(): array
+    {
+        return [
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'extension' => 'nullable|string|max:10',
+            'program_qualification' => 'required|string|max:255',
+            'uli_number' => 'nullable|string|max:255',
+            'entry_date' => 'nullable|date',
+            'street_number' => 'nullable|string|max:255',
+            'barangay' => 'nullable|string|max:255',
+            'district' => 'nullable|string|max:255',
+            'city_municipality' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'region' => 'nullable|string|max:255',
+            'email_facebook' => 'nullable|string|max:255',
+            'contact_number' => 'nullable|string|max:255',
+            'nationality' => 'nullable|string|max:255',
+            'sex' => 'nullable|in:male,female',
+            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
+            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
+            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
+            'birth_month' => 'nullable|string|max:2',
+            'birth_day' => 'nullable|integer|min:1|max:31',
+            'birth_year' => 'nullable|integer|min:1900|max:2010',
+            'age' => 'nullable|integer|min:0|max:120',
+            'birthplace_city' => 'nullable|string|max:255',
+            'birthplace_province' => 'nullable|string|max:255',
+            'birthplace_region' => 'nullable|string|max:255',
+            'education' => 'nullable|array',
+            'parent_guardian_name' => 'nullable|string|max:255',
+            'parent_guardian_address' => 'nullable|string|max:255',
+            'classification' => 'nullable|array',
+            'classification_others' => 'nullable|string|max:255',
+            'disability_type' => 'nullable|array',
+            'disability_causes' => 'nullable|array',
+            'scholarship_package' => 'nullable|string|max:255',
+            'requirements' => 'nullable|array',
+            'status' => 'nullable|in:active,completed,dropped,pending',
+        ];
+    }
+
+    /**
+     * Apply shared business logic for scholarship, payment, and batch assignment.
+     *
+     * @return \Illuminate\Http\RedirectResponse|null Returns null on success (modifies $validated by reference), or a redirect response on validation failure.
+     */
+    private function processTraineeData(array &$validated, ?Trainee $existingTrainee = null)
+    {
+        // Auto-manage payment status based on scholarship
+        if (!empty($validated['scholarship_package'])) {
+            $validated['payment_status'] = 'paid';
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'active';
+            }
+        } else {
+            $validated['payment_status'] = 'unpaid';
+            if (!isset($validated['status'])) {
+                $validated['status'] = 'pending';
+            }
+        }
+
+        // Enrollment validation: Can only be active if payment is paid
+        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
+            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
+        }
+
+        // For updates: if payment becomes unpaid and trainee was active, set to pending
+        if ($existingTrainee && $validated['payment_status'] !== 'paid' && $existingTrainee->status === 'active') {
+            $validated['status'] = 'pending';
+            $existingTrainee->update($validated);
+            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
+        }
+
+        // Handle batch assignment for new trainees or program changes
+        $needsBatch = !$existingTrainee || ($existingTrainee && $validated['program_qualification'] !== $existingTrainee->program_qualification);
+        if ($needsBatch) {
+            $program = Program::where('name', $validated['program_qualification'])->first();
+            if ($program) {
+                $validated['batch'] = $program->getNextAvailableBatch();
+            } else {
+                $validated['batch'] = 1;
+            }
+        }
+
+        return null; // Success — no redirect needed
+    }
+
     public function index(Request $request)
     {
         $perPage = $request->get('per_page', 20); // Default to 20 items per page
@@ -196,75 +288,10 @@ class TraineeController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'last_name' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'extension' => 'nullable|string|max:10',
-            'program_qualification' => 'required|string|max:255',
-            'uli_number' => 'nullable|string|max:255',
-            'entry_date' => 'nullable|date',
-            'street_number' => 'nullable|string|max:255',
-            'barangay' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'city_municipality' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
-            'email_facebook' => 'nullable|string|max:255',
-            'contact_number' => 'nullable|string|max:255',
-            'nationality' => 'nullable|string|max:255',
-            'sex' => 'nullable|in:male,female',
-            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
-            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
-            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
-            'birth_month' => 'nullable|string|max:2',
-            'birth_day' => 'nullable|integer|min:1|max:31',
-            'birth_year' => 'nullable|integer|min:1900|max:2010',
-            'age' => 'nullable|integer|min:0|max:120',
-            'birthplace_city' => 'nullable|string|max:255',
-            'birthplace_province' => 'nullable|string|max:255',
-            'birthplace_region' => 'nullable|string|max:255',
-            'education' => 'nullable|array',
-            'parent_guardian_name' => 'nullable|string|max:255',
-            'parent_guardian_address' => 'nullable|string|max:255',
-            'classification' => 'nullable|array',
-            'classification_others' => 'nullable|string|max:255',
-            'disability_type' => 'nullable|array',
-            'disability_causes' => 'nullable|array',
-            'scholarship_package' => 'nullable|string|max:255',
-            'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,pending',
-        ]);
+        $validated = $request->validate($this->traineeValidationRules());
 
-        // Auto-manage payment status based on scholarship (not user input)
-        if (!empty($validated['scholarship_package'])) {
-            // Has scholarship - automatically paid and can be active
-            $validated['payment_status'] = 'paid';
-            // If no status is explicitly set, automatically enroll scholar
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'active';
-            }
-        } else {
-            // No scholarship - automatically unpaid and set to pending
-            $validated['payment_status'] = 'unpaid';
-            // If no status is explicitly set, set to pending for non-scholars
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        // Enrollment validation: Can only be active if payment is paid
-        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
-            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // Auto-assign batch based on program enrollment
-        $program = Program::where('name', $validated['program_qualification'])->first();
-        if ($program) {
-            $validated['batch'] = $program->getNextAvailableBatch();
-        } else {
-            $validated['batch'] = 1; // Default to batch 1 if program not found
-        }
+        $redirect = $this->processTraineeData($validated);
+        if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
 
@@ -290,83 +317,10 @@ class TraineeController extends Controller
 
     public function update(Request $request, Trainee $trainee)
     {
-        $validated = $request->validate([
-            'last_name' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'extension' => 'nullable|string|max:10',
-            'program_qualification' => 'required|string|max:255',
-            'uli_number' => 'nullable|string|max:255',
-            'entry_date' => 'nullable|date',
-            'street_number' => 'nullable|string|max:255',
-            'barangay' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'city_municipality' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
-            'email_facebook' => 'nullable|string|max:255',
-            'contact_number' => 'nullable|string|max:255',
-            'nationality' => 'nullable|string|max:255',
-            'sex' => 'nullable|in:male,female',
-            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
-            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
-            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
-            'birth_month' => 'nullable|string|max:2',
-            'birth_day' => 'nullable|integer|min:1|max:31',
-            'birth_year' => 'nullable|integer|min:1900|max:2010',
-            'age' => 'nullable|integer|min:0|max:120',
-            'birthplace_city' => 'nullable|string|max:255',
-            'birthplace_province' => 'nullable|string|max:255',
-            'birthplace_region' => 'nullable|string|max:255',
-            'education' => 'nullable|array',
-            'parent_guardian_name' => 'nullable|string|max:255',
-            'parent_guardian_address' => 'nullable|string|max:255',
-            'classification' => 'nullable|array',
-            'classification_others' => 'nullable|string|max:255',
-            'disability_type' => 'nullable|array',
-            'disability_causes' => 'nullable|array',
-            'scholarship_package' => 'nullable|string|max:255',
-            'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,pending',
-        ]);
+        $validated = $request->validate($this->traineeValidationRules());
 
-        // Auto-manage payment status based on scholarship (not user input)
-        if (!empty($validated['scholarship_package'])) {
-            // Has scholarship - automatically paid and can be active
-            $validated['payment_status'] = 'paid';
-            // If no status is explicitly set, automatically enroll scholar
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'active';
-            }
-        } else {
-            // No scholarship - automatically unpaid and set to pending
-            $validated['payment_status'] = 'unpaid';
-            // If no status is explicitly set, set to pending for non-scholars
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        // Enrollment validation: Can only be active if payment is paid
-        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
-            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // If payment status becomes unpaid and trainee is active, set to pending
-        if ($validated['payment_status'] !== 'paid' && $trainee->status === 'active') {
-            $validated['status'] = 'pending';
-            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // If program qualification changed, reassign batch
-        if ($validated['program_qualification'] !== $trainee->program_qualification) {
-            $program = Program::where('name', $validated['program_qualification'])->first();
-            if ($program) {
-                $validated['batch'] = $program->getNextAvailableBatch();
-            } else {
-                $validated['batch'] = 1; // Default to batch 1 if program not found
-            }
-        }
+        $redirect = $this->processTraineeData($validated, $trainee);
+        if ($redirect) return $redirect;
 
         $trainee->update($validated);
 
@@ -520,75 +474,10 @@ class TraineeController extends Controller
 
     public function adminStore(Request $request)
     {
-        $validated = $request->validate([
-            'last_name' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'extension' => 'nullable|string|max:10',
-            'program_qualification' => 'required|string|max:255',
-            'uli_number' => 'nullable|string|max:255',
-            'entry_date' => 'nullable|date',
-            'street_number' => 'nullable|string|max:255',
-            'barangay' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'city_municipality' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
-            'email_facebook' => 'nullable|string|max:255',
-            'contact_number' => 'nullable|string|max:255',
-            'nationality' => 'nullable|string|max:255',
-            'sex' => 'nullable|in:male,female',
-            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
-            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
-            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
-            'birth_month' => 'nullable|string|max:2',
-            'birth_day' => 'nullable|integer|min:1|max:31',
-            'birth_year' => 'nullable|integer|min:1900|max:2010',
-            'age' => 'nullable|integer|min:0|max:120',
-            'birthplace_city' => 'nullable|string|max:255',
-            'birthplace_province' => 'nullable|string|max:255',
-            'birthplace_region' => 'nullable|string|max:255',
-            'education' => 'nullable|array',
-            'parent_guardian_name' => 'nullable|string|max:255',
-            'parent_guardian_address' => 'nullable|string|max:255',
-            'classification' => 'nullable|array',
-            'classification_others' => 'nullable|string|max:255',
-            'disability_type' => 'nullable|array',
-            'disability_causes' => 'nullable|array',
-            'scholarship_package' => 'nullable|string|max:255',
-            'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,pending',
-        ]);
+        $validated = $request->validate($this->traineeValidationRules());
 
-        // Auto-manage payment status based on scholarship (not user input)
-        if (!empty($validated['scholarship_package'])) {
-            // Has scholarship - automatically paid and can be active
-            $validated['payment_status'] = 'paid';
-            // If no status is explicitly set, automatically enroll scholar
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'active';
-            }
-        } else {
-            // No scholarship - automatically unpaid and set to pending
-            $validated['payment_status'] = 'unpaid';
-            // If no status is explicitly set, set to pending for non-scholars
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        // Enrollment validation: Can only be active if payment is paid
-        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
-            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // Auto-assign batch based on program enrollment
-        $program = Program::where('name', $validated['program_qualification'])->first();
-        if ($program) {
-            $validated['batch'] = $program->getNextBatch();
-        } else {
-            $validated['batch'] = 1; // Default to batch 1 if program not found
-        }
+        $redirect = $this->processTraineeData($validated);
+        if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
 
@@ -598,83 +487,10 @@ class TraineeController extends Controller
 
     public function adminUpdate(Request $request, Trainee $trainee)
     {
-        $validated = $request->validate([
-            'last_name' => 'required|string|max:255',
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'extension' => 'nullable|string|max:10',
-            'program_qualification' => 'required|string|max:255',
-            'uli_number' => 'nullable|string|max:255',
-            'entry_date' => 'nullable|date',
-            'street_number' => 'nullable|string|max:255',
-            'barangay' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'city_municipality' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
-            'email_facebook' => 'nullable|string|max:255',
-            'contact_number' => 'nullable|string|max:255',
-            'nationality' => 'nullable|string|max:255',
-            'sex' => 'nullable|in:male,female',
-            'civil_status' => 'nullable|in:single,married,separated,widowed,common_law',
-            'employment_status' => 'nullable|in:wage_employed,underemployed,self_employed,unemployed',
-            'employment_type' => 'nullable|in:none,casual,probationary,contractual,regular,job_order,permanent,temporary',
-            'birth_month' => 'nullable|string|max:2',
-            'birth_day' => 'nullable|integer|min:1|max:31',
-            'birth_year' => 'nullable|integer|min:1900|max:2010',
-            'age' => 'nullable|integer|min:0|max:120',
-            'birthplace_city' => 'nullable|string|max:255',
-            'birthplace_province' => 'nullable|string|max:255',
-            'birthplace_region' => 'nullable|string|max:255',
-            'education' => 'nullable|array',
-            'parent_guardian_name' => 'nullable|string|max:255',
-            'parent_guardian_address' => 'nullable|string|max:255',
-            'classification' => 'nullable|array',
-            'classification_others' => 'nullable|string|max:255',
-            'disability_type' => 'nullable|array',
-            'disability_causes' => 'nullable|array',
-            'scholarship_package' => 'nullable|string|max:255',
-            'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,pending',
-        ]);
+        $validated = $request->validate($this->traineeValidationRules());
 
-        // Auto-manage payment status based on scholarship (not user input)
-        if (!empty($validated['scholarship_package'])) {
-            // Has scholarship - automatically paid and can be active
-            $validated['payment_status'] = 'paid';
-            // If no status is explicitly set, automatically enroll scholar
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'active';
-            }
-        } else {
-            // No scholarship - automatically unpaid and set to pending
-            $validated['payment_status'] = 'unpaid';
-            // If no status is explicitly set, set to pending for non-scholars
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'pending';
-            }
-        }
-
-        // Enrollment validation: Can only be active if payment is paid
-        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
-            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // If payment status becomes unpaid and trainee is active, set to pending
-        if ($validated['payment_status'] !== 'paid' && $trainee->status === 'active') {
-            $validated['status'] = 'pending';
-            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
-        }
-
-        // If program qualification changed, reassign batch
-        if ($validated['program_qualification'] !== $trainee->program_qualification) {
-            $program = Program::where('name', $validated['program_qualification'])->first();
-            if ($program) {
-                $validated['batch'] = $program->getNextBatch();
-            } else {
-                $validated['batch'] = 1; // Default to batch 1 if program not found
-            }
-        }
+        $redirect = $this->processTraineeData($validated, $trainee);
+        if ($redirect) return $redirect;
 
         $trainee->update($validated);
 
@@ -684,6 +500,12 @@ class TraineeController extends Controller
 
     public function adminDestroy(Trainee $trainee)
     {
+        // Check if trainee can be deleted
+        // Cannot delete if: status is active OR payment status is paid
+        if ($trainee->status === 'active' || $trainee->payment_status === 'paid') {
+            return redirect()->back()->with('error', 'Cannot delete trainee. Trainees with active status or paid payment status cannot be deleted. Current status: ' . ucfirst($trainee->status) . ', Payment: ' . ucfirst($trainee->payment_status));
+        }
+
         $trainee->delete();
 
         return redirect()->back()->with('success', 'Trainee deleted successfully!');

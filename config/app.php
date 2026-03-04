@@ -119,6 +119,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Force HTTPS
+    |--------------------------------------------------------------------------
+    |
+    | When exposing the app via HTTPS (e.g., ngrok), Laravel may think
+    | requests are HTTP. Setting this to true forces HTTPS scheme for
+    | all generated URLs.
+    |
+    */
+
+    'force_https' => (bool) env('FORCE_HTTPS', false),
+
     'maintenance' => [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),

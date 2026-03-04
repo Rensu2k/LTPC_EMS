@@ -158,8 +158,7 @@ class AssessmentController extends Controller
         
         // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
         $path = $request->url();
-        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN) && 
-            env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
+        if (config('app.force_https') && str_starts_with(config('app.url', ''), 'https://')) {
             $path = str_replace('http://', 'https://', $path);
         }
         

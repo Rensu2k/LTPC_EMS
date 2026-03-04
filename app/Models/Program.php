@@ -50,7 +50,12 @@ class Program extends Model
     /**
      * Get trainers assigned to this program
      */
-    public function trainers()
+    /**
+     * Get trainers assigned to this program.
+     * Note: This is NOT an Eloquent relationship (returns a Collection, not a query builder).
+     * It cannot be eager-loaded. Use Program::with() patterns for bulk loading.
+     */
+    public function getTrainers()
     {
         if (!$this->assigned_trainers) {
             return collect([]);
@@ -132,11 +137,10 @@ class Program extends Model
      */
     public function getEnrollmentCountAttribute()
     {
-        // Get trainee IDs that are already in the new enrollment system
+        // Single query to get enrolled trainee IDs (reused for both counts)
         $enrolledTraineeIds = $this->activeEnrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system active enrollments
-        $newSystemCount = $this->activeEnrollments()->count();
+        $newSystemCount = count($enrolledTraineeIds);
         
         // Count legacy active trainees excluding those already in new system
         $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
@@ -152,11 +156,10 @@ class Program extends Model
      */
     public function getTotalEnrollmentCountAttribute()
     {
-        // Get trainee IDs that are already in the new enrollment system
+        // Single query to get all enrolled trainee IDs (reused for both counts)
         $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system enrollments (all statuses)
-        $newSystemCount = $this->enrollments()->count();
+        $newSystemCount = count($enrolledTraineeIds);
         
         // Count legacy trainees excluding those already in new system
         $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
@@ -273,10 +276,9 @@ class Program extends Model
      */
     public function getCompletedTraineesCountAttribute()
     {
-        // Get trainee IDs that are already in the new enrollment system
+        // Single query for enrolled trainee IDs
         $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system completed enrollments
         $newSystemCount = $this->enrollments()->where('status', 'completed')->count();
         
         // Count legacy completed trainees excluding those already in new system
@@ -293,10 +295,9 @@ class Program extends Model
      */
     public function getDroppedTraineesCountAttribute()
     {
-        // Get trainee IDs that are already in the new enrollment system
+        // Single query for enrolled trainee IDs
         $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system dropped enrollments
         $newSystemCount = $this->enrollments()->where('status', 'dropped')->count();
         
         // Count legacy dropped trainees excluding those already in new system
@@ -313,10 +314,9 @@ class Program extends Model
      */
     public function getPendingTraineesCountAttribute()
     {
-        // Get trainee IDs that are already in the new enrollment system
+        // Single query for enrolled trainee IDs
         $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
         
-        // Count new enrollment system pending enrollments
         $newSystemCount = $this->enrollments()->where('status', 'pending')->count();
         
         // Count legacy pending trainees excluding those already in new system

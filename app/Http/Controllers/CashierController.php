@@ -16,6 +16,39 @@ use Illuminate\Support\Facades\Log;
 class CashierController extends Controller
 {
     /**
+     * Map a CustomReceipt model to the standard receipt array format.
+     * Shared by enrollment, assessment, registration, and cancelled receipt queries.
+     */
+    private function mapCustomReceipt(CustomReceipt $receipt): array
+    {
+        $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
+        
+        return [
+            'id' => $receipt->receipt_number,
+            'paymentId' => $receipt->payment_id,
+            'type' => $receipt->type,
+            'fund_type' => $receipt->fund_type,
+            'trainee' => [
+                'name' => $receipt->trainee_name,
+                'id' => $receipt->trainee_id_number,
+                'uli_number' => $receipt->trainee_uli_number,
+                'trainee_id' => $receipt->trainee_id_number,
+            ],
+            'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '),
+            'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '),
+            'amount' => $receipt->total_amount,
+            'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
+            'timeGenerated' => $receipt->time_generated->format('g:i A'),
+            'status' => $receipt->status,
+            'cancellation_reason' => $receipt->cancellation_reason ?? null,
+            'fees' => $receipt->fees ?: [],
+            'original_fees' => $receipt->original_fees ?: [],
+            'isCustom' => true,
+            'customReceiptId' => $receipt->id,
+        ];
+    }
+
+    /**
      * Display the cashier dashboard
      */
     public function dashboard(Request $request)
@@ -328,8 +361,7 @@ class CashierController extends Controller
         
         // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
         $path = $request->url();
-        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN) && 
-            env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
+        if (config('app.force_https') && str_starts_with(config('app.url', ''), 'https://')) {
             $path = str_replace('http://', 'https://', $path);
         }
         
@@ -426,126 +458,26 @@ class CashierController extends Controller
             ->where('status', 'generated')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($receipt) {
-                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
-                
-                return [
-                    'id' => $receipt->receipt_number,
-                    'paymentId' => $receipt->payment_id,
-                    'type' => $receipt->type,
-                    'fund_type' => $receipt->fund_type,
-                    'trainee' => [
-                        'name' => $receipt->trainee_name,
-                        'id' => $receipt->trainee_id_number,
-                        'uli_number' => $receipt->trainee_uli_number,
-                        'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
-                    ],
-                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
-                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
-                    'amount' => $receipt->total_amount,
-                    'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
-                    'timeGenerated' => $receipt->time_generated->format('g:i A'),
-                    'status' => $receipt->status,
-                    'fees' => $receipt->fees ?: [],
-                    'original_fees' => $receipt->original_fees ?: [],
-                    'isCustom' => true,
-                    'customReceiptId' => $receipt->id,
-                ];
-            });
+            ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
         $customAssessmentReceipts = CustomReceipt::where('type', 'assessment')
             ->where('status', 'generated')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($receipt) {
-                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
-                
-                return [
-                    'id' => $receipt->receipt_number,
-                    'paymentId' => $receipt->payment_id,
-                    'type' => $receipt->type,
-                    'fund_type' => $receipt->fund_type,
-                    'trainee' => [
-                        'name' => $receipt->trainee_name,
-                        'id' => $receipt->trainee_id_number,
-                        'uli_number' => $receipt->trainee_uli_number,
-                        'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
-                    ],
-                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
-                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
-                    'amount' => $receipt->total_amount,
-                    'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
-                    'timeGenerated' => $receipt->time_generated->format('g:i A'),
-                    'status' => $receipt->status,
-                    'fees' => $receipt->fees ?: [],
-                    'original_fees' => $receipt->original_fees ?: [],
-                    'isCustom' => true,
-                    'customReceiptId' => $receipt->id,
-                ];
-            });
+            ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
         // Get custom registration receipts (newly registered trainees who got receipts)
         $customRegistrationReceipts = CustomReceipt::where('type', 'registration')
             ->where('status', 'generated')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($receipt) {
-                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
-                
-                return [
-                    'id' => $receipt->receipt_number,
-                    'paymentId' => $receipt->payment_id,
-                    'type' => $receipt->type,
-                    'fund_type' => $receipt->fund_type,
-                    'trainee' => [
-                        'name' => $receipt->trainee_name,
-                        'id' => $receipt->trainee_id_number,
-                        'uli_number' => $receipt->trainee_uli_number,
-                        'trainee_id' => $receipt->trainee_id_number, // Use ID number for grouping custom receipts
-                    ],
-                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
-                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
-                    'amount' => $receipt->total_amount,
-                    'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
-                    'timeGenerated' => $receipt->time_generated->format('g:i A'),
-                    'status' => $receipt->status,
-                    'fees' => $receipt->fees ?: [],
-                    'original_fees' => $receipt->original_fees ?: [],
-                    'isCustom' => true,
-                    'customReceiptId' => $receipt->id,
-                ];
-            });
+            ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
         // Get cancelled receipts (for audit purposes)
         $cancelledReceipts = CustomReceipt::where('status', 'cancelled')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($receipt) {
-                $allFees = array_merge($receipt->original_fees ?: [], $receipt->fees ?: []);
-                
-                return [
-                    'id' => $receipt->receipt_number,
-                    'paymentId' => $receipt->payment_id,
-                    'type' => $receipt->type,
-                    'fund_type' => $receipt->fund_type,
-                    'trainee' => [
-                        'name' => $receipt->trainee_name,
-                        'id' => $receipt->trainee_id_number,
-                        'uli_number' => $receipt->trainee_uli_number,
-                    ],
-                    'program' => collect($allFees)->pluck('program')->unique()->filter()->join(', '), // Program names
-                    'natureOfCollection' => collect($allFees)->pluck('natureOfCollection')->unique()->join(', '), // Nature of collection items
-                    'amount' => $receipt->total_amount,
-                    'dateGenerated' => $receipt->date_generated->format('Y-m-d'),
-                    'timeGenerated' => $receipt->time_generated->format('g:i A'),
-                    'status' => $receipt->status,
-                    'cancellation_reason' => $receipt->cancellation_reason,
-                    'fees' => $receipt->fees ?: [],
-                    'original_fees' => $receipt->original_fees ?: [],
-                    'isCustom' => true,
-                    'customReceiptId' => $receipt->id,
-                ];
-            });
+            ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
         // Merge custom receipts with default receipts, giving priority to custom receipts
         $customEnrollmentPaymentIds = $customEnrollmentReceipts->pluck('paymentId')->toArray();
@@ -1183,8 +1115,7 @@ class CashierController extends Controller
         
         // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
         $path = request()->url();
-        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN) && 
-            env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
+        if (config('app.force_https') && str_starts_with(config('app.url', ''), 'https://')) {
             $path = str_replace('http://', 'https://', $path);
         }
         

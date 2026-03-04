@@ -28,16 +28,14 @@ class AppServiceProvider extends ServiceProvider
         // When exposing the app via HTTPS (e.g., ngrok), Laravel may
         // think requests are HTTP and generate http:// asset URLs,
         // causing mixed-content errors. Allow forcing HTTPS via env.
-        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN)) {
+        if (config('app.force_https')) {
             // Force HTTPS scheme for all URL generation
             URL::forceScheme('https');
             
             // Force root URL to ensure all generated URLs use HTTPS
-            if (env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
-                URL::forceRootUrl(env('APP_URL'));
-                
-                // Also set the app URL in config to ensure consistency
-                Config::set('app.url', env('APP_URL'));
+            $appUrl = config('app.url');
+            if ($appUrl && str_starts_with($appUrl, 'https://')) {
+                URL::forceRootUrl($appUrl);
             }
             
             // Force HTTPS for all generated URLs

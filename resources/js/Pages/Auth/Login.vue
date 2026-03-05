@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 
 const showPassword = ref(false);
 const isVisible = ref(false);
+const cardRef = ref(null);
+const cardStyle = ref({});
 
 const form = useForm({
     username: "",
@@ -17,6 +19,29 @@ const submit = () => {
     form.post(route("login"), {
         onFinish: () => form.reset("password"),
     });
+};
+
+// 3D Mouse-tracking tilt for the login card
+const handleMouseMove = (e) => {
+    const card = cardRef.value;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -8;
+    const rotateY = ((x - centerX) / centerX) * 8;
+    cardStyle.value = {
+        transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`,
+    };
+};
+
+const handleMouseLeave = () => {
+    cardStyle.value = {
+        transform:
+            "perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)",
+    };
 };
 
 // Trigger fade-in animation
@@ -38,16 +63,42 @@ onMounted(() => {
             <div class="orb orb-3"></div>
             <div class="orb orb-4"></div>
 
+            <!-- 3D Floating geometric shapes -->
+            <div class="geo-scene">
+                <div class="geo-shape cube-1">
+                    <div class="cube">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face left"></div>
+                        <div class="face right"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="geo-shape cube-2">
+                    <div class="cube">
+                        <div class="face front"></div>
+                        <div class="face back"></div>
+                        <div class="face left"></div>
+                        <div class="face right"></div>
+                        <div class="face top"></div>
+                        <div class="face bottom"></div>
+                    </div>
+                </div>
+                <div class="geo-shape diamond-1">
+                    <div class="diamond"></div>
+                </div>
+                <div class="geo-shape ring-1">
+                    <div class="ring-3d"></div>
+                </div>
+            </div>
+
             <!-- Mesh gradient overlay -->
             <div class="mesh-overlay"></div>
 
             <div
                 class="form-container"
-                :class="
-                    isVisible
-                        ? 'translate-y-0 opacity-100'
-                        : 'translate-y-8 opacity-0'
-                "
+                :class="isVisible ? 'entered' : 'pre-enter'"
             >
                 <!-- Small logo above form -->
                 <div class="logo-wrapper">
@@ -62,8 +113,14 @@ onMounted(() => {
                     </p>
                 </div>
 
-                <!-- Login Card (Glassmorphism) -->
-                <div class="glass-card">
+                <!-- Login Card with 3D mouse tilt -->
+                <div
+                    ref="cardRef"
+                    class="glass-card"
+                    :style="cardStyle"
+                    @mousemove="handleMouseMove"
+                    @mouseleave="handleMouseLeave"
+                >
                     <div class="card-header">
                         <h2 class="welcome-text">Welcome back</h2>
                         <p class="welcome-sub">
@@ -293,14 +350,15 @@ onMounted(() => {
 
             <div
                 class="info-container"
-                :class="
-                    isVisible
-                        ? 'translate-x-0 opacity-100'
-                        : 'translate-x-8 opacity-0'
-                "
+                :class="isVisible ? 'entered' : 'pre-enter'"
             >
-                <!-- Logo -->
+                <!-- Logo with 3D orbit ring -->
                 <div class="logo-hero-wrapper">
+                    <div class="orbit-ring"></div>
+                    <div class="orbit-ring orbit-ring-2"></div>
+                    <div class="orbit-dot dot-1"></div>
+                    <div class="orbit-dot dot-2"></div>
+                    <div class="orbit-dot dot-3"></div>
                     <div class="logo-glow"></div>
                     <ApplicationLogo class="logo-hero" />
                 </div>
@@ -545,13 +603,180 @@ onMounted(() => {
     }
 }
 
+/* ===== 3D GEOMETRIC SHAPES ===== */
+.geo-scene {
+    position: absolute;
+    inset: 0;
+    perspective: 800px;
+    pointer-events: none;
+    z-index: 1;
+}
+.geo-shape {
+    position: absolute;
+    transform-style: preserve-3d;
+}
+.cube-1 {
+    top: 8%;
+    right: 12%;
+    animation: float3d 12s ease-in-out infinite;
+}
+.cube-2 {
+    bottom: 15%;
+    left: 8%;
+    animation: float3d 15s ease-in-out infinite reverse;
+    animation-delay: -3s;
+}
+.cube {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rotateCube 20s linear infinite;
+}
+.cube-2 .cube {
+    width: 28px;
+    height: 28px;
+    animation-duration: 25s;
+    animation-direction: reverse;
+}
+.face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 1.5px solid rgba(99, 102, 241, 0.2);
+    background: rgba(99, 102, 241, 0.04);
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+}
+.cube-2 .face {
+    border-color: rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.04);
+}
+.face.front {
+    transform: translateZ(20px);
+}
+.face.back {
+    transform: rotateY(180deg) translateZ(20px);
+}
+.face.left {
+    transform: rotateY(-90deg) translateZ(20px);
+}
+.face.right {
+    transform: rotateY(90deg) translateZ(20px);
+}
+.face.top {
+    transform: rotateX(90deg) translateZ(20px);
+}
+.face.bottom {
+    transform: rotateX(-90deg) translateZ(20px);
+}
+.cube-2 .face.front {
+    transform: translateZ(14px);
+}
+.cube-2 .face.back {
+    transform: rotateY(180deg) translateZ(14px);
+}
+.cube-2 .face.left {
+    transform: rotateY(-90deg) translateZ(14px);
+}
+.cube-2 .face.right {
+    transform: rotateY(90deg) translateZ(14px);
+}
+.cube-2 .face.top {
+    transform: rotateX(90deg) translateZ(14px);
+}
+.cube-2 .face.bottom {
+    transform: rotateX(-90deg) translateZ(14px);
+}
+
+@keyframes rotateCube {
+    0% {
+        transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+    }
+    100% {
+        transform: rotateX(360deg) rotateY(360deg) rotateZ(180deg);
+    }
+}
+
+/* Diamond */
+.diamond-1 {
+    top: 55%;
+    right: 18%;
+    animation: float3d 18s ease-in-out infinite;
+    animation-delay: -6s;
+}
+.diamond {
+    width: 30px;
+    height: 30px;
+    border: 1.5px solid rgba(139, 92, 246, 0.25);
+    background: rgba(139, 92, 246, 0.05);
+    animation: rotateDiamond 15s linear infinite;
+}
+@keyframes rotateDiamond {
+    0% {
+        transform: rotateX(45deg) rotateY(0deg) rotateZ(45deg);
+    }
+    100% {
+        transform: rotateX(45deg) rotateY(360deg) rotateZ(45deg);
+    }
+}
+
+/* 3D Ring */
+.ring-1 {
+    bottom: 30%;
+    right: 30%;
+    animation: float3d 22s ease-in-out infinite;
+    animation-delay: -10s;
+}
+.ring-3d {
+    width: 50px;
+    height: 50px;
+    border: 2px solid rgba(59, 130, 246, 0.2);
+    border-radius: 50%;
+    animation: rotateRing 12s linear infinite;
+}
+@keyframes rotateRing {
+    0% {
+        transform: rotateX(70deg) rotateY(0deg);
+    }
+    100% {
+        transform: rotateX(70deg) rotateY(360deg);
+    }
+}
+
+@keyframes float3d {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0);
+    }
+    25% {
+        transform: translate3d(15px, -25px, 20px);
+    }
+    50% {
+        transform: translate3d(-10px, 15px, -15px);
+    }
+    75% {
+        transform: translate3d(20px, 10px, 10px);
+    }
+}
+
 /* ===== FORM CONTAINER ===== */
 .form-container {
     width: 100%;
     max-width: 420px;
     position: relative;
-    z-index: 10;
-    transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 20;
+    transition: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+.form-container.pre-enter {
+    opacity: 0;
+    transform: perspective(1000px) rotateX(15deg) translateY(60px)
+        translateZ(-50px);
+}
+.form-container.entered {
+    opacity: 1;
+    transform: perspective(1000px) rotateX(0deg) translateY(0) translateZ(0);
 }
 
 /* Logo above form */
@@ -599,12 +824,16 @@ onMounted(() => {
     box-shadow:
         0 4px 24px rgba(0, 0, 0, 0.06),
         0 1px 2px rgba(0, 0, 0, 0.04);
-    transition: all 0.3s ease;
+    transition:
+        transform 0.15s ease-out,
+        box-shadow 0.3s ease,
+        border-color 0.3s ease;
+    will-change: transform;
 }
 .glass-card:hover {
     border-color: rgba(0, 0, 0, 0.1);
     box-shadow:
-        0 8px 40px rgba(0, 0, 0, 0.08),
+        0 20px 60px rgba(0, 0, 0, 0.1),
         0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
@@ -958,6 +1187,16 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
+    transform-style: preserve-3d;
+}
+.info-container.pre-enter {
+    opacity: 0;
+    transform: perspective(1000px) rotateY(-15deg) translateX(60px)
+        translateZ(-40px);
+}
+.info-container.entered {
+    opacity: 1;
+    transform: perspective(1000px) rotateY(0deg) translateX(0) translateZ(0);
 }
 
 /* Hero logo */
@@ -965,11 +1204,85 @@ onMounted(() => {
     position: relative;
     display: flex;
     justify-content: center;
+    align-items: center;
     margin-bottom: 2rem;
+    width: 14rem;
+    height: 14rem;
 }
+
+/* 3D Orbit rings */
+.orbit-ring {
+    position: absolute;
+    width: 13rem;
+    height: 13rem;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+    animation: orbitSpin 8s linear infinite;
+    transform-style: preserve-3d;
+}
+.orbit-ring-2 {
+    width: 12rem;
+    height: 12rem;
+    border-color: rgba(147, 197, 253, 0.15);
+    animation: orbitSpin2 12s linear infinite;
+}
+@keyframes orbitSpin {
+    0% {
+        transform: rotateX(65deg) rotateZ(0deg);
+    }
+    100% {
+        transform: rotateX(65deg) rotateZ(360deg);
+    }
+}
+@keyframes orbitSpin2 {
+    0% {
+        transform: rotateX(75deg) rotateY(30deg) rotateZ(0deg);
+    }
+    100% {
+        transform: rotateX(75deg) rotateY(30deg) rotateZ(-360deg);
+    }
+}
+
+/* Orbiting dots */
+.orbit-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #93c5fd;
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(147, 197, 253, 0.6);
+    animation: orbitDot 8s linear infinite;
+}
+.dot-2 {
+    width: 6px;
+    height: 6px;
+    background: #818cf8;
+    box-shadow: 0 0 10px rgba(129, 140, 248, 0.5);
+    animation: orbitDot 8s linear infinite;
+    animation-delay: -2.67s;
+}
+.dot-3 {
+    width: 5px;
+    height: 5px;
+    background: #a78bfa;
+    box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
+    animation: orbitDot 8s linear infinite;
+    animation-delay: -5.33s;
+}
+@keyframes orbitDot {
+    0% {
+        transform: rotateX(65deg) rotateZ(0deg) translateX(6.5rem) rotateZ(0deg)
+            rotateX(-65deg);
+    }
+    100% {
+        transform: rotateX(65deg) rotateZ(360deg) translateX(6.5rem)
+            rotateZ(-360deg) rotateX(-65deg);
+    }
+}
+
 .logo-glow {
     position: absolute;
-    inset: -16px;
+    inset: 0;
     background: white;
     border-radius: 50%;
     filter: blur(30px);
@@ -996,6 +1309,16 @@ onMounted(() => {
     position: relative;
     z-index: 1;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+    animation: logoFloat 6s ease-in-out infinite;
+}
+@keyframes logoFloat {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
 }
 
 /* Info text */
@@ -1023,28 +1346,53 @@ onMounted(() => {
 .feature-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 1.25rem;
     width: 100%;
-    max-width: 520px;
+    max-width: 640px;
 }
 .feature-card {
     display: flex;
     align-items: flex-start;
-    gap: 0.875rem;
-    padding: 1rem;
+    gap: 1rem;
+    padding: 1.25rem;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+    perspective: 600px;
 }
 .feature-card:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.15);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-6px) rotateX(4deg) scale(1.02);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+}
+.feature-card:nth-child(1) {
+    animation: cardSlideIn 0.6s ease-out 0.4s both;
+}
+.feature-card:nth-child(2) {
+    animation: cardSlideIn 0.6s ease-out 0.55s both;
+}
+.feature-card:nth-child(3) {
+    animation: cardSlideIn 0.6s ease-out 0.7s both;
+}
+.feature-card:nth-child(4) {
+    animation: cardSlideIn 0.6s ease-out 0.85s both;
+}
+@keyframes cardSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) rotateX(15deg) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) rotateX(0deg) scale(1);
+    }
 }
 .feature-icon-wrapper {
-    padding: 0.625rem;
+    padding: 0.875rem;
     background: linear-gradient(
         135deg,
         rgba(99, 102, 241, 0.4),
@@ -1055,18 +1403,18 @@ onMounted(() => {
     flex-shrink: 0;
 }
 .feature-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
 }
 .feature-title {
     font-weight: 700;
-    font-size: 0.9375rem;
-    margin-bottom: 0.125rem;
+    font-size: 1.0625rem;
+    margin-bottom: 0.25rem;
 }
 .feature-desc {
     color: #bfdbfe;
-    font-size: 0.8125rem;
-    line-height: 1.4;
+    font-size: 0.9375rem;
+    line-height: 1.5;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -1086,30 +1434,10 @@ onMounted(() => {
     }
 }
 
-/* ===== UTILITY CLASSES ===== */
-.translate-y-0 {
-    transform: translateY(0);
-}
-.translate-y-8 {
-    transform: translateY(2rem);
-}
-.translate-x-0 {
-    transform: translateX(0);
-}
-.translate-x-8 {
-    transform: translateX(2rem);
-}
-.opacity-0 {
-    opacity: 0;
-}
-.opacity-100 {
-    opacity: 1;
-}
-
 /* Backdrop blur fallback */
 @supports not (backdrop-filter: blur(12px)) {
     .glass-card {
-        background: rgba(30, 30, 60, 0.9);
+        background: #ffffff;
     }
     .feature-card {
         background: rgba(255, 255, 255, 0.12);

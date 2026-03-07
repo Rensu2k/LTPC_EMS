@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
@@ -8,6 +8,7 @@ const showPassword = ref(false);
 const isVisible = ref(false);
 const cardRef = ref(null);
 const cardStyle = ref({});
+const cardRect = ref(null);
 
 const form = useForm({
     username: "",
@@ -22,10 +23,18 @@ const submit = () => {
 };
 
 // 3D Mouse-tracking tilt for the login card
+const handleMouseEnter = () => {
+    // Cache the flat (untransformed) bounding rect before any tilt is applied.
+    // getBoundingClientRect() on an already-tilted element returns an inflated
+    // axis-aligned box, which shifts centerX/centerY and makes the tilt drift.
+    cardRect.value = cardRef.value?.getBoundingClientRect() ?? null;
+};
+
 const handleMouseMove = (e) => {
     const card = cardRef.value;
     if (!card) return;
-    const rect = card.getBoundingClientRect();
+    // Use the cached flat rect so the center never drifts as the card tilts.
+    const rect = cardRect.value ?? card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
@@ -38,6 +47,7 @@ const handleMouseMove = (e) => {
 };
 
 const handleMouseLeave = () => {
+    cardRect.value = null;
     cardStyle.value = {
         transform:
             "perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)",
@@ -118,6 +128,7 @@ onMounted(() => {
                     ref="cardRef"
                     class="glass-card"
                     :style="cardStyle"
+                    @mouseenter="handleMouseEnter"
                     @mousemove="handleMouseMove"
                     @mouseleave="handleMouseLeave"
                 >
@@ -766,8 +777,14 @@ onMounted(() => {
     max-width: 420px;
     position: relative;
     z-index: 20;
-    transition: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-style: preserve-3d;
+    /* Use explicit properties instead of "all" to avoid accidentally
+       animating unrelated properties at the slow 0.9s duration. */
+    transition:
+        opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    /* preserve-3d was causing a nested/double perspective: the parent's
+       perspective(1000px) in its transform was compounded with the card's
+       own perspective(1000px) inline style, making the tilt look distorted. */
 }
 .form-container.pre-enter {
     opacity: 0;

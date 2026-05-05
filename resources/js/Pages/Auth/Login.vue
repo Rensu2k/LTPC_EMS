@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
+import LoginWebGLBackground from "@/Components/LoginWebGLBackground.vue";
 
 const showPassword = ref(false);
 const isVisible = ref(false);
@@ -65,6 +66,12 @@ onMounted(() => {
 <template>
     <Head title="Log in" />
     <div class="login-wrapper">
+        <!-- WebGL frosty/ice background (z-index: 0) -->
+        <LoginWebGLBackground />
+
+        <!-- Chromatic aberration overlay -->
+        <div class="chromatic-overlay" :class="isVisible ? 'entered' : ''"></div>
+
         <!-- Left: Login Form -->
         <div class="left-panel">
             <!-- Animated floating orbs -->
@@ -515,6 +522,33 @@ onMounted(() => {
     display: flex;
     min-height: 100vh;
     font-family: "Inter", sans-serif;
+    position: relative;
+}
+
+/* Chromatic aberration / frost overlay */
+.chromatic-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(
+            ellipse at 50% 50%,
+            transparent 0%,
+            transparent 60%,
+            rgba(184, 212, 227, 0.03) 100%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(168, 216, 234, 0.02) 0%,
+            transparent 30%,
+            transparent 70%,
+            rgba(184, 212, 227, 0.02) 100%
+        );
+    opacity: 0;
+    transition: opacity 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chromatic-overlay.entered {
+    opacity: 1;
 }
 
 /* ===== LEFT PANEL ===== */
@@ -524,30 +558,37 @@ onMounted(() => {
     justify-content: center;
     align-items: center;
     width: 50%;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 40%, #e2e8f0 100%);
+    background: linear-gradient(
+        135deg,
+        rgba(232, 244, 248, 0.85) 0%,
+        rgba(216, 234, 242, 0.9) 40%,
+        rgba(200, 224, 236, 0.85) 100%
+    );
+    backdrop-filter: blur(12px);
     padding: 2rem;
     position: relative;
+    z-index: 2;
     overflow: hidden;
 }
 
-/* Mesh gradient overlay */
+/* Mesh gradient overlay (ice/frost palette) */
 .mesh-overlay {
     position: absolute;
     inset: 0;
     background:
         radial-gradient(
             ellipse at 20% 50%,
-            rgba(99, 102, 241, 0.06) 0%,
+            rgba(168, 216, 234, 0.12) 0%,
             transparent 50%
         ),
         radial-gradient(
             ellipse at 80% 20%,
-            rgba(139, 92, 246, 0.04) 0%,
+            rgba(184, 212, 227, 0.08) 0%,
             transparent 50%
         ),
         radial-gradient(
             ellipse at 60% 80%,
-            rgba(59, 130, 246, 0.04) 0%,
+            rgba(200, 230, 255, 0.06) 0%,
             transparent 50%
         );
     pointer-events: none;
@@ -565,7 +606,11 @@ onMounted(() => {
 .orb-1 {
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.5), transparent);
+    background: radial-gradient(
+        circle,
+        rgba(168, 216, 234, 0.4),
+        transparent
+    );
     top: -80px;
     left: -80px;
     animation-delay: 0s;
@@ -573,7 +618,11 @@ onMounted(() => {
 .orb-2 {
     width: 200px;
     height: 200px;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent);
+    background: radial-gradient(
+        circle,
+        rgba(184, 212, 227, 0.35),
+        transparent
+    );
     bottom: 10%;
     right: 5%;
     animation-delay: -5s;
@@ -582,7 +631,11 @@ onMounted(() => {
 .orb-3 {
     width: 150px;
     height: 150px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.35), transparent);
+    background: radial-gradient(
+        circle,
+        rgba(200, 230, 255, 0.3),
+        transparent
+    );
     top: 60%;
     left: 10%;
     animation-delay: -10s;
@@ -591,7 +644,11 @@ onMounted(() => {
 .orb-4 {
     width: 100px;
     height: 100px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.3), transparent);
+    background: radial-gradient(
+        circle,
+        rgba(176, 224, 230, 0.25),
+        transparent
+    );
     top: 15%;
     right: 20%;
     animation-delay: -7s;
@@ -654,14 +711,14 @@ onMounted(() => {
     position: absolute;
     width: 100%;
     height: 100%;
-    border: 1.5px solid rgba(99, 102, 241, 0.2);
-    background: rgba(99, 102, 241, 0.04);
+    border: 1.5px solid rgba(168, 216, 234, 0.25);
+    background: rgba(184, 212, 227, 0.06);
     pointer-events: none;
     backdrop-filter: blur(2px);
 }
 .cube-2 .face {
-    border-color: rgba(139, 92, 246, 0.2);
-    background: rgba(139, 92, 246, 0.04);
+    border-color: rgba(184, 212, 227, 0.2);
+    background: rgba(200, 230, 255, 0.05);
 }
 .face.front {
     transform: translateZ(20px);
@@ -719,8 +776,8 @@ onMounted(() => {
 .diamond {
     width: 30px;
     height: 30px;
-    border: 1.5px solid rgba(139, 92, 246, 0.25);
-    background: rgba(139, 92, 246, 0.05);
+    border: 1.5px solid rgba(184, 212, 227, 0.3);
+    background: rgba(200, 230, 255, 0.06);
     animation: rotateDiamond 15s linear infinite;
 }
 @keyframes rotateDiamond {
@@ -742,7 +799,7 @@ onMounted(() => {
 .ring-3d {
     width: 50px;
     height: 50px;
-    border: 2px solid rgba(59, 130, 246, 0.2);
+    border: 2px solid rgba(168, 216, 234, 0.25);
     border-radius: 50%;
     animation: rotateRing 12s linear infinite;
 }
@@ -834,7 +891,8 @@ onMounted(() => {
 
 /* ===== CARD ===== */
 .glass-card {
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
     border-radius: 24px;
     border: 1px solid rgba(0, 0, 0, 0.06);
     padding: 2rem;
@@ -844,7 +902,8 @@ onMounted(() => {
     transition:
         transform 0.15s ease-out,
         box-shadow 0.3s ease,
-        border-color 0.3s ease;
+        border-color 0.3s ease,
+        filter 0.3s ease;
     will-change: transform;
 }
 .glass-card:hover {
@@ -852,6 +911,10 @@ onMounted(() => {
     box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.1),
         0 1px 2px rgba(0, 0, 0, 0.04);
+    /* Subtle chromatic aberration on hover */
+    filter: drop-shadow(1px 0 0 rgba(168, 216, 234, 0.15))
+        drop-shadow(-1px 0 0 rgba(184, 212, 227, 0.15))
+        drop-shadow(0 1px 0 rgba(200, 230, 255, 0.1));
 }
 
 /* Card header */
@@ -862,7 +925,7 @@ onMounted(() => {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 0.375rem;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+    background: linear-gradient(135deg, #5b9bd5, #7eb8da, #a8d8ea);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -923,11 +986,11 @@ onMounted(() => {
     color: #94a3b8;
 }
 .text-input:focus {
-    border-color: #818cf8;
+    border-color: #7eb8da;
     background: #ffffff;
     box-shadow:
-        0 0 0 4px rgba(99, 102, 241, 0.1),
-        0 0 20px rgba(99, 102, 241, 0.05);
+        0 0 0 4px rgba(126, 184, 218, 0.15),
+        0 0 20px rgba(168, 216, 234, 0.08);
 }
 .text-input.input-error {
     border-color: #fca5a5;
@@ -995,7 +1058,7 @@ onMounted(() => {
     position: relative;
 }
 .remember-checkbox:checked {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #5b9bd5, #7eb8da);
     border-color: transparent;
 }
 .remember-checkbox:checked::after {
@@ -1020,7 +1083,7 @@ onMounted(() => {
     position: relative;
     width: 100%;
     padding: 0.8125rem 1.5rem;
-    background: linear-gradient(135deg, #6366f1, #7c3aed, #8b5cf6);
+    background: linear-gradient(135deg, #5b9bd5, #6ba3d4, #7eb8da);
     border: none;
     border-radius: 12px;
     color: #ffffff;
@@ -1030,11 +1093,11 @@ onMounted(() => {
     cursor: pointer;
     overflow: hidden;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 16px rgba(91, 155, 213, 0.4);
     margin-top: 0.25rem;
 }
 .submit-btn:hover:not(:disabled) {
-    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 6px 24px rgba(91, 155, 213, 0.5);
     transform: translateY(-2px);
 }
 .submit-btn:active:not(:disabled) {
@@ -1118,6 +1181,7 @@ onMounted(() => {
     color: #ffffff;
     padding: 3rem 2rem;
     position: relative;
+    z-index: 2;
     overflow: hidden;
 }
 
@@ -1412,8 +1476,8 @@ onMounted(() => {
     padding: 0.875rem;
     background: linear-gradient(
         135deg,
-        rgba(99, 102, 241, 0.4),
-        rgba(59, 130, 246, 0.4)
+        rgba(126, 184, 218, 0.5),
+        rgba(168, 216, 234, 0.4)
     );
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -1454,7 +1518,14 @@ onMounted(() => {
 /* Backdrop blur fallback */
 @supports not (backdrop-filter: blur(12px)) {
     .glass-card {
-        background: #ffffff;
+        background: rgba(255, 255, 255, 0.98);
+    }
+    .left-panel {
+        background: linear-gradient(
+            135deg,
+            rgba(240, 248, 252, 0.98) 0%,
+            rgba(230, 242, 250, 0.98) 100%
+        );
     }
     .feature-card {
         background: rgba(255, 255, 255, 0.12);

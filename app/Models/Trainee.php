@@ -47,12 +47,9 @@ class Trainee extends Model
         'batch',
         'scholarship_package',
         'requirements',
-        'status',
-        'payment_status',
-        'payment_method',
-        'payment_reference',
-        'payment_date',
-        'payment_notes'
+        // 'status', 'payment_status', and payment fields are intentionally excluded
+        // from mass assignment to prevent privilege escalation. Set them explicitly
+        // in controllers via forceFill() or direct property assignment.
     ];
 
     protected $casts = [
@@ -280,7 +277,8 @@ class Trainee extends Model
             $updateData['payment_notes'] = $paymentNotes;
         }
 
-        $result = $this->update($updateData);
+        // Use forceFill since payment fields are guarded
+        $result = $this->forceFill($updateData)->save();
         
         // Handle auto-enrollment after payment status change
         if ($result) {
@@ -317,6 +315,7 @@ class Trainee extends Model
                         $enrollmentData['completion_date'] = now()->toDateString();
                     }
                     
+                    // Enrollment model still has these in $fillable, so update() is fine
                     $enrollment->update($enrollmentData);
                 }
             }

@@ -6,33 +6,33 @@ use Illuminate\Database\Eloquent\Model;
 
 class Program extends Model
 {
-    protected $primaryKey = 'program_id';
+    protected $primaryKey = "program_id";
     public $incrementing = false;
-    protected $keyType = 'string';
+    protected $keyType = "string";
     protected $fillable = [
-        'program_id',
-        'name',
-        'description',
-        'duration',
-        'prerequisites',
-        'enrollment_fee',
-        'assigned_trainers',
-        'status',
-        'max_enrollments',
-        'current_batch',
-        'start_date',
-        'end_date'
+        "program_id",
+        "name",
+        "description",
+        "duration",
+        "prerequisites",
+        "enrollment_fee",
+        "assigned_trainers",
+        "status",
+        "max_enrollments",
+        "current_batch",
+        "start_date",
+        "end_date",
     ];
 
     protected $casts = [
-        'assigned_trainers' => 'array',
-        'start_date' => 'date',
-        'end_date' => 'date',
+        "assigned_trainers" => "array",
+        "start_date" => "date",
+        "end_date" => "date",
     ];
 
     protected $attributes = [
-        'max_enrollments' => 25,
-        'current_batch' => 1,
+        "max_enrollments" => 25,
+        "current_batch" => 1,
     ];
 
     /**
@@ -42,7 +42,17 @@ class Program extends Model
     {
         static::creating(function (Program $program) {
             if (empty($program->program_id)) {
-                $program->program_id = 'PROG-' . strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $program->name), 0, 8)) . '-' . time();
+                $program->program_id =
+                    "PROG-" .
+                    strtoupper(
+                        substr(
+                            preg_replace("/[^A-Za-z0-9]/", "", $program->name),
+                            0,
+                            8,
+                        ),
+                    ) .
+                    "-" .
+                    time();
             }
         });
     }
@@ -60,8 +70,11 @@ class Program extends Model
         if (!$this->assigned_trainers) {
             return collect([]);
         }
-        
-        return \App\Models\Trainer::whereIn('id', $this->assigned_trainers)->get();
+
+        return \App\Models\Trainer::whereIn(
+            "id",
+            $this->assigned_trainers,
+        )->get();
     }
 
     /**
@@ -69,7 +82,11 @@ class Program extends Model
      */
     public function enrollments()
     {
-        return $this->hasMany(TraineeEnrollment::class, 'program_id', 'program_id');
+        return $this->hasMany(
+            TraineeEnrollment::class,
+            "program_id",
+            "program_id",
+        );
     }
 
     /**
@@ -77,7 +94,11 @@ class Program extends Model
      */
     public function activeEnrollments()
     {
-        return $this->hasMany(TraineeEnrollment::class, 'program_id', 'program_id')->where('status', 'active');
+        return $this->hasMany(
+            TraineeEnrollment::class,
+            "program_id",
+            "program_id",
+        )->where("status", "active");
     }
 
     /**
@@ -85,8 +106,19 @@ class Program extends Model
      */
     public function trainees()
     {
-        return $this->belongsToMany(Trainee::class, 'trainee_enrollments', 'program_id', 'trainee_id')
-            ->withPivot(['batch', 'enrollment_date', 'completion_date', 'status', 'payment_status'])
+        return $this->belongsToMany(
+            Trainee::class,
+            "trainee_enrollments",
+            "program_id",
+            "trainee_id",
+        )
+            ->withPivot([
+                "batch",
+                "enrollment_date",
+                "completion_date",
+                "status",
+                "payment_status",
+            ])
             ->withTimestamps();
     }
 
@@ -95,9 +127,20 @@ class Program extends Model
      */
     public function activeTrainees()
     {
-        return $this->belongsToMany(Trainee::class, 'trainee_enrollments', 'program_id', 'trainee_id')
-            ->wherePivot('status', 'active')
-            ->withPivot(['batch', 'enrollment_date', 'completion_date', 'status', 'payment_status'])
+        return $this->belongsToMany(
+            Trainee::class,
+            "trainee_enrollments",
+            "program_id",
+            "trainee_id",
+        )
+            ->wherePivot("status", "active")
+            ->withPivot([
+                "batch",
+                "enrollment_date",
+                "completion_date",
+                "status",
+                "payment_status",
+            ])
             ->withTimestamps();
     }
 
@@ -106,7 +149,10 @@ class Program extends Model
      */
     public function legacyTrainees()
     {
-        return \App\Models\Trainee::where('program_qualification', $this->name)->get();
+        return \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )->get();
     }
 
     /**
@@ -114,8 +160,9 @@ class Program extends Model
      */
     public function legacyActiveTrainees()
     {
-        return \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'active')->get();
+        return \App\Models\Trainee::where("program_qualification", $this->name)
+            ->where("status", "active")
+            ->get();
     }
 
     /**
@@ -123,12 +170,15 @@ class Program extends Model
      */
     public function traineesByBatch($batch = null)
     {
-        $query = \App\Models\Trainee::where('program_qualification', $this->name);
-        
+        $query = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        );
+
         if ($batch !== null) {
-            $query->where('batch', $batch);
+            $query->where("batch", $batch);
         }
-        
+
         return $query->get();
     }
 
@@ -138,16 +188,21 @@ class Program extends Model
     public function getEnrollmentCountAttribute()
     {
         // Single query to get enrolled trainee IDs (reused for both counts)
-        $enrolledTraineeIds = $this->activeEnrollments()->pluck('trainee_id')->toArray();
-        
+        $enrolledTraineeIds = $this->activeEnrollments()
+            ->pluck("trainee_id")
+            ->toArray();
+
         $newSystemCount = count($enrolledTraineeIds);
-        
+
         // Count legacy active trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'active')
-            ->whereNotIn('id', $enrolledTraineeIds)
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->where("status", "active")
+            ->whereNotIn("id", $enrolledTraineeIds)
             ->count();
-        
+
         return $newSystemCount + $legacyCount;
     }
 
@@ -157,15 +212,20 @@ class Program extends Model
     public function getTotalEnrollmentCountAttribute()
     {
         // Single query to get all enrolled trainee IDs (reused for both counts)
-        $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
-        
+        $enrolledTraineeIds = $this->enrollments()
+            ->pluck("trainee_id")
+            ->toArray();
+
         $newSystemCount = count($enrolledTraineeIds);
-        
+
         // Count legacy trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->whereNotIn('id', $enrolledTraineeIds)
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->whereNotIn("id", $enrolledTraineeIds)
             ->count();
-        
+
         return $newSystemCount + $legacyCount;
     }
 
@@ -190,10 +250,56 @@ class Program extends Model
      */
     public function getNextBatch()
     {
-        $lastBatch = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->max('batch');
-        
+        $lastBatch = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )->max("batch");
+
         return $lastBatch ? $lastBatch + 1 : 1;
+    }
+
+    /**
+     * Get enrollment count for a specific batch (both new system and legacy trainees).
+     *
+     * Counts both 'active' AND 'pending' enrollments so that trainees awaiting
+     * payment still reserve their batch slot. Without this, pending trainees
+     * are invisible to the batch counter and the system keeps assigning new
+     * trainees to an already-full batch.
+     */
+    public function getEnrollmentCountForBatch($batch)
+    {
+        // Count all non-terminal enrollments (active + pending) for this batch.
+        // 'completed' and 'dropped' enrollments free their slot.
+        $enrolledTraineeIds = $this->enrollments()
+            ->whereIn("status", ["active", "pending"])
+            ->where("batch", $batch)
+            ->pluck("trainee_id")
+            ->toArray();
+
+        $newSystemCount = count($enrolledTraineeIds);
+
+        // Exclude ALL trainees who have ANY enrollment record (any batch) in
+        // the new system for this program. Without this, a trainee whose
+        // legacy trainees.batch=1 but whose enrollment record is in batch 2
+        // would be double-counted — once correctly via enrollment and once
+        // incorrectly as a "legacy batch 1" trainee.
+        $allEnrolledTraineeIds = $this->enrollments()
+            ->whereIn("status", ["active", "pending"])
+            ->pluck("trainee_id")
+            ->toArray();
+
+        // Count legacy trainees (active OR pending) for this batch,
+        // excluding any trainee already in the enrollment system.
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->whereIn("status", ["active", "pending"])
+            ->where("batch", $batch)
+            ->whereNotIn("id", $allEnrolledTraineeIds)
+            ->count();
+
+        return $newSystemCount + $legacyCount;
     }
 
     /**
@@ -201,23 +307,7 @@ class Program extends Model
      */
     public function getCurrentBatchEnrollmentCount()
     {
-        // Get trainee IDs that are already in the new enrollment system for this batch
-        $enrolledTraineeIds = $this->activeEnrollments()
-            ->where('batch', $this->current_batch)
-            ->pluck('trainee_id')
-            ->toArray();
-        
-        // Count new enrollment system active enrollments for current batch
-        $newSystemCount = $this->activeEnrollments()->where('batch', $this->current_batch)->count();
-        
-        // Count legacy active trainees for current batch excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'active')
-            ->where('batch', $this->current_batch)
-            ->whereNotIn('id', $enrolledTraineeIds)
-            ->count();
-        
-        return $newSystemCount + $legacyCount;
+        return $this->getEnrollmentCountForBatch($this->current_batch);
     }
 
     /**
@@ -229,23 +319,26 @@ class Program extends Model
     }
 
     /**
-     * Get the next available batch for new enrollment
+     * Get the next available batch for new enrollment.
+     * Loops through batches starting from current_batch until it finds one with fewer than 25 trainees.
      */
     public function getNextAvailableBatch()
     {
-        if ($this->isCurrentBatchFull()) {
-            return $this->current_batch + 1;
+        $batch = $this->current_batch;
+        while ($this->getEnrollmentCountForBatch($batch) >= 25) {
+            $batch++;
         }
-        return $this->current_batch;
+        return $batch;
     }
 
     /**
-     * Advance to next batch if current is full
+     * Advance current_batch to the next non-full batch if the current one is full
      */
     public function advanceBatchIfFull()
     {
         if ($this->isCurrentBatchFull()) {
-            $this->increment('current_batch');
+            $nextBatch = $this->getNextAvailableBatch();
+            $this->update(["current_batch" => $nextBatch]);
             return true;
         }
         return false;
@@ -258,7 +351,7 @@ class Program extends Model
     {
         $query = $this->activeEnrollments();
         if ($batch !== null) {
-            $query->where('batch', $batch);
+            $query->where("batch", $batch);
         }
         return $query->count();
     }
@@ -277,16 +370,23 @@ class Program extends Model
     public function getCompletedTraineesCountAttribute()
     {
         // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
-        
-        $newSystemCount = $this->enrollments()->where('status', 'completed')->count();
-        
-        // Count legacy completed trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'completed')
-            ->whereNotIn('id', $enrolledTraineeIds)
+        $enrolledTraineeIds = $this->enrollments()
+            ->pluck("trainee_id")
+            ->toArray();
+
+        $newSystemCount = $this->enrollments()
+            ->where("status", "completed")
             ->count();
-        
+
+        // Count legacy completed trainees excluding those already in new system
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->where("status", "completed")
+            ->whereNotIn("id", $enrolledTraineeIds)
+            ->count();
+
         return $newSystemCount + $legacyCount;
     }
 
@@ -296,16 +396,23 @@ class Program extends Model
     public function getDroppedTraineesCountAttribute()
     {
         // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
-        
-        $newSystemCount = $this->enrollments()->where('status', 'dropped')->count();
-        
-        // Count legacy dropped trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'dropped')
-            ->whereNotIn('id', $enrolledTraineeIds)
+        $enrolledTraineeIds = $this->enrollments()
+            ->pluck("trainee_id")
+            ->toArray();
+
+        $newSystemCount = $this->enrollments()
+            ->where("status", "dropped")
             ->count();
-        
+
+        // Count legacy dropped trainees excluding those already in new system
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->where("status", "dropped")
+            ->whereNotIn("id", $enrolledTraineeIds)
+            ->count();
+
         return $newSystemCount + $legacyCount;
     }
 
@@ -315,16 +422,23 @@ class Program extends Model
     public function getPendingTraineesCountAttribute()
     {
         // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()->pluck('trainee_id')->toArray();
-        
-        $newSystemCount = $this->enrollments()->where('status', 'pending')->count();
-        
-        // Count legacy pending trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', 'pending')
-            ->whereNotIn('id', $enrolledTraineeIds)
+        $enrolledTraineeIds = $this->enrollments()
+            ->pluck("trainee_id")
+            ->toArray();
+
+        $newSystemCount = $this->enrollments()
+            ->where("status", "pending")
             ->count();
-        
+
+        // Count legacy pending trainees excluding those already in new system
+        $legacyCount = \App\Models\Trainee::where(
+            "program_qualification",
+            $this->name,
+        )
+            ->where("status", "pending")
+            ->whereNotIn("id", $enrolledTraineeIds)
+            ->count();
+
         return $newSystemCount + $legacyCount;
     }
 
@@ -349,9 +463,9 @@ class Program extends Model
      */
     public function getBatches()
     {
-        return \App\Models\Trainee::where('program_qualification', $this->name)
+        return \App\Models\Trainee::where("program_qualification", $this->name)
             ->distinct()
-            ->pluck('batch')
+            ->pluck("batch")
             ->sort()
             ->values();
     }
@@ -361,8 +475,8 @@ class Program extends Model
      */
     public function getTraineesByStatus($status)
     {
-        return \App\Models\Trainee::where('program_qualification', $this->name)
-            ->where('status', $status)
+        return \App\Models\Trainee::where("program_qualification", $this->name)
+            ->where("status", $status)
             ->count();
     }
 
@@ -371,7 +485,7 @@ class Program extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where("status", "active");
     }
 
     /**
@@ -379,6 +493,6 @@ class Program extends Model
      */
     public function scopeWithAvailableSlots($query)
     {
-        return $query->where('status', 'active');
+        return $query->where("status", "active");
     }
-} 
+}

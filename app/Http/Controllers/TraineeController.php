@@ -51,7 +51,7 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            'status' => 'nullable|in:active,completed,dropped,pending',
+            // 'status' is intentionally excluded — use the dedicated updateStatus endpoint.
         ];
     }
 
@@ -62,29 +62,27 @@ class TraineeController extends Controller
      */
     private function processTraineeData(array &$validated, ?Trainee $existingTrainee = null)
     {
-        // Auto-manage payment status based on scholarship
+        // Auto-manage payment status and status based on scholarship.
+        // These fields are NOT in $fillable, so they are stored separately
+        // and applied via forceFill() after create/update.
         if (!empty($validated['scholarship_package'])) {
-            $validated['payment_status'] = 'paid';
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'active';
-            }
+            $validated['_payment_status'] = 'paid';
+            $validated['_status'] = 'active';
         } else {
-            $validated['payment_status'] = 'unpaid';
-            if (!isset($validated['status'])) {
-                $validated['status'] = 'pending';
-            }
+            $validated['_payment_status'] = 'unpaid';
+            $validated['_status'] = 'pending';
         }
 
         // Enrollment validation: Can only be active if payment is paid
-        if (isset($validated['status']) && $validated['status'] === 'active' && $validated['payment_status'] !== 'paid') {
-            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['payment_status']));
+        if ($validated['_status'] === 'active' && $validated['_payment_status'] !== 'paid') {
+            return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['_payment_status']));
         }
 
         // For updates: if payment becomes unpaid and trainee was active, set to pending
-        if ($existingTrainee && $validated['payment_status'] !== 'paid' && $existingTrainee->status === 'active') {
-            $validated['status'] = 'pending';
+        if ($existingTrainee && $validated['_payment_status'] !== 'paid' && $existingTrainee->status === 'active') {
             $existingTrainee->update($validated);
-            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['payment_status']));
+            $existingTrainee->forceFill(['status' => 'pending', 'payment_status' => $validated['_payment_status']])->save();
+            return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['_payment_status']));
         }
 
         // Handle batch assignment for new trainees or program changes
@@ -103,8 +101,8 @@ class TraineeController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 20); // Default to 20 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $program = $request->get('program', '');
         $status = $request->get('status', '');
         $enrollmentType = $request->get('enrollment_type', '');
@@ -294,6 +292,11 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
+        // Apply guarded fields explicitly after creation
+        $trainee->forceFill([
+            'status' => $validated['_status'],
+            'payment_status' => $validated['_payment_status'],
+        ])->save();
 
         $batchMessage = $validated['batch'] == 1 ? '' : ' (Assigned to Batch 2 due to enrollment capacity)';
         return redirect()->back()->with('success', 'Trainee registered successfully!' . $batchMessage);
@@ -323,6 +326,11 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee->update($validated);
+        // Apply guarded fields explicitly after update
+        $trainee->forceFill([
+            'status' => $validated['_status'],
+            'payment_status' => $validated['_payment_status'],
+        ])->save();
 
         $batchMessage = isset($validated['batch']) && $validated['batch'] == 2 ? ' (Reassigned to Batch 2 due to enrollment capacity)' : '';
         return redirect()->back()->with('success', 'Trainee updated successfully!' . $batchMessage);
@@ -346,8 +354,8 @@ class TraineeController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default to 10 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 10), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $program = $request->get('program', '');
         $status = $request->get('status', '');
         $enrollmentType = $request->get('enrollment_type', '');
@@ -480,6 +488,11 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
+        // Apply guarded fields explicitly after creation
+        $trainee->forceFill([
+            'status' => $validated['_status'],
+            'payment_status' => $validated['_payment_status'],
+        ])->save();
 
         $batchMessage = $validated['batch'] == 1 ? '' : ' (Assigned to Batch 2 due to enrollment capacity)';
         return redirect()->back()->with('success', 'Trainee registered successfully!' . $batchMessage);
@@ -493,6 +506,11 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee->update($validated);
+        // Apply guarded fields explicitly after update
+        $trainee->forceFill([
+            'status' => $validated['_status'],
+            'payment_status' => $validated['_payment_status'],
+        ])->save();
 
         $batchMessage = isset($validated['batch']) && $validated['batch'] == 2 ? ' (Reassigned to Batch 2 due to enrollment capacity)' : '';
         return redirect()->back()->with('success', 'Trainee updated successfully!' . $batchMessage);
@@ -554,15 +572,16 @@ class TraineeController extends Controller
             $currentEnrollment->update($enrollmentData);
 
             // Also update the trainee's overall status to match current enrollment
-            $trainee->update([
+            // Use forceFill since status and payment_status are guarded on Trainee
+            $trainee->forceFill([
                 'status' => $validated['status'],
                 'payment_status' => $currentEnrollment->payment_status
-            ]);
+            ])->save();
 
             return redirect()->back()->with('success', 'Trainee enrollment status updated successfully for ' . ($currentEnrollment->program ? $currentEnrollment->program->name : 'current program') . '!');
         } else {
             // Legacy system: update trainee directly
-            $trainee->update($validated);
+            $trainee->forceFill($validated)->save();
             return redirect()->back()->with('success', 'Trainee status updated successfully!');
         }
     }

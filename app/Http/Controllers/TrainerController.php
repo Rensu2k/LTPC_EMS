@@ -14,8 +14,8 @@ class TrainerController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 20); // Default to 20 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $expertise = $request->get('expertise', '');
 
         // Build the query
@@ -173,6 +173,20 @@ class TrainerController extends Controller
      */
     public function destroy(Trainer $trainer)
     {
+        // Check if trainer is assigned to any active programs
+        $assignedPrograms = Program::where('status', 'active')
+            ->whereNotNull('assigned_trainers')
+            ->get()
+            ->filter(function ($program) use ($trainer) {
+                $trainerIds = $program->assigned_trainers;
+                return is_array($trainerIds) && in_array($trainer->id, $trainerIds);
+            });
+
+        if ($assignedPrograms->isNotEmpty()) {
+            $programNames = $assignedPrograms->pluck('name')->implode(', ');
+            return redirect()->back()->with('error', "Cannot delete trainer. They are assigned to active program(s): {$programNames}. Remove them from these programs first.");
+        }
+
         $trainer->delete();
 
         return redirect()->back()->with('success', 'Trainer deleted successfully!');
@@ -183,8 +197,8 @@ class TrainerController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default to 10 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 10), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $expertise = $request->get('expertise', '');
         $status = $request->get('status', '');
 

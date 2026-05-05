@@ -15,8 +15,8 @@ class AssessmentResultsController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default to 10 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 10), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $program = $request->get('program', '');
         $result = $request->get('result', '');
         $dateFrom = $request->get('date_from', '');
@@ -266,6 +266,17 @@ class AssessmentResultsController extends Controller
      */
     public function destroy(Assessment $assessment)
     {
+        // Prevent deleting assessments that cannot be deleted
+        if (!$assessment->isDeletable()) {
+            if ($assessment->isGraded()) {
+                return redirect()->back()->with('error', 'Cannot delete graded assessments. This assessment has already been finalized.');
+            }
+            if ($assessment->payment_status === 'paid') {
+                return redirect()->back()->with('error', 'Cannot delete paid assessments. This assessment payment has already been processed.');
+            }
+            return redirect()->back()->with('error', 'This assessment cannot be deleted.');
+        }
+
         $assessment->delete();
 
         return redirect()->back()->with('success', 'Assessment result deleted successfully.');

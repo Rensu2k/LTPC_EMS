@@ -20,8 +20,8 @@ class AssessmentController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 20); // Default to 20 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $status = $request->get('status', '');
         $program = $request->get('program', '');
         $result = $request->get('result', '');
@@ -154,7 +154,7 @@ class AssessmentController extends Controller
         // Paginate the grouped assessments
         $assessmentsCollection = collect($assessments);
         $currentPage = $request->get('page', 1);
-        $perPage = $request->get('per_page', 20);
+        $perPage = min((int) $request->get('per_page', 20), 100);
         
         // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
         $path = $request->url();
@@ -201,7 +201,11 @@ class AssessmentController extends Controller
     public function store(Request $request)
     {
         try {
-            Log::info('Assessment creation attempt', ['request_data' => $request->all()]);
+            Log::info('Assessment creation attempt', [
+                'title' => $request->title,
+                'program_id' => $request->program_id,
+                'applicant_type' => $request->applicant_type,
+            ]);
             
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
@@ -243,7 +247,10 @@ class AssessmentController extends Controller
                 $validated['trainer_id'] = null;
             }
 
-            Log::info('Assessment validation passed', ['validated_data' => $validated]);
+            Log::info('Assessment validation passed', [
+                'title' => $validated['title'],
+                'program_id' => $validated['program_id'],
+            ]);
 
             // Determine attempt number and re-assessment status
             if ($validated['original_assessment_id']) {
@@ -387,7 +394,11 @@ class AssessmentController extends Controller
                 unset($validated['external_applicant_phone']);
             }
 
-            Log::info('Creating assessment with data', ['final_data' => $validated]);
+            Log::info('Creating assessment', [
+                'title' => $validated['title'],
+                'program_id' => $validated['program_id'],
+                'applicant_type' => $validated['applicant_type'],
+            ]);
             $assessment = Assessment::create($validated);
             Log::info('Assessment created successfully', ['assessment_id' => $assessment->id]);
 

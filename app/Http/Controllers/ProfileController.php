@@ -42,22 +42,12 @@ class ProfileController extends Controller
 
     /**
      * Delete the user's account.
+     * DISABLED: Account deletion is admin-managed only.
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+        // Self-deletion is disabled in this admin-managed system.
+        // Only administrators can delete user accounts via the admin panel.
+        abort(403, 'Account deletion is not permitted. Please contact an administrator.');
     }
 }

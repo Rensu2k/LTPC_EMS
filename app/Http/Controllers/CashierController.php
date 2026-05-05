@@ -53,7 +53,7 @@ class CashierController extends Controller
      */
     public function dashboard(Request $request)
     {
-        $perPage = $request->get('per_page', 3); // Default to 3 items per page for testing pagination
+        $perPage = min((int) $request->get('per_page', 3), 100);
         $page = $request->get('page', 1);
         
         // Calculate statistics
@@ -109,8 +109,8 @@ class CashierController extends Controller
      */
     private function renderPaymentPage(Request $request, $type)
     {
-        $perPage = $request->get('per_page', 20);
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 20), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
         $status = $request->get('status', '');
 
         // Get enrollment payment records (including scholars for additional fees)
@@ -563,6 +563,11 @@ class CashierController extends Controller
         if ($request->enrollment_id) {
             // Process enrollment payment
             $enrollment = TraineeEnrollment::findOrFail($request->enrollment_id);
+
+            // Idempotency guard: skip if already paid
+            if ($enrollment->payment_status === 'paid') {
+                return redirect()->back()->with('success', 'Payment was already processed for this enrollment.');
+            }
             
             $enrollment->markAsPaid(
                 $request->payment_method,
@@ -570,20 +575,25 @@ class CashierController extends Controller
                 $request->payment_notes
             );
 
-            // Keep trainee model in sync for Officer/Trainees and dashboards
+            // Keep trainee model in sync — use forceFill since payment fields are guarded
             if ($enrollment->trainee) {
-                $enrollment->trainee->update([
+                $enrollment->trainee->forceFill([
                     'payment_status' => 'paid',
                     'status' => 'active',
                     'payment_method' => $request->payment_method,
                     'payment_reference' => $request->payment_reference ?: 'RN-ENR-' . str_pad($enrollment->id, 4, '0', STR_PAD_LEFT),
                     'payment_date' => now(),
                     'payment_notes' => $request->payment_notes,
-                ]);
+                ])->save();
             }
         } else if ($request->assessment_id) {
             // Process assessment payment
             $assessment = Assessment::findOrFail($request->assessment_id);
+
+            // Idempotency guard: skip if already paid
+            if ($assessment->payment_status === 'paid') {
+                return redirect()->back()->with('success', 'Payment was already processed for this assessment.');
+            }
             
             $assessment->update([
                 'payment_status' => 'paid',
@@ -596,32 +606,38 @@ class CashierController extends Controller
             // Process registration payment for newly registered trainee
             $trainee = Trainee::findOrFail($request->trainee_id);
 
+            // Idempotency guard: skip if already paid
+            if ($trainee->payment_status === 'paid') {
+                return redirect()->back()->with('success', 'Payment was already processed for this trainee.');
+            }
+
             if ($request->skip_enrollment) {
                 // Mark as paid and activate immediately to trigger auto-enrollment. Receipt can follow.
-                $updated = $trainee->update([
+                // Use forceFill since payment/status fields are guarded.
+                $trainee->forceFill([
                     'payment_status' => 'paid',
                     'status' => 'active',
                     'payment_method' => $request->payment_method,
                     'payment_reference' => $request->payment_reference ?: 'RN-REG-' . str_pad($trainee->id, 4, '0', STR_PAD_LEFT),
                     'payment_date' => now(),
                     'payment_notes' => $request->payment_notes
-                ]);
+                ])->save();
                 
                 // Refresh the model to get the latest data
                 $trainee->refresh();
             } else {
                 // Standard flow: Update trainee payment status and activate them
-                $trainee->update([
+                // Use forceFill since payment/status fields are guarded.
+                $trainee->forceFill([
                     'payment_status' => 'paid',
-                    'status' => 'active', // Activate the trainee after payment
+                    'status' => 'active',
                     'payment_method' => $request->payment_method,
                     'payment_reference' => $request->payment_reference ?: 'RN-REG-' . str_pad($trainee->id, 4, '0', STR_PAD_LEFT),
                     'payment_date' => now(),
                     'payment_notes' => $request->payment_notes
-                ]);
+                ])->save();
 
                 // The handleAutoEnrollment method will be triggered automatically via the model's boot method
-                // This will create the TraineeEnrollment record for the trainee
             }
         }
 
@@ -701,10 +717,10 @@ class CashierController extends Controller
         if (!$isCancelled && $request->complete_enrollment && $request->type === 'registration' && $request->trainee_id) {
             $trainee = Trainee::findOrFail($request->trainee_id);
             
-            // Activate the trainee and trigger enrollment
-            $trainee->update([
+            // Activate the trainee and trigger enrollment — use forceFill since status is guarded
+            $trainee->forceFill([
                 'status' => 'active'
-            ]);
+            ])->save();
             
             // The handleAutoEnrollment method will be triggered automatically via the model's boot method
             // This will create the TraineeEnrollment record for the trainee and move them to "Additional Fees" tab

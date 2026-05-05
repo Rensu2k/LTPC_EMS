@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -33,17 +35,19 @@ class UserController extends Controller
         $request->validate([
             'username' => 'required|string|max:255|unique:users,username|unique:users,name',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed'],
+            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
             'role' => 'required|in:admin,officer,cashier',
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $request->username,
             'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role,
         ]);
+        $user->role = $request->role;
+        $user->status = 'active';
+        $user->save();
 
         return redirect()->back()->with('success', 'User created successfully.');
     }
@@ -55,7 +59,7 @@ class UserController extends Controller
         $request->validate([
             'username' => 'required|string|max:255|unique:users,username,' . $id . '|unique:users,name,' . $id,
             'email' => 'required|string|email|max:255|unique:users,email,' . $id,
-            'password' => $request->password ? ['confirmed'] : '',
+            'password' => $request->password ? ['confirmed', Password::min(8)->mixedCase()->numbers()] : '',
             'role' => 'required|in:admin,officer,cashier',
         ]);
 
@@ -63,8 +67,9 @@ class UserController extends Controller
             'name' => $request->username,
             'username' => $request->username,
             'email' => $request->email,
-            'role' => $request->role,
         ]);
+        $user->role = $request->role;
+        $user->save();
 
         if ($request->password) {
             $user->update([
@@ -80,7 +85,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         
         // Prevent admin from deleting themselves
-        if ($user->id === auth()->id()) {
+        if ($user->id === Auth::id()) {
             return redirect()->back()->with('error', 'You cannot delete your own account.');
         }
 
@@ -94,7 +99,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         
         // Prevent admin from deactivating themselves
-        if ($user->id === auth()->id()) {
+        if ($user->id === Auth::id()) {
             return redirect()->back()->with('error', 'You cannot change your own account status.');
         }
 
@@ -102,9 +107,8 @@ class UserController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        $user->update([
-            'status' => $request->status,
-        ]);
+        $user->status = $request->status;
+        $user->save();
 
         return redirect()->back()->with('success', 'User status updated successfully.');
     }

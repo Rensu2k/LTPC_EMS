@@ -14,8 +14,8 @@ class ProgramController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default to 10 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 10), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
 
         $query = Program::query();
 
@@ -78,8 +78,8 @@ class ProgramController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $perPage = $request->get('per_page', 10); // Default to 10 items per page
-        $search = $request->get('search', '');
+        $perPage = min((int) $request->get('per_page', 10), 100);
+        $search = $this->sanitizeSearch($request->get('search', ''));
 
         $query = Program::query();
 

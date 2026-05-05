@@ -213,6 +213,11 @@ class PaymentController extends Controller
             $enrollment = TraineeEnrollment::find($enrollmentId);
             
             if ($enrollment) {
+                // Guard: prevent resetting payment on finalized enrollments
+                if ($enrollment->status === 'completed') {
+                    return redirect()->back()->with('error', 'Cannot delete payment for a completed enrollment. This would break the audit trail.');
+                }
+
                 $enrollment->update([
                     'payment_reference' => null,
                     'payment_method' => null,
@@ -226,6 +231,11 @@ class PaymentController extends Controller
             $receipt = CustomReceipt::find($receiptId);
             
             if ($receipt) {
+                // Guard: prevent deletion of generated/finalized receipts
+                if ($receipt->status === 'generated') {
+                    return redirect()->back()->with('error', 'Cannot delete a generated receipt. Use the cancellation feature instead to preserve the audit trail.');
+                }
+
                 $receipt->delete();
             }
         }

@@ -23,8 +23,8 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
-        'role',
-        'status',
+        // 'role' and 'status' are intentionally excluded from mass assignment
+        // to prevent privilege escalation. Set them explicitly in controllers.
     ];
 
     /**

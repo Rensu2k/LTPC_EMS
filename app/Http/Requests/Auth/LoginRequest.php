@@ -55,6 +55,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Reject inactive users after successful credential check
+        $user = Auth::user();
+        if ($user && $user->status !== 'active') {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'username' => 'Your account has been deactivated. Please contact an administrator.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

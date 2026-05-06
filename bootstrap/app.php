@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust all proxies so ngrok forwarded headers (X-Forwarded-For, X-Forwarded-Proto)
+        // are correctly read by Laravel when tunneling via ngrok.
+        $middleware->trustProxies(at: '*');
+
         // Add ForceHttps middleware globally to ensure HTTPS for all requests
         $middleware->append(ForceHttps::class);
         

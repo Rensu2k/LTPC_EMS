@@ -49,7 +49,9 @@ export default defineConfig(({ mode }) => {
             cors: true,
             // Explicit origin so @vite scripts point to 127.0.0.1 instead of [::1]
             origin: env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173",
-            hmr: {
+            // Disable HMR entirely when VITE_HMR_HOST=false (e.g., remote/ngrok access)
+            // so remote browsers don't hang trying to connect to a local websocket.
+            hmr: env.VITE_HMR_HOST === "false" ? false : {
                 overlay: false,
                 host: env.VITE_HMR_HOST || "127.0.0.1",
                 protocol: env.VITE_HMR_PROTOCOL || "ws",
@@ -58,5 +60,6 @@ export default defineConfig(({ mode }) => {
                     : 5173,
             },
         },
+
     };
 });

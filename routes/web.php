@@ -71,12 +71,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::patch('/users/{id}/status', [UserController::class, 'updateStatus'])->name('users.status');
         
-        Route::get('/analytics', function () {
-            return Inertia::render('Admin/ComingSoon', ['feature' => 'Analytics']);
-        })->name('analytics');
-        Route::get('/settings', function () {
-            return Inertia::render('Admin/ComingSoon', ['feature' => 'Settings']);
-        })->name('settings');
         Route::post('/backup', function () {
             return redirect()->back()->with('info', 'Backup feature is coming soon.');
         })->name('backup');
@@ -120,13 +114,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/enrollments/{enrollment}/payment', [TraineeEnrollmentController::class, 'updatePayment'])->name('enrollments.update-payment');
         Route::get('/trainees/{trainee}/available-programs', [TraineeEnrollmentController::class, 'getAvailablePrograms'])->name('trainees.available-programs');
         
-        Route::get('/schedules', function () {
-            return Inertia::render('Officer/Schedules');
-        })->name('schedules');
-        
-        Route::get('/results', function () {
-            return Inertia::render('Officer/Results');
-        })->name('results');
     });
     
     Route::prefix('cashier')->name('cashier.')->middleware('role:cashier')->group(function () {
@@ -148,9 +135,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/receipts/save', [CashierController::class, 'saveCustomReceipt'])->name('receipts.save');
         Route::put('/receipts/{customReceipt}', [CashierController::class, 'updateCustomReceipt'])->name('receipts.update');
         
-        Route::get('/reports/financial', function () {
-            return Inertia::render('Cashier/ComingSoon', ['feature' => 'Financial Reports']);
-        })->name('reports.financial');
     });
 
 

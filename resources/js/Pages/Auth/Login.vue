@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <script setup>
 import { ref, onMounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
@@ -352,9 +358,10 @@ onMounted(() => {
                 </div>
 
                 <!-- Footer -->
-                <p class="footer-text">
-                    © 2025 Surigao City LTPC. All rights reserved.
-                </p>
+                <div class="footer-text">
+                    <p>© 2025 Surigao City LTPC. All rights reserved.</p>
+                    <p class="dev-credit">Developed by Clarence Buenaflor &amp; Jester Pastor</p>
+                </div>
             </div>
         </div>
 
@@ -1168,6 +1175,12 @@ onMounted(() => {
     color: #94a3b8;
     font-size: 0.75rem;
     letter-spacing: 0.025em;
+}
+.dev-credit {
+    margin-top: 0.25rem;
+    font-size: 0.6875rem;
+    color: #64748b;
+    letter-spacing: 0.03em;
 }
 
 /* ===== RIGHT PANEL ===== */

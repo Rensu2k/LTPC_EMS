@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <script setup>
 import { ref, computed } from "vue";
 import NavLink from "@/Components/NavLink.vue";
@@ -857,9 +863,17 @@ function logout() {
                     Logout
                 </button>
             </div>
+            <div class="px-4 py-2 text-center border-t border-blue-800">
+                <p class="text-[10px] text-blue-300/60 leading-tight">
+                    Developed by Clarence Buenaflor &amp; Jester Pastor
+                </p>
+                <p class="text-[9px] text-blue-300/40 mt-0.5">
+                    LTPC-EMS v1.0 © 2025
+                </p>
+            </div>
         </aside>
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col h-screen ml-64">
+        <div class="flex-1 flex flex-col h-screen ml-64 min-w-0 overflow-x-hidden">
             <!-- Fixed Top Bar -->
             <div
                 class="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-200 fixed top-0 right-0 z-20"
@@ -927,7 +941,7 @@ function logout() {
                 </div>
             </div>
             <!-- Scrollable Content Area -->
-            <div class="flex-1 overflow-y-auto pt-20">
+            <div class="flex-1 overflow-y-auto pt-20 min-w-0">
                 <header class="bg-white shadow" v-if="$slots.header">
                     <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                         <slot name="header" />

@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\ForceHttps;
+use App\Http\Middleware\DeveloperSignature;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Add ForceHttps middleware globally to ensure HTTPS for all requests
         $middleware->append(ForceHttps::class);
+        $middleware->append(DeveloperSignature::class);
         
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,

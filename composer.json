@@ -1,13 +1,28 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "cbuenaflor/ltpc-ems",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "LTPC Enrollment Management System - A comprehensive enrollment, payment, and assessment management platform developed for the Surigao City Livelihood Training and Productivity Center.",
     "keywords": [
-        "laravel",
-        "framework"
+        "ltpc",
+        "enrollment",
+        "management",
+        "training",
+        "surigao"
     ],
-    "license": "MIT",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Clarence Buenaflor",
+            "email": "cbuenaflor2@ssct.edu.ph",
+            "role": "Lead Developer"
+        },
+        {
+            "name": "Jester Pastor",
+            "email": "pastorjester98@mail.com",
+            "role": "Contributor"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",

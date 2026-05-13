@@ -1,5 +1,13 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
+    "name": "ltpc-ems",
+    "version": "1.0.0",
+    "description": "LTPC Enrollment Management System - Developed for Surigao City Livelihood Training and Productivity Center",
+    "author": "Clarence Buenaflor <cbuenaflor2@ssct.edu.ph>",
+    "contributors": [
+        "Jester Pastor <pastorjester98@mail.com>"
+    ],
+    "license": "UNLICENSED",
     "private": true,
     "type": "module",
     "scripts": {

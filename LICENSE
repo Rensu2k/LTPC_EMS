@@ -1,0 +1,46 @@
+PROPRIETARY SOFTWARE LICENSE
+
+LTPC Enrollment Management System (LTPC_EMS)
+Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+
+Original Authors:
+  - Clarence Buenaflor (cbuenaflor2@ssct.edu.ph)  - Lead Developer
+  - Jester Pastor (pastorjester98@mail.com)        - Contributor
+
+Institution: SSCT - Surigao del Sur State College of Technology
+Developed For: Surigao City Livelihood Training and Productivity Center
+
+NOTICE:
+This software and associated documentation files (the "Software") are the
+proprietary intellectual property of the authors listed above. The Software
+was originally developed as part of an academic/institutional project for
+the Surigao City Livelihood Training and Productivity Center (LTPC).
+
+RESTRICTIONS:
+1. Unauthorized copying, modification, distribution, or redistribution of
+   this Software, in whole or in part, is strictly prohibited without the
+   express written permission of the original authors.
+
+2. This Software may not be used, copied, modified, merged, published,
+   distributed, sublicensed, or sold without prior authorization.
+
+3. The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.
+
+4. Any derivative works based on this Software must retain attribution to
+   the original authors.
+
+PROVENANCE VERIFICATION:
+The original source code repository is maintained at:
+  https://github.com/Rensu2k/LTPC_EMS.git
+
+The Git commit history serves as cryptographic proof of authorship,
+with timestamps and author information for every change made to the
+codebase since its inception in June 2025.
+
+A SHA-256 integrity signature is embedded in the system's database
+and configuration files to verify authenticity.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.

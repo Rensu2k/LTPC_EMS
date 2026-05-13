@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router, usePage } from "@inertiajs/vue3";
@@ -18,6 +24,7 @@ const props = defineProps({
     programs: Array,
     trainees: Array,
     trainers: Array,
+    competentPairs: Array, // [{trainee_id, program_id}] pairs already graded as competent
     filters: Object,
     flash: Object,
 });
@@ -1245,6 +1252,7 @@ const printCertificate = async (assessment) => {
             :programs="programs"
             :trainees="trainees"
             :trainers="trainers"
+            :competent-pairs="competentPairs || []"
             @close="closeRegistrationModal"
             @submitted="onAssessmentSubmitted"
         />

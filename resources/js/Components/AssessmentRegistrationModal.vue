@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <script setup>
 import { ref, watch, computed } from "vue";
 import { useForm } from "@inertiajs/vue3";
@@ -23,6 +29,10 @@ const props = defineProps({
         default: () => [],
     },
     trainers: {
+        type: Array,
+        default: () => [],
+    },
+    competentPairs: {
         type: Array,
         default: () => [],
     },
@@ -241,9 +251,22 @@ const filteredTrainees = computed(() => {
         return [];
     }
 
+    // Build a Set of trainee IDs that are already competent in this program
+    const competentTraineeIds = new Set(
+        props.competentPairs
+            .filter((pair) => pair.program_id === form.program_id)
+            .map((pair) => pair.trainee_id)
+    );
+
     // Filter trainees who have completed the selected program or have that program qualification
+    // AND who have NOT already been graded as competent in that program
     return props.trainees
         .filter((trainee) => {
+            // Exclude trainees already graded as competent for this program
+            if (competentTraineeIds.has(trainee.id)) {
+                return false;
+            }
+
             // Check if trainee has this program qualification (legacy system)
             if (trainee.program_qualification === selectedProgram.name) {
                 return true;
@@ -444,13 +467,16 @@ const filteredTrainers = computed(() => {
                             :empty-message="
                                 !form.program_id
                                     ? 'Please select a program first'
-                                    : 'No eligible applicants for this program'
+                                    : 'No eligible applicants for this program (competent trainees are excluded)'
                             "
                         />
                         <p class="text-xs text-gray-500 mt-1">
                             Only applicants with "completed" status can take
-                            assessments.
+                            assessments. Trainees already graded as
+                            <span class="font-semibold text-green-700">competent</span>
+                            in this program are hidden.
                         </p>
+
                     </div>
 
                     <!-- External Applicant Information -->

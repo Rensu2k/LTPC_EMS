@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <script setup>
 import { useForm, router } from "@inertiajs/vue3";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";

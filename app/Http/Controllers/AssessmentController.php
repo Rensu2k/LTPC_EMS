@@ -1,5 +1,15 @@
 <?php
-
+/**
+ * LTPC Enrollment Management System (LTPC_EMS)
+ *
+ * @copyright  2025-2026 Clarence Buenaflor & Jester Pastor
+ * @author     Clarence Buenaflor <cbuenaflor2@ssct.edu.ph>
+ * @author     Jester Pastor <pastorjester98@mail.com>
+ * @license    Proprietary - All Rights Reserved
+ *
+ * Unauthorized copying, modification, or distribution of this
+ * software is strictly prohibited without express written permission.
+ */
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -149,6 +159,19 @@ class AssessmentController extends Controller
                   });
         })->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
         
+        // Build a list of trainee_id + program_id pairs that are already graded as competent.
+        // The most recent assessment in each chain determines the competency status.
+        // A trainee is considered competent for a program if ANY assessment in their chain
+        // (including re-assessments) has result = 'competent'.
+        $competentPairs = Assessment::where('result', 'competent')
+            ->whereNotNull('trainee_id')
+            ->select('trainee_id', 'program_id')
+            ->distinct()
+            ->get()
+            ->map(fn($a) => ['trainee_id' => $a->trainee_id, 'program_id' => $a->program_id])
+            ->values()
+            ->toArray();
+        
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         // Paginate the grouped assessments
@@ -175,6 +198,7 @@ class AssessmentController extends Controller
             'programs' => $programs,
             'trainees' => $trainees,
             'trainers' => $trainers,
+            'competentPairs' => $competentPairs,
             'filters' => [
                 'search' => $search,
                 'status' => $status,

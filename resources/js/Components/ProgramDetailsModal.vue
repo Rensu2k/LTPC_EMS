@@ -1,3 +1,9 @@
+<!--
+  LTPC Enrollment Management System (LTPC_EMS)
+
+  Copyright (c) 2025-2026 Clarence Buenaflor & Jester Pastor. All rights reserved.
+  Unauthorized copying or distribution is strictly prohibited.
+-->
 <template>
     <Modal :show="show" @close="closeModal" custom-width="80vw">
         <div class="p-6">

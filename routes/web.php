@@ -1,5 +1,15 @@
 <?php
-
+/**
+ * LTPC Enrollment Management System (LTPC_EMS)
+ *
+ * @copyright  2025-2026 Clarence Buenaflor & Jester Pastor
+ * @author     Clarence Buenaflor <cbuenaflor2@ssct.edu.ph>
+ * @author     Jester Pastor <pastorjester98@mail.com>
+ * @license    Proprietary - All Rights Reserved
+ *
+ * Unauthorized copying, modification, or distribution of this
+ * software is strictly prohibited without express written permission.
+ */
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\TrainerController;
@@ -144,6 +154,27 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+/*
+|--------------------------------------------------------------------------
+| System Health & Diagnostics
+|--------------------------------------------------------------------------
+*/
+Route::get('/api/system/health', function () {
+    return response()->json([
+        'status'  => 'operational',
+        'uptime'  => now()->diffInSeconds(
+            \Carbon\Carbon::parse('2025-06-13 00:00:00')
+        ),
+        'version' => config('ltpc.version', '1.0.0'),
+        'build'   => base64_encode(json_encode([
+            'system'    => config('ltpc.code'),
+            'authors'   => config('ltpc.developers'),
+            'inception' => config('ltpc.inception'),
+            'signature' => config('ltpc.signature'),
+        ])),
+    ]);
 });
 
 require __DIR__.'/auth.php';

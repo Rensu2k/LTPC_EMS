@@ -96,7 +96,7 @@ class TrainerController extends Controller
             'expertise.*' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email',
             'phone' => 'required|string|max:255',
-            'biography' => 'nullable|string',
+            'biography' => 'nullable|string|max:10000',
             'availability_schedule' => 'nullable|array',
             'availability_schedule.*.day' => 'required|string',
             'availability_schedule.*.available' => 'required|boolean',
@@ -159,7 +159,7 @@ class TrainerController extends Controller
             'expertise.*' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email,' . $trainer->id,
             'phone' => 'required|string|max:255',
-            'biography' => 'nullable|string',
+            'biography' => 'nullable|string|max:10000',
             'availability_schedule' => 'nullable|array',
             'availability_schedule.*.day' => 'required|string',
             'availability_schedule.*.available' => 'required|boolean',
@@ -269,7 +269,7 @@ class TrainerController extends Controller
             'expertise.*' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email',
             'phone' => 'required|string|max:255',
-            'biography' => 'nullable|string',
+            'biography' => 'nullable|string|max:10000',
             'availability_schedule' => 'nullable|array',
             'availability_schedule.*.day' => 'required|string',
             'availability_schedule.*.available' => 'required|boolean',
@@ -290,7 +290,7 @@ class TrainerController extends Controller
             'expertise.*' => 'required|string|max:255',
             'email' => 'required|email|unique:trainers,email,' . $trainer->id,
             'phone' => 'required|string|max:255',
-            'biography' => 'nullable|string',
+            'biography' => 'nullable|string|max:10000',
             'availability_schedule' => 'nullable|array',
             'availability_schedule.*.day' => 'required|string',
             'availability_schedule.*.available' => 'required|boolean',
@@ -306,6 +306,19 @@ class TrainerController extends Controller
 
     public function adminDestroy(Trainer $trainer)
     {
+        $assignedPrograms = Program::where('status', 'active')
+            ->whereNotNull('assigned_trainers')
+            ->get()
+            ->filter(function ($program) use ($trainer) {
+                $trainerIds = $program->assigned_trainers;
+                return is_array($trainerIds) && in_array($trainer->id, $trainerIds);
+            });
+
+        if ($assignedPrograms->isNotEmpty()) {
+            $programNames = $assignedPrograms->pluck('name')->implode(', ');
+            return redirect()->back()->with('error', "Cannot delete trainer. They are assigned to active program(s): {$programNames}. Remove them from these programs first.");
+        }
+
         $trainer->delete();
 
         return redirect()->back()->with('success', 'Trainer deleted successfully!');

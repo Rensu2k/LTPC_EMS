@@ -539,7 +539,9 @@ class TraineeController extends Controller
 
             return redirect()->back()->with('success', 'Trainee enrollment status updated successfully for ' . ($currentEnrollment->program ? $currentEnrollment->program->name : 'current program') . '!');
         } else {
-            $trainee->forceFill($validated)->save();
+            $trainee->forceFill([
+                'status' => $validated['status'],
+            ])->save();
             return redirect()->back()->with('success', 'Trainee status updated successfully!');
         }
     }

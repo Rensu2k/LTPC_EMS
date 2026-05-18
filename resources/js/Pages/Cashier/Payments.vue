@@ -15,7 +15,7 @@ const page = usePage();
 const notifications = useNotifications();
 
 const paymentType = computed(
-    () => props.paymentType || props.filters?.type || "registration"
+    () => props.paymentType || props.filters?.type || "registration",
 );
 
 const showPaymentDetails = ref(false);
@@ -130,11 +130,9 @@ const pageDescription = computed(() => {
     return "";
 });
 
-const exportReport = () => {
-};
+const exportReport = () => {};
 
-const recordPayment = () => {
-};
+const recordPayment = () => {};
 
 const viewPayment = (paymentId) => {
     const payment = currentPayments.value.find((p) => p.id === paymentId);
@@ -177,7 +175,7 @@ const markAsPaid = (paymentId) => {
             onError: (errors) => {
                 console.error("Payment processing failed:", errors);
                 notifications.error(
-                    "Failed to process payment. Please try again."
+                    "Failed to process payment. Please try again.",
                 );
             },
         });
@@ -205,7 +203,7 @@ const markAsPaid = (paymentId) => {
             onError: (errors) => {
                 console.error("Payment processing failed:", errors);
                 notifications.error(
-                    "Failed to process payment. Please try again."
+                    "Failed to process payment. Please try again.",
                 );
             },
         });
@@ -256,7 +254,7 @@ const generateReceipt = (paymentId) => {
         generateReceiptForPaidPayment(payment);
     } else {
         notifications.warning(
-            "Receipt can only be generated for paid payments."
+            "Receipt can only be generated for paid payments.",
         );
     }
 };
@@ -277,8 +275,8 @@ const generateReceiptForPaidPayment = (payment) => {
                     payment.type === "enrollment"
                         ? "Enrollment Fee"
                         : payment.type === "assessment"
-                        ? "Assessment Fee"
-                        : "Enrollment Fee",
+                          ? "Assessment Fee"
+                          : "Enrollment Fee",
                 program: payment.program,
                 accountCode: "EDU-001",
                 amount: "", // Empty by default - user must manually enter amount
@@ -297,7 +295,7 @@ const closeReceiptModal = (isSuccessfulSave = false) => {
             "A receipt number has been assigned to this transaction. " +
                 "If you cancel now, this receipt will be marked as 'CANCELLED' for audit purposes " +
                 "and a new receipt number will be generated if you try again.\n\n" +
-                "Are you sure you want to cancel this receipt?"
+                "Are you sure you want to cancel this receipt?",
         );
 
         if (!confirmCancel) {
@@ -353,13 +351,13 @@ const saveCancelledReceipt = () => {
     router.post(route("cashier.receipts.save"), cancelledReceiptData, {
         onSuccess: () => {
             notifications.success(
-                `Receipt ${cancelledReceiptData.receiptNo} has been cancelled and saved for audit purposes.`
+                `Receipt ${cancelledReceiptData.receiptNo} has been cancelled and saved for audit purposes.`,
             );
         },
         onError: (errors) => {
             notifications.handleValidationErrors(
                 errors,
-                "Error saving cancelled receipt:"
+                "Error saving cancelled receipt:",
             );
         },
     });
@@ -406,7 +404,7 @@ const saveReceipt = () => {
 
     if (hasErrors) {
         notifications.error(
-            "Please fill in all required fields, including the Amount for each fee."
+            "Please fill in all required fields, including the Amount for each fee.",
         );
         return;
     }
@@ -436,11 +434,11 @@ const saveReceipt = () => {
         onSuccess: (page) => {
             if (isRegistrationPayment) {
                 notifications.success(
-                    `Receipt ${receiptData.receiptNo} has been saved successfully! The trainee has been officially enrolled and will now appear in the Additional Fees - Enrolled Trainees tab.`
+                    `Receipt ${receiptData.receiptNo} has been saved successfully! The trainee has been officially enrolled and will now appear in the Additional Fees - Enrolled Trainees tab.`,
                 );
             } else {
                 notifications.success(
-                    `Receipt ${receiptData.receiptNo} has been saved successfully and is now available in the Receipts page!`
+                    `Receipt ${receiptData.receiptNo} has been saved successfully and is now available in the Receipts page!`,
                 );
             }
 
@@ -452,7 +450,7 @@ const saveReceipt = () => {
             console.error("Error saving receipt:", errors);
             notifications.handleValidationErrors(
                 errors,
-                "Error saving receipt:"
+                "Error saving receipt:",
             );
         },
     });
@@ -657,7 +655,7 @@ watch(searchQuery, () => {
                             Math.min(
                                 props.enrollmentPayments.current_page *
                                     props.enrollmentPayments.per_page,
-                                props.enrollmentPayments.total
+                                props.enrollmentPayments.total,
                             )
                         }}
                         of {{ props.enrollmentPayments.total }} results
@@ -683,7 +681,7 @@ watch(searchQuery, () => {
                             <p class="text-3xl font-bold text-blue-600">
                                 {{
                                     formatCurrency(
-                                        summaryStats.totalCollections.amount
+                                        summaryStats.totalCollections.amount,
                                     )
                                 }}
                             </p>
@@ -701,7 +699,7 @@ watch(searchQuery, () => {
                             <p class="text-3xl font-bold text-blue-600">
                                 {{
                                     formatCurrency(
-                                        summaryStats.thisMonth.amount
+                                        summaryStats.thisMonth.amount,
                                     )
                                 }}
                             </p>
@@ -719,7 +717,7 @@ watch(searchQuery, () => {
                             <p class="text-3xl font-bold text-red-600">
                                 {{
                                     formatCurrency(
-                                        summaryStats.outstandingBalance.amount
+                                        summaryStats.outstandingBalance.amount,
                                     )
                                 }}
                             </p>
@@ -834,7 +832,7 @@ watch(searchQuery, () => {
                                     >
                                         {{
                                             formatCurrency(
-                                                program.collectionAmount
+                                                program.collectionAmount,
                                             )
                                         }}
                                     </td>
@@ -908,8 +906,8 @@ watch(searchQuery, () => {
                                     paymentType === 'registration'
                                         ? 'text-orange-600'
                                         : paymentType === 'enrollment'
-                                        ? 'text-blue-600'
-                                        : 'text-purple-600',
+                                          ? 'text-blue-600'
+                                          : 'text-purple-600',
                                 ]"
                             >
                                 {{ pageDescription }}
@@ -1060,18 +1058,18 @@ watch(searchQuery, () => {
                                             payment.status === 'paid'
                                                 ? 'bg-green-100 text-green-800'
                                                 : payment.status ===
-                                                  'paid_pending_enrollment'
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-red-100 text-red-800',
+                                                    'paid_pending_enrollment'
+                                                  ? 'bg-yellow-100 text-yellow-800'
+                                                  : 'bg-red-100 text-red-800',
                                         ]"
                                     >
                                         {{
                                             payment.status === "paid"
                                                 ? "Paid"
                                                 : payment.status ===
-                                                  "paid_pending_enrollment"
-                                                ? "Paid - Pending Receipt"
-                                                : "Unpaid"
+                                                    "paid_pending_enrollment"
+                                                  ? "Paid - Pending Receipt"
+                                                  : "Unpaid"
                                         }}
                                     </span>
                                 </td>
@@ -1131,7 +1129,7 @@ watch(searchQuery, () => {
                                             "
                                             @click="
                                                 generateReceiptForPaidPayment(
-                                                    payment
+                                                    payment,
                                                 )
                                             "
                                             class="text-orange-600 hover:text-orange-900 p-2 rounded hover:bg-orange-50"
@@ -1201,8 +1199,8 @@ watch(searchQuery, () => {
                             paymentType === "registration"
                                 ? "registration"
                                 : paymentType === "enrollment"
-                                ? "enrollment"
-                                : "assessment"
+                                  ? "enrollment"
+                                  : "assessment"
                         }}
                         payments found
                     </h3>
@@ -1216,8 +1214,8 @@ watch(searchQuery, () => {
                                 paymentType === "registration"
                                     ? "registration"
                                     : paymentType === "enrollment"
-                                    ? "enrollment"
-                                    : "assessment"
+                                      ? "enrollment"
+                                      : "assessment"
                             }}
                             payments on this page. Try navigating to other
                             pages.
@@ -1313,9 +1311,9 @@ watch(searchQuery, () => {
                                                     'paid'
                                                         ? 'bg-green-100 text-green-800'
                                                         : selectedPayment.status ===
-                                                          'paid_pending_enrollment'
-                                                        ? 'bg-yellow-100 text-yellow-800'
-                                                        : 'bg-red-100 text-red-800',
+                                                            'paid_pending_enrollment'
+                                                          ? 'bg-yellow-100 text-yellow-800'
+                                                          : 'bg-red-100 text-red-800',
                                                 ]"
                                             >
                                                 {{
@@ -1323,9 +1321,9 @@ watch(searchQuery, () => {
                                                     "paid"
                                                         ? "Paid"
                                                         : selectedPayment.status ===
-                                                          "paid_pending_enrollment"
-                                                        ? "Paid - Pending Receipt"
-                                                        : "Unpaid"
+                                                            "paid_pending_enrollment"
+                                                          ? "Paid - Pending Receipt"
+                                                          : "Unpaid"
                                                 }}
                                             </span>
                                         </div>
@@ -1423,7 +1421,7 @@ watch(searchQuery, () => {
                                     "
                                     @click="
                                         generateReceiptForPaidPayment(
-                                            selectedPayment
+                                            selectedPayment,
                                         )
                                     "
                                     class="px-4 py-2 bg-orange-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
@@ -1788,7 +1786,7 @@ watch(searchQuery, () => {
                                                 class="text-lg font-bold text-blue-600"
                                                 >₱{{
                                                     formatAmount(
-                                                        getTotalAmount()
+                                                        getTotalAmount(),
                                                     )
                                                 }}</span
                                             >
@@ -1817,7 +1815,7 @@ watch(searchQuery, () => {
                                             <div
                                                 class="w-16 h-16 border-2 border-gray-600 flex items-center justify-center text-sm rounded-full overflow-hidden"
                                                 style="
-                                                    background-image: url('/images/Philippine_logo.png');
+                                                    background-image: url(&quot;/images/Philippine_logo.png&quot;);
                                                     background-size: cover;
                                                     background-repeat: no-repeat;
                                                     background-position: center;
@@ -1843,7 +1841,7 @@ watch(searchQuery, () => {
                                             <div
                                                 class="w-16 h-16 border-2 border-gray-600 rounded-full overflow-hidden"
                                                 style="
-                                                    background-image: url('/images/Surigao_logo.jpg');
+                                                    background-image: url(&quot;/images/Surigao_logo.jpg&quot;);
                                                     background-size: cover;
                                                     background-repeat: no-repeat;
                                                     background-position: center;
@@ -1868,7 +1866,7 @@ watch(searchQuery, () => {
                                                 {{
                                                     editableReceiptData.receiptNo.padStart(
                                                         7,
-                                                        "0"
+                                                        "0",
                                                     )
                                                 }}
                                             </h3>
@@ -1961,7 +1959,7 @@ watch(searchQuery, () => {
                                     <div
                                         v-for="i in Math.max(
                                             0,
-                                            4 - editableReceiptData.fees.length
+                                            4 - editableReceiptData.fees.length,
                                         )"
                                         :key="'empty-' + i"
                                         class="flex border-b border-gray-800"
@@ -1998,7 +1996,7 @@ watch(searchQuery, () => {
                                         <strong>AMOUNT IN WORDS</strong><br />
                                         <strong>{{
                                             convertNumberToWords(
-                                                getTotalAmount()
+                                                getTotalAmount(),
                                             ).toUpperCase()
                                         }}</strong>
                                     </div>

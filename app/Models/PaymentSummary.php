@@ -48,10 +48,7 @@ class PaymentSummary extends Model
     {
         DB::table('payment_summaries')
             ->where('metric_key', $key)
-            ->update([
-                'metric_value' => DB::raw("metric_value + {$amount}"),
-                'updated_at' => now(),
-            ]);
+            ->increment('metric_value', $amount, ['updated_at' => now()]);
     }
 
     /**
@@ -59,12 +56,12 @@ class PaymentSummary extends Model
      */
     public static function decrementMetric(string $key, float $amount = 1): void
     {
-        DB::table('payment_summaries')
-            ->where('metric_key', $key)
-            ->update([
-                'metric_value' => DB::raw("GREATEST(metric_value - {$amount}, 0)"),
-                'updated_at' => now(),
-            ]);
+        // Use a parameterized statement to prevent SQL injection.
+        // GREATEST ensures the value never goes below zero.
+        DB::statement(
+            'UPDATE payment_summaries SET metric_value = GREATEST(metric_value - ?, 0), updated_at = ? WHERE metric_key = ?',
+            [$amount, now(), $key]
+        );
     }
 
     /**

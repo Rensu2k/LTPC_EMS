@@ -48,7 +48,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {    
-    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {        
+    Route::prefix('admin')->name('admin.')->middleware(['role:admin', 'dev-signature', 'throttle:60,1'])->group(function () {        
         Route::get('/dashboard', [DashboardController::class, 'admin'])->name('dashboard');
         
         Route::get('/programs', [ProgramController::class, 'adminIndex'])->name('programs');
@@ -86,7 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('backup');
     });
     
-    Route::prefix('officer')->name('officer.')->middleware('role:officer')->group(function () {
+    Route::prefix('officer')->name('officer.')->middleware(['role:officer', 'throttle:60,1'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'officer'])->name('dashboard');
         
         Route::get('/programs', [ProgramController::class, 'index'])->name('programs');
@@ -126,7 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
     });
     
-    Route::prefix('cashier')->name('cashier.')->middleware('role:cashier')->group(function () {
+    Route::prefix('cashier')->name('cashier.')->middleware(['role:cashier', 'throttle:60,1'])->group(function () {
         Route::get('/dashboard', [CashierController::class, 'dashboard'])->name('dashboard');
         
         Route::get('/payments/enrollment', [CashierController::class, 'enrollmentPayments'])->name('payments.enrollment');
@@ -156,23 +156,20 @@ Route::middleware('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| System Health & Diagnostics
+| System Health & Diagnostics (Admin Only)
 |--------------------------------------------------------------------------
+| H3: Protected behind auth + admin role to prevent information disclosure.
 */
-Route::get('/api/system/health', function () {
-    return response()->json([
-        'status'  => 'operational',
-        'uptime'  => now()->diffInSeconds(
-            \Carbon\Carbon::parse('2025-06-13 00:00:00')
-        ),
-        'version' => config('ltpc.version', '1.0.0'),
-        'build'   => base64_encode(json_encode([
-            'system'    => config('ltpc.code'),
-            'authors'   => config('ltpc.developers'),
-            'inception' => config('ltpc.inception'),
-            'signature' => config('ltpc.signature'),
-        ])),
-    ]);
+Route::middleware(['auth', 'verified'])->prefix('admin')->middleware('role:admin')->group(function () {
+    Route::get('/system/health', function () {
+        return response()->json([
+            'status'  => 'operational',
+            'uptime'  => now()->diffInSeconds(
+                \Carbon\Carbon::parse('2025-06-13 00:00:00')
+            ),
+            'version' => config('ltpc.version', '1.0.0'),
+        ]);
+    })->name('admin.system.health');
 });
 
 require __DIR__.'/auth.php';

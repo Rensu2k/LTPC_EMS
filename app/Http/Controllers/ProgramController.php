@@ -180,7 +180,7 @@ class ProgramController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:programs,name',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'duration' => 'required|string|max:255',
             'enrollment_fee' => 'nullable|numeric|min:0',
             'start_date' => 'nullable|date',
@@ -201,9 +201,9 @@ class ProgramController extends Controller
         $validated = $request->validate([
             'program_id' => 'nullable|string|max:50|unique:programs,program_id',
             'name' => 'required|string|max:255|unique:programs,name',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'duration' => 'required|string|max:255',
-            'prerequisites' => 'nullable|string',
+            'prerequisites' => 'nullable|string|max:5000',
             'enrollment_fee' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:active,inactive',
         ]);
@@ -266,7 +266,7 @@ class ProgramController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:programs,name,' . $program->program_id . ',program_id',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'duration' => 'required|string|max:255',
             'assigned_trainers' => 'nullable|array',
             'assigned_trainers.*' => 'exists:trainers,id',
@@ -290,9 +290,9 @@ class ProgramController extends Controller
         $validated = $request->validate([
             'program_id' => 'nullable|string|max:50|unique:programs,program_id,' . $program->program_id . ',program_id',
             'name' => 'required|string|max:255|unique:programs,name,' . $program->program_id . ',program_id',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'duration' => 'required|string|max:255',
-            'prerequisites' => 'nullable|string',
+            'prerequisites' => 'nullable|string|max:5000',
             'enrollment_fee' => 'nullable|numeric|min:0',
             'status' => 'nullable|in:active,inactive',
             'assigned_trainers' => 'nullable|array',

@@ -490,7 +490,7 @@ class CashierController extends Controller
             'trainee_id' => 'nullable|exists:trainees,id',
             'payment_method' => 'required|string',
             'payment_reference' => 'nullable|string',
-            'payment_notes' => 'nullable|string',
+            'payment_notes' => 'nullable|string|max:5000',
             'skip_enrollment' => 'nullable|boolean',
         ]);
 
@@ -594,7 +594,7 @@ class CashierController extends Controller
             'trainee_id' => 'nullable|exists:trainees,id',
             'complete_enrollment' => 'nullable|boolean',
             'status' => 'nullable|in:generated,cancelled',
-            'cancellation_reason' => 'nullable|string',
+            'cancellation_reason' => 'nullable|string|max:5000',
         ]);
 
         $isCancelled = $request->status === 'cancelled';

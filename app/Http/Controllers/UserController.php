@@ -73,6 +73,14 @@ class UserController extends Controller
             'role' => 'required|in:admin,officer,cashier',
         ]);
 
+        // H1: Prevent demoting the last admin
+        if ($user->role === 'admin' && $request->role !== 'admin') {
+            $adminCount = User::where('role', 'admin')->where('status', 'active')->count();
+            if ($adminCount <= 1) {
+                return redirect()->back()->with('error', 'Cannot change role: this is the last active admin account.');
+            }
+        }
+
         $user->update([
             'name' => $request->username,
             'username' => $request->username,
@@ -98,6 +106,14 @@ class UserController extends Controller
             return redirect()->back()->with('error', 'You cannot delete your own account.');
         }
 
+        // H1: Prevent deleting the last admin
+        if ($user->role === 'admin') {
+            $adminCount = User::where('role', 'admin')->where('status', 'active')->count();
+            if ($adminCount <= 1) {
+                return redirect()->back()->with('error', 'Cannot delete the last active admin account.');
+            }
+        }
+
         $user->delete();
 
         return redirect()->back()->with('success', 'User deleted successfully.');
@@ -114,6 +130,14 @@ class UserController extends Controller
         $request->validate([
             'status' => 'required|in:active,inactive',
         ]);
+
+        // H1: Prevent deactivating the last admin
+        if ($user->role === 'admin' && $request->status === 'inactive') {
+            $activeAdminCount = User::where('role', 'admin')->where('status', 'active')->count();
+            if ($activeAdminCount <= 1) {
+                return redirect()->back()->with('error', 'Cannot deactivate the last active admin account.');
+            }
+        }
 
         $user->status = $request->status;
         $user->save();

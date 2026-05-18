@@ -189,6 +189,16 @@ const formatAmount = (amount) => {
     return safeNumber(amount).toFixed(2);
 };
 
+const escapeHtml = (str) => {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
 const showReceiptModal = ref(false);
 const selectedReceipt = ref(null);
 
@@ -642,8 +652,8 @@ const generateReceiptHTML = (receipt) => {
     allFees.forEach((fee) => {
         feeRowsHTML += `
         <div class="table-row">
-            <div class="col-nature">${fee.natureOfCollection || "Fee"}</div>
-            <div class="col-account">${fee.accountCode || "EDU-001"}</div>
+            <div class="col-nature">${escapeHtml(fee.natureOfCollection || "Fee")}</div>
+            <div class="col-account">${escapeHtml(fee.accountCode || "EDU-001")}</div>
             <div class="col-amount">${formatCurrency(
                 safeNumber(fee.amount)
             )}</div>
@@ -652,7 +662,7 @@ const generateReceiptHTML = (receipt) => {
         if (fee.program) {
             feeRowsHTML += `
         <div class="table-row">
-            <div class="col-nature">${fee.program}</div>
+            <div class="col-nature">${escapeHtml(fee.program)}</div>
             <div class="col-account"></div>
             <div class="col-amount"></div>
         </div>`;
@@ -673,7 +683,7 @@ const generateReceiptHTML = (receipt) => {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Official Receipt ${receipt.id}</title>
+    <title>Official Receipt ${escapeHtml(receipt.id)}</title>
     <style>
         body { 
             font-family: 'Courier New', monospace; 
@@ -850,7 +860,7 @@ const generateReceiptHTML = (receipt) => {
                 <strong>OFFICIAL RECEIPT</strong>
             </div>
             <div class="form-right">
-                <strong>No. ${receipt.id}</strong>
+                <strong>No. ${escapeHtml(receipt.id)}</strong>
             </div>
         </div>
 
@@ -861,18 +871,18 @@ const generateReceiptHTML = (receipt) => {
 
         <div class="date-section">
             <div class="date-left">Fund Type:</div>
-            <div class="date-right"><strong>${
+            <div class="date-right"><strong>${escapeHtml(
                 receipt.fund_type || "General Fund"
-            }</strong></div>
+            )}</strong></div>
         </div>
 
         <div class="payor-section">
             <div class="payor-left">
-                <strong>Received from:</strong> ${receipt.trainee.name}<br>
-                <strong>ULI No:</strong> ${
+                <strong>Received from:</strong> ${escapeHtml(receipt.trainee.name)}<br>
+                <strong>ULI No:</strong> ${escapeHtml(
                     receipt.trainee.uli_number || "N/A"
-                }<br>
-                <strong>Trainee ID:</strong> ${receipt.trainee.id}
+                )}<br>
+                <strong>Trainee ID:</strong> ${escapeHtml(receipt.trainee.id)}
             </div>
             <div class="payor-right">
                 <strong>Amount</strong><br>

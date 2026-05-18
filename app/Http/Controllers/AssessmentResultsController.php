@@ -195,7 +195,7 @@ class AssessmentResultsController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'type' => 'required|in:practical',
             'status' => 'required|in:pending,completed',
             'result' => 'nullable|in:competent,not_yet_competent,absent',
@@ -211,7 +211,7 @@ class AssessmentResultsController extends Controller
             'payment_status' => 'required|in:pending,paid',
             'payment_method' => 'nullable|string|max:255',
             'payment_reference' => 'nullable|string|max:255',
-            'payment_notes' => 'nullable|string',
+            'payment_notes' => 'nullable|string|max:5000',
         ]);
 
         Assessment::create($validated);
@@ -226,7 +226,7 @@ class AssessmentResultsController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'type' => 'required|in:practical',
             'status' => 'required|in:pending,completed',
             'result' => 'nullable|in:competent,not_yet_competent,absent',
@@ -242,7 +242,7 @@ class AssessmentResultsController extends Controller
             'payment_status' => 'required|in:pending,paid',
             'payment_method' => 'nullable|string|max:255',
             'payment_reference' => 'nullable|string|max:255',
-            'payment_notes' => 'nullable|string',
+            'payment_notes' => 'nullable|string|max:5000',
         ]);
 
         $assessment->update($validated);

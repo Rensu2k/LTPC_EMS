@@ -224,7 +224,7 @@ class AssessmentController extends Controller
             
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
-                'description' => 'nullable|string',
+                'description' => 'nullable|string|max:10000',
                 'type' => 'required|in:practical',
                 'status' => 'required|in:pending,completed',
                 'result' => 'nullable|in:competent,not_yet_competent,absent',
@@ -241,7 +241,7 @@ class AssessmentController extends Controller
                 'payment_status' => 'required|in:pending,paid,refunded',
                 'payment_method' => 'nullable|string|required_if:payment_status,paid',
                 'payment_reference' => 'nullable|string|required_if:payment_status,paid',
-                'payment_notes' => 'nullable|string',
+                'payment_notes' => 'nullable|string|max:5000',
                 'original_assessment_id' => 'nullable|exists:assessments,id',
                 'is_reassessment' => 'nullable|boolean',
             ]);
@@ -467,7 +467,7 @@ class AssessmentController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:10000',
             'type' => 'required|in:practical',
             'status' => 'required|in:pending,completed',
             'result' => 'nullable|in:competent,not_yet_competent,absent',
@@ -484,7 +484,7 @@ class AssessmentController extends Controller
             'payment_status' => 'required|in:pending,paid,refunded',
             'payment_method' => 'nullable|string|required_if:payment_status,paid',
             'payment_reference' => 'nullable|string|required_if:payment_status,paid',
-            'payment_notes' => 'nullable|string',
+            'payment_notes' => 'nullable|string|max:5000',
         ]);
 
         if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {

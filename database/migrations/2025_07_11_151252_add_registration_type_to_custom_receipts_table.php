@@ -22,7 +22,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify the enum column to include 'registration'
         DB::statement("ALTER TABLE custom_receipts MODIFY COLUMN type ENUM('enrollment', 'assessment', 'registration')");
     }
 
@@ -31,7 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to original enum values
         DB::statement("ALTER TABLE custom_receipts MODIFY COLUMN type ENUM('enrollment', 'assessment')");
     }
 };

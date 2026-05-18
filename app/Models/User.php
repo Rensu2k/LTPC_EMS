@@ -12,7 +12,6 @@
  */
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -33,8 +32,6 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
-        // 'role' and 'status' are intentionally excluded from mass assignment
-        // to prevent privilege escalation. Set them explicitly in controllers.
     ];
 
     /**

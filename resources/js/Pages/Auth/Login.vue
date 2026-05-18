@@ -29,18 +29,13 @@ const submit = () => {
     });
 };
 
-// 3D Mouse-tracking tilt for the login card
 const handleMouseEnter = () => {
-    // Cache the flat (untransformed) bounding rect before any tilt is applied.
-    // getBoundingClientRect() on an already-tilted element returns an inflated
-    // axis-aligned box, which shifts centerX/centerY and makes the tilt drift.
     cardRect.value = cardRef.value?.getBoundingClientRect() ?? null;
 };
 
 const handleMouseMove = (e) => {
     const card = cardRef.value;
     if (!card) return;
-    // Use the cached flat rect so the center never drifts as the card tilts.
     const rect = cardRect.value ?? card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -61,7 +56,6 @@ const handleMouseLeave = () => {
     };
 };
 
-// Trigger fade-in animation
 onMounted(() => {
     setTimeout(() => {
         isVisible.value = true;

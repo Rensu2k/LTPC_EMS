@@ -133,7 +133,6 @@ class TraineeEnrollment extends Model
             'payment_notes' => $paymentNotes
         ];
 
-        // If enrollment was pending due to payment, reactivate it
         if ($this->status === 'pending') {
             $updateData['status'] = 'active';
         }
@@ -146,13 +145,11 @@ class TraineeEnrollment extends Model
      */
     public function handlePaymentStatusChange(): void
     {
-        // If payment becomes paid and status is pending, activate enrollment
         if ($this->payment_status === 'paid' && $this->status === 'pending') {
             $this->update(['status' => 'active']);
             Log::info("Enrollment {$this->id} activated due to payment completion");
         }
         
-        // If payment becomes unpaid and status is active, set to pending
         if ($this->payment_status !== 'paid' && $this->status === 'active') {
             $this->update(['status' => 'pending']);
             Log::info("Enrollment {$this->id} set to pending due to payment issue");
@@ -166,9 +163,7 @@ class TraineeEnrollment extends Model
     {
         parent::boot();
 
-        // Handle automatic status changes on update
         static::updated(function ($enrollment) {
-            // Check if payment_status changed
             if ($enrollment->wasChanged('payment_status')) {
                 $enrollment->handlePaymentStatusChange();
             }

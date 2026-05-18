@@ -56,8 +56,6 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        // Self-deletion is disabled in this admin-managed system.
-        // Only administrators can delete user accounts via the admin panel.
         abort(403, 'Account deletion is not permitted. Please contact an administrator.');
     }
 }

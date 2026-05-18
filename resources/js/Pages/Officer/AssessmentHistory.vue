@@ -408,7 +408,6 @@ const closeReassessmentModal = () => {
 
 const onReassessmentSubmitted = () => {
     showReassessmentModal.value = false;
-    // Refresh the page to show the new re-assessment
     window.location.reload();
 };
 </script>

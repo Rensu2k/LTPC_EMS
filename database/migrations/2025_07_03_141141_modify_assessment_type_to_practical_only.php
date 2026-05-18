@@ -22,10 +22,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // First, update all existing records to 'practical' if they're not already
         DB::table('assessments')->whereIn('type', ['theoretical', 'both'])->update(['type' => 'practical']);
         
-        // Then modify the enum column
         Schema::table('assessments', function (Blueprint $table) {
             $table->enum('type', ['practical'])->default('practical')->change();
         });

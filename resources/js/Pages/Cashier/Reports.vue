@@ -27,11 +27,9 @@ const summary = computed(
 
 const collections = computed(() => props.collectionsByProgram || []);
 
-// Filter state
 const dateFrom = ref("");
 const dateTo = ref("");
 
-// Clear filters
 const clearFilters = () => {
     dateFrom.value = "";
     dateTo.value = "";
@@ -45,11 +43,9 @@ const formatCurrency = (value) =>
 
 const exportToExcel = async () => {
     try {
-        // Create a new workbook
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Collections Report");
 
-        // Add title
         worksheet.mergeCells("A1:F1");
         const titleCell = worksheet.getCell("A1");
         titleCell.value = "LTPC Collections Report";
@@ -63,7 +59,6 @@ const exportToExcel = async () => {
         titleCell.font = { ...titleCell.font, color: { argb: "FFFFFFFF" } };
         worksheet.getRow(1).height = 30;
 
-        // Add date and filter info
         worksheet.mergeCells("A2:F2");
         const dateCell = worksheet.getCell("A2");
         let dateRangeText = "";
@@ -79,7 +74,6 @@ const exportToExcel = async () => {
         dateCell.font = { size: 10, italic: true };
         worksheet.getRow(2).height = 20;
 
-        // Add summary section
         worksheet.addRow([]);
         worksheet.addRow(["SUMMARY"]);
         worksheet.getRow(4).font = { bold: true, size: 12 };
@@ -102,11 +96,9 @@ const exportToExcel = async () => {
             formatCurrency(summary.value.outstandingBalance.amount),
         ]);
 
-        // Add spacing
         worksheet.addRow([]);
         worksheet.addRow([]);
 
-        // Add collections by program section
         worksheet.addRow(["COLLECTIONS BY PROGRAM"]);
         worksheet.getRow(10).font = { bold: true, size: 12 };
         worksheet.getRow(10).fill = {
@@ -115,7 +107,6 @@ const exportToExcel = async () => {
             fgColor: { argb: "FFE0E0E0" },
         };
 
-        // Add headers for collections table
         const headers = [
             "Program",
             "Total Payments",
@@ -143,7 +134,6 @@ const exportToExcel = async () => {
             cell.alignment = { horizontal: "center", vertical: "middle" };
         });
 
-        // Add data rows
         collections.value.forEach((program) => {
             worksheet.addRow([
                 program.program,
@@ -155,7 +145,6 @@ const exportToExcel = async () => {
             ]);
         });
 
-        // Style data rows
         const lastRow = worksheet.lastRow.number;
         for (let i = 12; i <= lastRow; i++) {
             const row = worksheet.getRow(i);
@@ -167,7 +156,6 @@ const exportToExcel = async () => {
                     right: { style: "thin" },
                 };
             });
-            // Alternate row colors
             if ((i - 12) % 2 === 0) {
                 row.fill = {
                     type: "pattern",
@@ -177,7 +165,6 @@ const exportToExcel = async () => {
             }
         }
 
-        // Add totals row
         const totalCollections = collections.value.reduce(
             (sum, p) => sum + Number(p.collectionAmount || 0),
             0
@@ -217,7 +204,6 @@ const exportToExcel = async () => {
             };
         });
 
-        // Set column widths
         worksheet.columns = [
             { width: 30 }, // Program
             { width: 15 }, // Total Payments
@@ -227,7 +213,6 @@ const exportToExcel = async () => {
             { width: 20 }, // Collection Amount
         ];
 
-        // Generate Excel file
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -27,25 +27,20 @@ class DashboardController extends Controller
 {
     public function admin()
     {
-        // Get dashboard statistics using the enrollment system
         $totalEnrollments = TraineeEnrollment::count();
         $activePrograms = Program::where('status', 'active')->count();
         $completedTrainings = TraineeEnrollment::where('status', 'completed')->count();
         $activeEnrollments = TraineeEnrollment::where('status', 'active')->count();
         $totalTrainers = Trainer::where('status', 'active')->count();
         
-        // Assessment statistics
         $totalAssessments = Assessment::count();
         $pendingAssessments = Assessment::where('status', 'pending')->count();
         $completedAssessments = Assessment::whereIn('status', ['completed', 'graded', 'pass', 'fail'])->count();
         $passedAssessments = Assessment::where('status', 'pass')->count();
 
-        // Payment statistics
         $regularTrainees = Trainee::whereNull('scholarship_package')->orWhere('scholarship_package', '')->count();
         $scholarTrainees = Trainee::whereNotNull('scholarship_package')->where('scholarship_package', '!=', '')->count();
         
-        // Payment statistics — use cached totals to avoid scanning 2M+ rows.
-        // These caches are maintained by PaymentSummaryObserver.
         $paidTrainingPayments = (int) PaymentSummary::getValue('enrollment_paid_count');
         $pendingTrainingPayments = (int) PaymentSummary::getValue('enrollment_unpaid_count');
         
@@ -54,11 +49,9 @@ class DashboardController extends Controller
         
         $totalPendingPayments = $pendingTrainingPayments + $pendingAssessmentPayments;
         
-        // Employment statistics (placeholder - you may need to create an employment model)
         $employmentEndorsements = 0; // Placeholder
         $employmentRate = 0; // Placeholder
 
-        // Get previous month data for comparison
         $lastMonth = Carbon::now()->subMonth();
         $lastMonthEnrollments = TraineeEnrollment::where('created_at', '<=', $lastMonth)->count();
         $lastMonthCompleted = TraineeEnrollment::where('status', 'completed')
@@ -67,7 +60,6 @@ class DashboardController extends Controller
             ->where('created_at', '<=', $lastMonth)->count();
         $lastMonthAssessments = Assessment::where('created_at', '<=', $lastMonth)->count();
 
-        // Calculate percentage changes
         $enrollmentsChange = $lastMonthEnrollments > 0 
             ? round((($totalEnrollments - $lastMonthEnrollments) / $lastMonthEnrollments) * 100, 1) 
             : 0;
@@ -81,7 +73,6 @@ class DashboardController extends Controller
             ? round((($totalAssessments - $lastMonthAssessments) / $lastMonthAssessments) * 100, 1) 
             : 0;
 
-        // Get recent activities (last 10 enrollments with trainee and program data)
         $recentEnrollments = TraineeEnrollment::with(['trainee', 'program'])
             ->latest('created_at')
             ->limit(10)
@@ -90,7 +81,6 @@ class DashboardController extends Controller
                 $trainee = $enrollment->trainee;
                 $program = $enrollment->program;
                 
-                // Find assigned trainer for this program
                 $assignedTrainer = null;
                 if ($program && $program->assigned_trainers) {
                     $trainerIds = $program->assigned_trainers;
@@ -111,7 +101,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get recent assessments
         $recentAssessments = Assessment::with(['program', 'trainee', 'trainer'])
             ->latest('created_at')
             ->limit(5)
@@ -128,13 +117,11 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get recent payments
         $recentPayments = CustomReceipt::with(['trainee', 'program'])
             ->latest('date_generated')
             ->limit(5)
             ->get()
             ->map(function ($receipt) {
-                // Combine date_generated and time_generated into a single timestamp
                 $generatedDate = $receipt->date_generated
                     ? \Carbon\Carbon::parse($receipt->date_generated)->format('Y-m-d')
                     : ($receipt->created_at ? $receipt->created_at->format('Y-m-d') : now()->format('Y-m-d'));
@@ -144,7 +131,6 @@ class DashboardController extends Controller
                     if ($receipt->time_generated instanceof \Carbon\Carbon) {
                         $generatedTime = $receipt->time_generated->format('H:i:s');
                     } elseif (is_string($receipt->time_generated)) {
-                        // Accept HH:MM or HH:MM:SS
                         if (preg_match('/^\d{2}:\d{2}(?::\d{2})?$/', $receipt->time_generated)) {
                             $generatedTime = strlen($receipt->time_generated) === 5
                                 ? $receipt->time_generated . ':00'
@@ -170,13 +156,11 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Combine and sort all recent activities by actual timestamp
         $recentActivities = $recentEnrollments->concat($recentAssessments)->concat($recentPayments)
             ->sortByDesc('timestamp')
             ->take(10)
             ->values();
 
-        // Get program progress data
         $programProgress = Program::where('status', 'active')
             ->withCount(['enrollments as enrolled_count' => function($query) {
                 $query->where('status', 'active');
@@ -195,7 +179,6 @@ class DashboardController extends Controller
             })
             ->take(5); // Show top 5 programs
 
-        // Prepare statistics data
         $stats = [
             'total_enrollments' => $totalEnrollments,
             'active_programs' => $activePrograms,
@@ -206,7 +189,6 @@ class DashboardController extends Controller
             'employment_rate' => $employmentRate,
         ];
 
-        // Prepare payment summary
         $paymentSummary = [
             'regular_trainees' => $regularTrainees,
             'scholar_trainees' => $scholarTrainees,
@@ -226,20 +208,17 @@ class DashboardController extends Controller
 
     public function officer()
     {
-        // Get dashboard statistics using the enrollment system
         $totalEnrollments = TraineeEnrollment::count();
         $activePrograms = Program::where('status', 'active')->count();
         $completedTrainings = TraineeEnrollment::where('status', 'completed')->count();
         $activeEnrollments = TraineeEnrollment::where('status', 'active')->count();
         $totalTrainers = Trainer::where('status', 'active')->count();
         
-        // Assessment statistics
         $totalAssessments = Assessment::count();
         $pendingAssessments = Assessment::where('status', 'pending')->count();
         $completedAssessments = Assessment::whereIn('status', ['completed', 'graded', 'pass', 'fail'])->count();
         $passedAssessments = Assessment::where('status', 'pass')->count();
 
-        // Get previous month data for comparison
         $lastMonth = Carbon::now()->subMonth();
         $lastMonthEnrollments = TraineeEnrollment::where('created_at', '<=', $lastMonth)->count();
         $lastMonthCompleted = TraineeEnrollment::where('status', 'completed')
@@ -248,7 +227,6 @@ class DashboardController extends Controller
             ->where('created_at', '<=', $lastMonth)->count();
         $lastMonthAssessments = Assessment::where('created_at', '<=', $lastMonth)->count();
 
-        // Calculate percentage changes
         $enrollmentsChange = $lastMonthEnrollments > 0 
             ? round((($totalEnrollments - $lastMonthEnrollments) / $lastMonthEnrollments) * 100, 1) 
             : 0;
@@ -262,7 +240,6 @@ class DashboardController extends Controller
             ? round((($totalAssessments - $lastMonthAssessments) / $lastMonthAssessments) * 100, 1) 
             : 0;
 
-        // Get recent enrollments (last 10 enrollments with trainee and program data)
         $recentEnrollments = TraineeEnrollment::with(['trainee', 'program'])
             ->latest('created_at')
             ->limit(10)
@@ -271,7 +248,6 @@ class DashboardController extends Controller
                 $trainee = $enrollment->trainee;
                 $program = $enrollment->program;
                 
-                // Find assigned trainer for this program
                 $assignedTrainer = null;
                 if ($program && $program->assigned_trainers) {
                     $trainerIds = $program->assigned_trainers;
@@ -295,7 +271,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Get recent assessments (last 5 assessments with related data)
         $recentAssessments = Assessment::with(['program', 'trainee', 'trainer'])
             ->latest('created_at')
             ->limit(5)
@@ -320,7 +295,6 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Prepare statistics data
         $statistics = [
             'total_enrollments' => [
                 'value' => $totalEnrollments,

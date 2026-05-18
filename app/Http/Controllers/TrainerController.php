@@ -28,10 +28,8 @@ class TrainerController extends Controller
         $search = $this->sanitizeSearch($request->get('search', ''));
         $expertise = $request->get('expertise', '');
 
-        // Build the query
         $query = Trainer::query();
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
@@ -40,12 +38,10 @@ class TrainerController extends Controller
             });
         }
 
-        // Apply expertise filter if provided
         if ($expertise && $expertise !== 'All Expertise') {
             $query->whereJsonContains('expertise', $expertise);
         }
 
-        // Get paginated results
         $trainers = $query->latest()
             ->paginate($perPage)
             ->through(function ($trainer) {
@@ -87,7 +83,6 @@ class TrainerController extends Controller
      */
     public function create()
     {
-        //
     }
 
     /**
@@ -183,7 +178,6 @@ class TrainerController extends Controller
      */
     public function destroy(Trainer $trainer)
     {
-        // Check if trainer is assigned to any active programs
         $assignedPrograms = Program::where('status', 'active')
             ->whereNotNull('assigned_trainers')
             ->get()
@@ -214,7 +208,6 @@ class TrainerController extends Controller
 
         $query = Trainer::query();
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
@@ -223,12 +216,10 @@ class TrainerController extends Controller
             });
         }
 
-        // Apply expertise filter if provided
         if ($expertise && $expertise !== 'All Expertise') {
             $query->whereJsonContains('expertise', $expertise);
         }
 
-        // Apply status filter if provided
         if ($status && $status !== 'All Statuses') {
             $query->where('status', $status);
         }

@@ -27,9 +27,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trainee_enrollments', function (Blueprint $table) {
-            // Covers: SUM(enrollment_fee) WHERE payment_status = 'paid'
             $table->index(['payment_status', 'enrollment_fee'], 'idx_enrollments_payment_fee');
-            // Covers: COUNT(*) WHERE status = 'active' (and other status queries)
             $table->index(['status', 'payment_status'], 'idx_enrollments_status_payment');
         });
     }

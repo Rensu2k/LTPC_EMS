@@ -15,7 +15,6 @@ import "vue-toastification/dist/index.css";
 
 const appName = import.meta.env.VITE_APP_NAME || "Laravel";
 
-// Toast configuration
 const toastOptions = {
     position: "top-right",
     timeout: 5000,
@@ -39,7 +38,6 @@ const toastOptions = {
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => {
-        // Lazy load pages for better performance
         return resolvePageComponent(
             `./Pages/${name}.vue`,
             import.meta.glob("./Pages/**/*.vue", { eager: false })

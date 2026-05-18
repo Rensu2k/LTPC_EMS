@@ -31,26 +31,21 @@ const form = useForm({
     assessment_fee: "",
 });
 
-// Track whether to use manual assessor input or select from trainers
 const useManualAssessor = ref(false);
 
 const submit = () => {
-    // Transform data to ensure proper types for backend
     form.transform((data) => {
         const transformed = {
             ...data,
             assessment_fee: parseFloat(data.assessment_fee) || 0,
         };
         
-        // If using manual assessor, clear trainer_id and ensure assessor_name is set
         if (useManualAssessor.value) {
             transformed.trainer_id = null;
             if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
-                // This will be caught by validation
                 transformed.assessor_name = '';
             }
         } else {
-            // If using trainer selection, clear assessor_name
             transformed.assessor_name = null;
         }
         
@@ -74,7 +69,6 @@ const close = () => {
     emit("close");
 };
 
-// Reset form when modal is closed
 watch(
     () => props.show,
     (newValue) => {
@@ -82,12 +76,9 @@ watch(
             form.reset();
             form.clearErrors();
         } else {
-            // Set default assessment date to today when opening
             const today = new Date();
             form.assessment_date = today.toISOString().split("T")[0];
 
-            // Set default assessment fee - use original assessment fee or standard re-assessment fee
-            // Re-assessments are not free (scholars only get exemption for first attempt)
             const defaultFee =
                 props.assessment?.assessment_fee > 0
                     ? props.assessment.assessment_fee
@@ -97,13 +88,11 @@ watch(
     }
 );
 
-// Computed property for filtered trainers based on assessment program
 const filteredTrainers = computed(() => {
     if (!props.assessment?.program_id || !props.trainers) {
         return props.trainers || [];
     }
 
-    // Find the program
     const program = props.programs.find(
         (p) => p.program_id === props.assessment.program_id
     );
@@ -111,13 +100,11 @@ const filteredTrainers = computed(() => {
         return [];
     }
 
-    // Filter trainers assigned to this program
     return props.trainers.filter((trainer) =>
         program.assigned_trainers.includes(trainer.id)
     );
 });
 
-// Check if applicant is a scholar (for display purposes)
 const isScholar = computed(() => {
     return (
         props.assessment?.applicant_type === "enrolled_trainee" &&

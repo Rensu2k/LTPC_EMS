@@ -29,7 +29,6 @@ class EmploymentController extends Controller
 
         $query = Employment::with(['trainee', 'assessment']);
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
@@ -41,12 +40,10 @@ class EmploymentController extends Controller
             });
         }
 
-        // Apply status filter if provided
         if ($status && $status !== 'All Statuses') {
             $query->where('status', $status);
         }
 
-        // Apply company filter if provided
         if ($company && $company !== 'All Companies') {
             $query->where('company_name', $company);
         }
@@ -193,12 +190,10 @@ class EmploymentController extends Controller
      */
     public static function createFromCompetentAssessment(Assessment $assessment)
     {
-        // Only create employment record for enrolled trainees (not external applicants)
         if ($assessment->applicant_type !== 'enrolled_trainee' || !$assessment->trainee_id) {
             return null;
         }
 
-        // Check if employment record already exists for this trainee and assessment
         $existingEmployment = Employment::where('trainee_id', $assessment->trainee_id)
             ->where('assessment_id', $assessment->id)
             ->first();
@@ -207,11 +202,9 @@ class EmploymentController extends Controller
             return $existingEmployment;
         }
 
-        // Get trainee information
         $trainee = $assessment->trainee;
         $program = $assessment->program;
 
-        // Create employment record
         return Employment::create([
             'trainee_id' => $assessment->trainee_id,
             'company_name' => 'To be determined', // Default value, can be updated later

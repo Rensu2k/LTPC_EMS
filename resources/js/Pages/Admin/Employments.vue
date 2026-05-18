@@ -33,7 +33,6 @@ const selectedStatus = ref(props.filters?.status || "");
 const selectedCompany = ref(props.filters?.company || "");
 const perPage = ref(props.filters?.per_page || 10);
 
-// Add search functionality
 const performSearch = () => {
     router.get(
         route("admin.employments"),
@@ -52,12 +51,10 @@ const performSearch = () => {
     );
 };
 
-// Add change per page functionality
 const changePerPage = () => {
     performSearch();
 };
 
-// Watch for filter changes and trigger search
 watch(
     [selectedStatus, selectedCompany],
     () => {
@@ -184,7 +181,6 @@ const getDaysAgo = (date) => {
 };
 
 const exportEmploymentReport = () => {
-    // TODO: Implement export functionality
 };
 </script>
 

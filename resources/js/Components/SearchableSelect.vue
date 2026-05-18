@@ -64,27 +64,22 @@ const searchInput = ref(null);
 const dropdown = ref(null);
 const highlightedIndex = ref(-1);
 
-// Get selected option
 const selectedOption = computed(() => {
     return props.options.find(
         (option) => option[props.valueKey] == props.modelValue
     );
 });
 
-// Display text for selected option in input
 const displayValue = computed(() => {
     if (!selectedOption.value) return searchQuery.value;
 
-    // When not searching, show selected option name
     if (!isOpen.value || searchQuery.value === "") {
         return selectedOption.value[props.displayKey];
     }
 
-    // When searching, show search query
     return searchQuery.value;
 });
 
-// Filtered options based on search
 const filteredOptions = computed(() => {
     if (!searchQuery.value) return props.options;
 
@@ -98,7 +93,6 @@ const filteredOptions = computed(() => {
     });
 });
 
-// Handle input changes
 const onInput = (event) => {
     searchQuery.value = event.target.value;
     if (!isOpen.value) {
@@ -107,38 +101,32 @@ const onInput = (event) => {
     highlightedIndex.value = -1;
 };
 
-// Handle option selection
 const selectOption = (option) => {
     emit("update:modelValue", option[props.valueKey]);
     searchQuery.value = ""; // Clear search after selection
     closeDropdown();
 };
 
-// Clear selection
 const clearSelection = () => {
     emit("update:modelValue", "");
     searchQuery.value = "";
     closeDropdown();
 };
 
-// Open dropdown
 const openDropdown = () => {
     if (props.disabled) return;
     isOpen.value = true;
     highlightedIndex.value = -1;
 };
 
-// Close dropdown
 const closeDropdown = () => {
     isOpen.value = false;
     highlightedIndex.value = -1;
-    // If user closed without selecting and there was a previous selection, clear search
     if (selectedOption.value && searchQuery.value !== "") {
         searchQuery.value = "";
     }
 };
 
-// Toggle dropdown
 const toggleDropdown = () => {
     if (isOpen.value) {
         closeDropdown();
@@ -147,7 +135,6 @@ const toggleDropdown = () => {
     }
 };
 
-// Handle keyboard navigation
 const handleKeyDown = (event) => {
     if (
         !isOpen.value &&
@@ -191,7 +178,6 @@ const handleKeyDown = (event) => {
     }
 };
 
-// Close dropdown when clicking outside
 const handleClickOutside = (event) => {
     if (dropdown.value && !dropdown.value.contains(event.target)) {
         closeDropdown();
@@ -206,18 +192,15 @@ onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
 });
 
-// Watch for model value changes to update display
 watch(
     () => props.modelValue,
     () => {
-        // Clear search when value changes externally
         if (!isOpen.value) {
             searchQuery.value = "";
         }
     }
 );
 
-// Reset search when options change
 watch(
     () => props.options,
     () => {

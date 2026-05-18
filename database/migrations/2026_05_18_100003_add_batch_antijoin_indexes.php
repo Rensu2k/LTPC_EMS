@@ -28,7 +28,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Covering index for the NOT EXISTS correlated subquery
         Schema::table('trainee_enrollments', function (Blueprint $table) {
             $table->index(
                 ['trainee_id', 'program_id', 'status'],
@@ -36,8 +35,6 @@ return new class extends Migration
             );
         });
 
-        // Covering index for trainees batch counting:
-        // WHERE program_qualification = ? AND status IN (?) AND batch = ?
         Schema::table('trainees', function (Blueprint $table) {
             $table->index(
                 ['program_qualification', 'status', 'batch'],

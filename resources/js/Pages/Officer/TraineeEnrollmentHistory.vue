@@ -534,16 +534,13 @@ const props = defineProps({
 
 const showEnrollModal = ref(false);
 
-// Role detection
 const user = computed(() => usePage().props.auth.user);
 const isOfficer = computed(() => user.value?.role === "officer");
 
-// Dynamic back route based on user role
 const backRoute = computed(() => {
     return isOfficer.value ? "officer.trainees" : "admin.trainees";
 });
 
-// Computed properties for stats
 const completedCount = computed(
     () => props.enrollments.filter((e) => e.status === "completed").length
 );
@@ -552,7 +549,6 @@ const activeCount = computed(
     () => props.enrollments.filter((e) => e.status === "active").length
 );
 
-// Format date helper
 const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -562,26 +558,20 @@ const formatDate = (dateString) => {
     });
 };
 
-// Format date ended with special logic
 const formatDateEnded = (enrollment) => {
-    // If trainee dropped, show "Dropped"
     if (enrollment.status === "dropped") {
         return "Dropped";
     }
 
-    // If there's an actual end date, format it
     if (enrollment.date_ended) {
         return formatDate(enrollment.date_ended);
     }
 
-    // If training hasn't ended yet, show "-"
     return "-";
 };
 
-// Handle enrollment submission
 const handleEnrollmentSubmitted = () => {
     showEnrollModal.value = false;
-    // Refresh the page to show updated data
     router.reload();
 };
 </script>

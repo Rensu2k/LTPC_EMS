@@ -25,7 +25,6 @@ const props = defineProps({
 const searchQuery = ref("");
 const expandedTrainees = ref(new Set());
 
-// Filter states
 const selectedProgram = ref("");
 const selectedStatus = ref("");
 const dateFrom = ref("");
@@ -34,7 +33,6 @@ const amountFrom = ref("");
 const amountTo = ref("");
 const showFilters = ref(false);
 
-// Get unique programs and statuses for filter dropdowns
 const availablePrograms = computed(() => {
     const programs = new Set();
     props.groupedReceipts?.forEach((trainee) => {
@@ -58,7 +56,6 @@ const availableStatuses = computed(() => {
 const filteredTrainees = computed(() => {
     let filtered = props.groupedReceipts || [];
 
-    // Search filter
     if (searchQuery.value) {
         filtered = filtered.filter((trainee) => {
             return (
@@ -81,14 +78,12 @@ const filteredTrainees = computed(() => {
         });
     }
 
-    // Program filter
     if (selectedProgram.value) {
         filtered = filtered.filter(
             (trainee) => trainee.program === selectedProgram.value
         );
     }
 
-    // Status filter
     if (selectedStatus.value) {
         filtered = filtered.filter((trainee) =>
             trainee.receipts.some(
@@ -97,7 +92,6 @@ const filteredTrainees = computed(() => {
         );
     }
 
-    // Date range filter
     if (dateFrom.value || dateTo.value) {
         filtered = filtered.filter((trainee) =>
             trainee.receipts.some((receipt) => {
@@ -119,7 +113,6 @@ const filteredTrainees = computed(() => {
         );
     }
 
-    // Amount range filter
     if (amountFrom.value || amountTo.value) {
         filtered = filtered.filter((trainee) =>
             trainee.receipts.some((receipt) => {
@@ -168,7 +161,6 @@ const hasActiveFilters = computed(() => {
     );
 });
 
-// Summary statistics
 const totalFilteredReceipts = computed(() => {
     return filteredTrainees.value.reduce((total, trainee) => {
         return total + trainee.receipts.length;
@@ -231,11 +223,9 @@ const formatDate = (date) => {
 const exportToPDF = () => {
     const doc = new jsPDF();
 
-    // Add title
     doc.setFontSize(18);
     doc.text("Payments Report", 14, 22);
 
-    // Add subtitle with date range if filters are applied
     doc.setFontSize(12);
     let subtitle = "All Payments";
     if (dateFrom.value || dateTo.value) {
@@ -245,7 +235,6 @@ const exportToPDF = () => {
     }
     doc.text(subtitle, 14, 32);
 
-    // Add summary statistics
     doc.setFontSize(10);
     doc.text(`Total Trainees: ${filteredTrainees.value.length}`, 14, 42);
     doc.text(`Total Receipts: ${totalFilteredReceipts.value}`, 14, 50);
@@ -255,13 +244,11 @@ const exportToPDF = () => {
         58
     );
 
-    // Create a simple table without autotable
     let yPosition = 75;
     const lineHeight = 8;
     const pageHeight = 280;
     let currentPage = 1;
 
-    // Add headers
     doc.setFontSize(8);
     doc.setFillColor(34, 139, 34);
     doc.rect(14, yPosition - 5, 180, 8, "F");
@@ -275,9 +262,7 @@ const exportToPDF = () => {
     yPosition += 10;
     doc.setTextColor(0, 0, 0);
 
-    // Add data rows
     filteredTrainees.value.forEach((trainee, index) => {
-        // Check if we need a new page
         if (yPosition > pageHeight) {
             doc.addPage();
             currentPage++;
@@ -302,27 +287,22 @@ const exportToPDF = () => {
         yPosition += lineHeight;
     });
 
-    // Add page numbers
     for (let i = 1; i <= currentPage; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.text(`Page ${i} of ${currentPage}`, 14, pageHeight + 10);
     }
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `payments_report_${timestamp}.pdf`;
 
-    // Save the PDF
     doc.save(filename);
 };
 
 const exportToExcel = async () => {
-    // Create a new workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Payments");
 
-    // Add summary information at the top
     worksheet.addRow(["Report Date:", new Date().toLocaleDateString()]);
     worksheet.addRow([""]);
     worksheet.addRow(["Summary Statistics:"]);
@@ -331,7 +311,6 @@ const exportToExcel = async () => {
     worksheet.addRow(["Total Amount:", totalFilteredAmount.value]);
     worksheet.addRow([""]);
 
-    // Add headers
     const headers = [
         "Trainee Name",
         "ULI Number",
@@ -343,7 +322,6 @@ const exportToExcel = async () => {
     ];
     worksheet.addRow(headers);
 
-    // Style header row
     const headerRow = worksheet.getRow(8);
     headerRow.fill = {
         type: "pattern",
@@ -353,7 +331,6 @@ const exportToExcel = async () => {
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
 
-    // Add data rows
     filteredTrainees.value.forEach((trainee) => {
         worksheet.addRow([
             trainee.trainee_name || "N/A",
@@ -370,7 +347,6 @@ const exportToExcel = async () => {
         ]);
     });
 
-    // Adjust column widths
     worksheet.getColumn(1).width = 25; // Trainee Name
     worksheet.getColumn(2).width = 15; // ULI Number
     worksheet.getColumn(3).width = 25; // Program
@@ -379,11 +355,9 @@ const exportToExcel = async () => {
     worksheet.getColumn(6).width = 20; // Latest Payment Date
     worksheet.getColumn(7).width = 15; // Payment Status
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `payments_report_${timestamp}.xlsx`;
 
-    // Write to buffer and save
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -392,7 +366,6 @@ const exportToExcel = async () => {
 };
 
 const exportPaymentReport = () => {
-    // Default to PDF export for backward compatibility
     exportToPDF();
 };
 </script>

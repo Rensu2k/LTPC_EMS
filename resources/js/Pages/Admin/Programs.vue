@@ -28,7 +28,6 @@ const user = computed(() => usePage().props.auth.user);
 const isOfficer = computed(() => user.value?.role === "officer");
 const isAdmin = computed(() => user.value?.role === "admin");
 
-// Determine the correct API endpoint based on user role
 const apiEndpoint = computed(() => {
     if (isOfficer.value) {
         return "/officer/programs";
@@ -45,7 +44,6 @@ const deletingProgram = ref(null);
 const searchQuery = ref("");
 const perPage = ref(props.filters?.per_page || 10);
 
-// Check if any filters are active
 const hasActiveFilters = computed(() => {
     return searchQuery.value || (perPage.value && perPage.value !== 10);
 });
@@ -79,7 +77,6 @@ const filteredPrograms = computed(() => {
     return filtered;
 });
 
-// Add search functionality
 const performSearch = () => {
     router.get(
         route("admin.programs"),

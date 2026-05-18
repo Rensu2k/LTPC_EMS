@@ -22,7 +22,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('assessments', function (Blueprint $table) {
-            // Rename retake column to reassessment
             $table->renameColumn('is_retake', 'is_reassessment');
         });
     }
@@ -33,7 +32,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('assessments', function (Blueprint $table) {
-            // Rename back to original
             $table->renameColumn('is_reassessment', 'is_retake');
         });
     }

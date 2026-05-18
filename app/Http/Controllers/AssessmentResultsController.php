@@ -35,7 +35,6 @@ class AssessmentResultsController extends Controller
         $query = Assessment::with(['program', 'trainee', 'trainer'])
             ->where('status', 'completed'); // Only show completed assessments
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
@@ -49,12 +48,10 @@ class AssessmentResultsController extends Controller
             });
         }
 
-        // Apply program filter if provided
         if ($program && $program !== 'All Programs') {
             $query->where('program_id', $program);
         }
 
-        // Apply result filter if provided
         if ($result && $result !== 'All Results' && $result !== '') {
             if ($result === 'Not Evaluated') {
                 $query->whereNull('result');
@@ -63,7 +60,6 @@ class AssessmentResultsController extends Controller
             }
         }
 
-        // Apply date range filter if provided
         if ($dateFrom) {
             $query->whereDate('assessment_date', '>=', $dateFrom);
         }
@@ -71,8 +67,6 @@ class AssessmentResultsController extends Controller
             $query->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        // Get only the latest assessment per trainee/assessment type/program combination
-        // This prevents showing multiple attempts in the main table
         $assessments = $query->select('assessments.*')
             ->whereIn('assessments.id', function ($subQuery) {
                 $subQuery->selectRaw('MAX(a.id)')
@@ -129,11 +123,8 @@ class AssessmentResultsController extends Controller
                 ];
             });
 
-        // Scalability fix: Instead of loading ALL completed assessments into memory
-        // for statistics (which OOMs at 1.5M rows), compute aggregates at the DB level.
         $statsBaseQuery = Assessment::query()->where('status', 'completed');
 
-        // Apply the same filters to statistics
         if ($search) {
             $statsBaseQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
@@ -157,7 +148,6 @@ class AssessmentResultsController extends Controller
             $statsBaseQuery->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        // Aggregate statistics at the DB level
         $resultCounts = (clone $statsBaseQuery)
             ->selectRaw("result, COUNT(*) as count")
             ->groupBy('result')
@@ -265,7 +255,6 @@ class AssessmentResultsController extends Controller
      */
     public function destroy(Assessment $assessment)
     {
-        // Prevent deleting assessments that cannot be deleted
         if (!$assessment->isDeletable()) {
             if ($assessment->isGraded()) {
                 return redirect()->back()->with('error', 'Cannot delete graded assessments. This assessment has already been finalized.');
@@ -286,8 +275,6 @@ class AssessmentResultsController extends Controller
      */
     public function assessmentHistory(Assessment $assessment)
     {
-        // Get ALL assessment attempts for the same applicant and assessment type
-        // This includes the current assessment in the history
         $query = Assessment::where('type', $assessment->type)
             ->where('program_id', $assessment->program_id)
             ->where(function ($q) use ($assessment) {
@@ -328,7 +315,6 @@ class AssessmentResultsController extends Controller
             ];
         });
 
-        // Get applicant information
         $applicant = null;
         if ($assessment->applicant_type === 'enrolled_trainee' && $assessment->trainee) {
             $applicant = [

@@ -48,7 +48,6 @@ class CustomReceipt extends Model
         'time_generated' => 'datetime:H:i',
     ];
 
-    // Relationships
     public function enrollment()
     {
         return $this->belongsTo(TraineeEnrollment::class, 'enrollment_id');

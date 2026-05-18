@@ -12,15 +12,12 @@ import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import { Link, usePage, router } from "@inertiajs/vue3";
 
 const showingNavigationDropdown = ref(false);
-// Keep payments dropdown open if on any payments page
 const showingPaymentsDropdown = ref(route().current('cashier.payments.*'));
 const user = computed(() => usePage().props.auth.user);
 
-// Dynamic topbar title based on current route
 const pageTitle = computed(() => {
     const currentRoute = route().current();
 
-    // Admin routes
     if (currentRoute === "admin.dashboard") return "Admin Dashboard";
     if (currentRoute === "admin.programs") return "Manage Programs";
     if (currentRoute === "admin.trainees") return "Manage Trainees";
@@ -31,14 +28,12 @@ const pageTitle = computed(() => {
 
     if (currentRoute === "admin.users") return "Manage Users";
 
-    // Officer routes
     if (currentRoute === "officer.dashboard") return "Officer Dashboard";
     if (currentRoute === "officer.programs") return "Programs";
     if (currentRoute === "officer.trainees") return "Trainees";
     if (currentRoute === "officer.trainers") return "Trainers";
     if (currentRoute === "officer.assessments") return "Assessments";
 
-    // Cashier routes
     if (currentRoute === "cashier.dashboard") return "Cashier Dashboard";
     if (currentRoute === "cashier.payments.enrollment") return "Enrollment Payments";
     if (currentRoute === "cashier.payments.additional") return "Additional Payments";
@@ -47,7 +42,6 @@ const pageTitle = computed(() => {
     if (currentRoute === "cashier.receipts") return "Receipts";
     if (currentRoute === "cashier.reports") return "Reports";
 
-    // Default fallback
     return "Dashboard";
 });
 

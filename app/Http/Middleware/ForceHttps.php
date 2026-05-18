@@ -26,11 +26,9 @@ class ForceHttps
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Force HTTPS for all URLs when FORCE_HTTPS is enabled
         if (config('app.force_https')) {
             URL::forceScheme('https');
             
-            // Force root URL to ensure all generated URLs use HTTPS
             $appUrl = config('app.url');
             if ($appUrl && str_starts_with($appUrl, 'https://')) {
                 URL::forceRootUrl($appUrl);

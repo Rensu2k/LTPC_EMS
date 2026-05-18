@@ -12,7 +12,6 @@ import { useNotifications } from "@/composables/useNotifications";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-// Define props to receive data from backend
 const notifications = useNotifications();
 
 const props = defineProps({
@@ -24,7 +23,6 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    // Keep old props for backward compatibility
     enrollmentReceipts: {
         type: Array,
         default: () => [],
@@ -35,24 +33,19 @@ const props = defineProps({
     },
 });
 
-// Convert props to reactive refs for template usage
 const groupedReceipts = ref(props.groupedReceipts);
 const cancelledReceipts = ref(props.cancelledReceipts);
 
-// Active tab state
 const activeTab = ref("generated");
 
 const searchQuery = ref("");
 
-// Filter state
 const dateFrom = ref("");
 const dateTo = ref("");
 const fundTypeFilter = ref("all"); // 'all', 'General Fund', 'Trust Fund'
 
-// Track which trainee sections are expanded
 const expandedTrainees = ref(new Set());
 
-// Toggle trainee section expansion
 const toggleTraineeExpansion = (traineeId) => {
     if (expandedTrainees.value.has(traineeId)) {
         expandedTrainees.value.delete(traineeId);
@@ -61,17 +54,14 @@ const toggleTraineeExpansion = (traineeId) => {
     }
 };
 
-// Check if trainee section is expanded
 const isTraineeExpanded = (traineeId) => {
     return expandedTrainees.value.has(traineeId);
 };
 
-// Tab switching function
 const setActiveTab = (tab) => {
     activeTab.value = tab;
 };
 
-// Clear all filters
 const clearFilters = () => {
     dateFrom.value = "";
     dateTo.value = "";
@@ -79,22 +69,18 @@ const clearFilters = () => {
     searchQuery.value = "";
 };
 
-// Computed filtered receipts based on search, date, and fund type
 const filteredGroupedReceipts = computed(() => {
     let filtered = groupedReceipts.value;
 
-    // Filter by search query
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter((group) => {
-            // Search in trainee info
             const traineeMatch =
                 group.trainee_name.toLowerCase().includes(query) ||
                 group.trainee_id_number.toLowerCase().includes(query) ||
                 (group.trainee_uli_number &&
                     group.trainee_uli_number.toLowerCase().includes(query));
 
-            // Search in receipts
             const receiptMatch = group.receipts.some(
                 (receipt) =>
                     receipt.id.toLowerCase().includes(query) ||
@@ -106,12 +92,10 @@ const filteredGroupedReceipts = computed(() => {
         });
     }
 
-    // Filter by date range and fund type for receipts within each group
     filtered = filtered
         .map((group) => {
             let filteredReceipts = [...group.receipts];
 
-            // Filter by date range
             if (dateFrom.value || dateTo.value) {
                 filteredReceipts = filteredReceipts.filter((receipt) => {
                     const receiptDate = new Date(receipt.dateGenerated);
@@ -126,7 +110,6 @@ const filteredGroupedReceipts = computed(() => {
                 });
             }
 
-            // Filter by fund type
             if (fundTypeFilter.value !== "all") {
                 filteredReceipts = filteredReceipts.filter(
                     (receipt) =>
@@ -150,11 +133,9 @@ const filteredGroupedReceipts = computed(() => {
     return filtered;
 });
 
-// Computed filtered cancelled receipts based on search, date, and fund type
 const filteredCancelledReceipts = computed(() => {
     let filtered = cancelledReceipts.value;
 
-    // Filter by search query
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
         filtered = filtered.filter((receipt) => {
@@ -169,7 +150,6 @@ const filteredCancelledReceipts = computed(() => {
         });
     }
 
-    // Filter by date range
     if (dateFrom.value || dateTo.value) {
         filtered = filtered.filter((receipt) => {
             const receiptDate = new Date(receipt.dateGenerated);
@@ -182,7 +162,6 @@ const filteredCancelledReceipts = computed(() => {
         });
     }
 
-    // Filter by fund type
     if (fundTypeFilter.value !== "all") {
         filtered = filtered.filter(
             (receipt) =>
@@ -210,15 +189,12 @@ const formatAmount = (amount) => {
     return safeNumber(amount).toFixed(2);
 };
 
-// Receipt modal state
 const showReceiptModal = ref(false);
 const selectedReceipt = ref(null);
 
-// Loading states for actions
 const isDownloading = ref({});
 const isPrinting = ref({});
 
-// Remove success feedback state - using notifications now
 
 const viewReceipt = (receipt) => {
     selectedReceipt.value = receipt;
@@ -233,14 +209,11 @@ const closeReceiptModal = () => {
 const downloadReceipt = (receipt) => {
     if (!receipt) return;
 
-    // Set loading state
     isDownloading.value[receipt.id] = true;
 
     try {
-        // Create receipt content
         const receiptContent = generateReceiptContent(receipt);
 
-        // Create and download file
         const blob = new Blob([receiptContent], { type: "text/plain" });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -251,13 +224,11 @@ const downloadReceipt = (receipt) => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
 
-        // Show success message
         notifications.success("Receipt downloaded successfully!");
     } catch (error) {
         console.error("Download error:", error);
         notifications.error("Error downloading receipt");
     } finally {
-        // Clear loading state
         setTimeout(() => {
             isDownloading.value[receipt.id] = false;
         }, 500);
@@ -267,11 +238,9 @@ const downloadReceipt = (receipt) => {
 const printReceipt = (receipt) => {
     if (!receipt) return;
 
-    // Set loading state
     isPrinting.value[receipt.id] = true;
 
     try {
-        // Create a new window for printing
         const printWindow = window.open("", "_blank");
         const receiptHTML = generateReceiptHTML(receipt);
 
@@ -279,28 +248,23 @@ const printReceipt = (receipt) => {
         printWindow.document.close();
         printWindow.print();
 
-        // Show success message
         notifications.success("Receipt sent to printer!");
     } catch (error) {
         console.error("Print error:", error);
         notifications.error("Error printing receipt");
     } finally {
-        // Clear loading state
         setTimeout(() => {
             isPrinting.value[receipt.id] = false;
         }, 500);
     }
 };
 
-// showSuccessFeedback function removed - using notifications system now
 
 const exportToExcel = async () => {
     try {
-        // Create a new workbook
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Receipts");
 
-        // Add title
         worksheet.mergeCells("A1:H1");
         const titleCell = worksheet.getCell("A1");
         titleCell.value = "LTPC Receipts Report";
@@ -314,19 +278,16 @@ const exportToExcel = async () => {
         titleCell.font = { ...titleCell.font, color: { argb: "FFFFFFFF" } };
         worksheet.getRow(1).height = 30;
 
-        // Add date and filter info
         worksheet.mergeCells("A2:H2");
         const dateCell = worksheet.getCell("A2");
         let filterText = `Generated on: ${new Date().toLocaleString("en-PH")}`;
 
-        // Add date range filter info
         if (dateFrom.value || dateTo.value) {
             const fromText = dateFrom.value || "beginning";
             const toText = dateTo.value || "present";
             filterText += ` | Date Range: ${fromText} to ${toText}`;
         }
 
-        // Add fund type filter info
         if (fundTypeFilter.value !== "all") {
             filterText += ` | Fund Type: ${fundTypeFilter.value}`;
         }
@@ -336,10 +297,8 @@ const exportToExcel = async () => {
         dateCell.font = { size: 10, italic: true };
         worksheet.getRow(2).height = 20;
 
-        // Add spacing
         worksheet.addRow([]);
 
-        // Add headers
         const headers = [
             "Receipt No.",
             "Trainee Name",
@@ -369,7 +328,6 @@ const exportToExcel = async () => {
             cell.alignment = { horizontal: "center", vertical: "middle" };
         });
 
-        // Add data rows from grouped receipts
         let totalAmount = 0;
         filteredGroupedReceipts.value.forEach((group) => {
             group.receipts.forEach((receipt) => {
@@ -387,7 +345,6 @@ const exportToExcel = async () => {
             });
         });
 
-        // Style data rows
         const lastRow = worksheet.lastRow.number;
         for (let i = 5; i <= lastRow; i++) {
             const row = worksheet.getRow(i);
@@ -399,7 +356,6 @@ const exportToExcel = async () => {
                     right: { style: "thin" },
                 };
             });
-            // Alternate row colors
             if ((i - 5) % 2 === 0) {
                 row.fill = {
                     type: "pattern",
@@ -409,7 +365,6 @@ const exportToExcel = async () => {
             }
         }
 
-        // Add totals row
         const totalRow = worksheet.addRow([
             "",
             "",
@@ -435,7 +390,6 @@ const exportToExcel = async () => {
             };
         });
 
-        // Set column widths
         worksheet.columns = [
             { width: 15 }, // Receipt No
             { width: 25 }, // Trainee Name
@@ -447,7 +401,6 @@ const exportToExcel = async () => {
             { width: 15 }, // Date Generated
         ];
 
-        // Generate Excel file
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -563,20 +516,16 @@ const generateReceiptContent = (receipt) => {
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString("en-PH");
 
-    // Get all fees from the receipt (both original and custom fees)
     const allFees = [];
 
-    // Add original fees if they exist
     if (receipt.original_fees && Array.isArray(receipt.original_fees)) {
         allFees.push(...receipt.original_fees);
     }
 
-    // Add custom fees if they exist
     if (receipt.fees && Array.isArray(receipt.fees)) {
         allFees.push(...receipt.fees);
     }
 
-    // If no custom fees structure exists, create a basic fee from receipt data
     if (allFees.length === 0) {
         allFees.push({
             natureOfCollection:
@@ -591,7 +540,6 @@ const generateReceiptContent = (receipt) => {
         });
     }
 
-    // Generate fee rows
     let feeRows = "";
     allFees.forEach((fee) => {
         const natureText = (fee.natureOfCollection || "Fee")
@@ -608,7 +556,6 @@ const generateReceiptContent = (receipt) => {
         feeRows += `├─────────────────────────┼────────────────┼─────────────────────────┤\n`;
     });
 
-    // Add empty rows to fill up to 4 total rows
     const emptyRowsNeeded = Math.max(0, 3 - allFees.length);
     for (let i = 0; i < emptyRowsNeeded; i++) {
         feeRows += `│                         │                │                         │\n`;
@@ -667,20 +614,16 @@ const generateReceiptHTML = (receipt) => {
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString("en-PH");
 
-    // Get all fees from the receipt (both original and custom fees)
     const allFees = [];
 
-    // Add original fees if they exist
     if (receipt.original_fees && Array.isArray(receipt.original_fees)) {
         allFees.push(...receipt.original_fees);
     }
 
-    // Add custom fees if they exist
     if (receipt.fees && Array.isArray(receipt.fees)) {
         allFees.push(...receipt.fees);
     }
 
-    // If no custom fees structure exists, create a basic fee from receipt data
     if (allFees.length === 0) {
         allFees.push({
             natureOfCollection:
@@ -695,7 +638,6 @@ const generateReceiptHTML = (receipt) => {
         });
     }
 
-    // Generate fee rows HTML
     let feeRowsHTML = "";
     allFees.forEach((fee) => {
         feeRowsHTML += `
@@ -717,7 +659,6 @@ const generateReceiptHTML = (receipt) => {
         }
     });
 
-    // Add empty rows to fill up to 4 total rows
     const emptyRowsNeeded = Math.max(0, 4 - allFees.length * 2);
     for (let i = 0; i < emptyRowsNeeded; i++) {
         feeRowsHTML += `
@@ -995,14 +936,12 @@ const generateReceiptHTML = (receipt) => {
 </html>`;
 };
 
-// Expand all trainees by default for better UX
 onMounted(() => {
     groupedReceipts.value.forEach((group) => {
         expandedTrainees.value.add(group.trainee_id);
     });
 });
 
-// Keyboard event handler
 const handleKeydown = (event) => {
     if (event.key === "Escape") {
         if (showReceiptModal.value) {
@@ -1011,7 +950,6 @@ const handleKeydown = (event) => {
     }
 };
 
-// Set up keyboard listener
 onMounted(() => {
     document.addEventListener("keydown", handleKeydown);
 });

@@ -17,7 +17,6 @@ const props = defineProps({
     assessment_summary: Object,
 });
 
-// Current time for dynamic greeting
 const currentTime = ref(new Date());
 const currentGreeting = computed(() => {
     const hour = currentTime.value.getHours();
@@ -35,14 +34,12 @@ const currentDate = computed(() => {
     });
 });
 
-// Update time every minute
 onMounted(() => {
     const timer = setInterval(() => {
         currentTime.value = new Date();
     }, 60000);
 });
 
-// Computed properties for displaying the statistics
 const totalEnrollments = computed(
     () => props.statistics?.total_enrollments || { value: 0, change: 0 }
 );
@@ -56,7 +53,6 @@ const totalAssessments = computed(
     () => props.statistics?.total_assessments || { value: 0, change: 0 }
 );
 
-// Priority alerts
 const priorityAlerts = computed(() => {
     const alerts = [];
     if (props.assessment_summary?.pending > 0) {
@@ -71,7 +67,6 @@ const priorityAlerts = computed(() => {
     return alerts;
 });
 
-// Helper function to format percentage change
 const formatChange = (change) => {
     const sign = change >= 0 ? "↑" : "↓";
     const color = change >= 0 ? "text-green-600" : "text-red-600";
@@ -79,7 +74,6 @@ const formatChange = (change) => {
     return { sign, color, bgColor, value: Math.abs(change) };
 };
 
-// Helper function to get status badge class
 const getStatusBadgeClass = (status) => {
     const statusLower = status.toLowerCase();
     switch (statusLower) {
@@ -95,7 +89,6 @@ const getStatusBadgeClass = (status) => {
     }
 };
 
-// Helper function to get payment badge class
 const getPaymentBadgeClass = (payment) => {
     const paymentLower = payment.toLowerCase();
     switch (paymentLower) {
@@ -110,7 +103,6 @@ const getPaymentBadgeClass = (payment) => {
     }
 };
 
-// Helper function to get assessment status badge class
 const getAssessmentStatusBadgeClass = (status) => {
     const statusLower = status.toLowerCase();
     switch (statusLower) {
@@ -129,7 +121,6 @@ const getAssessmentStatusBadgeClass = (status) => {
     }
 };
 
-// Navigation functions
 const viewTrainee = (enrollment) => {
     router.visit(route("officer.trainees"));
 };
@@ -142,7 +133,6 @@ const viewAssessments = () => {
     router.visit(route("officer.assessments"));
 };
 
-// Quick action functions
 const addNewTrainee = () => {
     router.visit(route("officer.trainees"));
 };
@@ -159,7 +149,6 @@ const viewTrainers = () => {
     router.visit(route("officer.trainers"));
 };
 
-// Navigate to statistics detail
 const navigateToStats = (section) => {
     switch (section) {
         case "enrollments":

@@ -79,12 +79,10 @@ const form = useForm({
     enrollment_type: "regular",
 });
 
-// Use trainees data directly since filtering is done server-side
 const displayedTrainees = computed(() => {
     return props.trainees?.data || [];
 });
 
-// Add search functionality
 const performSearch = () => {
     router.get(
         route("admin.trainees"),
@@ -106,12 +104,10 @@ const performSearch = () => {
     );
 };
 
-// Add change per page functionality
 const changePerPage = () => {
     performSearch();
 };
 
-// Watch for filter changes and trigger search
 watch(
     [selectedProgram, selectedStatus, selectedEnrollmentType, dateFrom, dateTo],
     () => {
@@ -139,7 +135,6 @@ const summaryStats = computed(() => {
     };
 });
 
-// Percentage calculations for filtered results
 const traineePercentages = computed(() => {
     const stats = summaryStats.value;
     const total = stats.total;
@@ -219,7 +214,6 @@ const deleteTrainee = () => {
 };
 
 const viewEnrollmentHistory = (trainee) => {
-    // Navigate to trainee enrollment history page based on user role
     const rolePrefix = isOfficer.value ? "officer" : "admin";
     router.visit(`/${rolePrefix}/trainees/${trainee.id}/enrollment-history`);
 };
@@ -232,11 +226,9 @@ const formatDate = (date) => {
 const exportToPDF = () => {
     const doc = new jsPDF();
 
-    // Add title
     doc.setFontSize(18);
     doc.text("Trainees Report", 14, 22);
 
-    // Add subtitle with date range if filters are applied
     doc.setFontSize(12);
     let subtitle = "All Trainees";
     if (dateFrom.value || dateTo.value) {
@@ -246,7 +238,6 @@ const exportToPDF = () => {
     }
     doc.text(subtitle, 14, 32);
 
-    // Add summary statistics
     doc.setFontSize(10);
     doc.text(`Total Trainees: ${summaryStats.value.total}`, 14, 42);
 
@@ -267,13 +258,11 @@ const exportToPDF = () => {
         66
     );
 
-    // Create a simple table without autotable
     let yPosition = 80;
     const lineHeight = 8;
     const pageHeight = 280;
     let currentPage = 1;
 
-    // Add headers
     doc.setFontSize(8);
     doc.setFillColor(34, 139, 34);
     doc.rect(14, yPosition - 5, 180, 8, "F");
@@ -288,9 +277,7 @@ const exportToPDF = () => {
     yPosition += 10;
     doc.setTextColor(0, 0, 0);
 
-    // Add data rows
     displayedTrainees.value.forEach((trainee, index) => {
-        // Check if we need a new page
         if (yPosition > pageHeight) {
             doc.addPage();
             currentPage++;
@@ -322,29 +309,24 @@ const exportToPDF = () => {
         yPosition += lineHeight;
     });
 
-    // Add page numbers
     for (let i = 1; i <= currentPage; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.text(`Page ${i} of ${currentPage}`, 14, pageHeight + 10);
     }
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `trainees_report_${timestamp}.pdf`;
 
-    // Save the PDF
     doc.save(filename);
 };
 
 const exportToExcel = async () => {
     const trainees = displayedTrainees.value;
 
-    // Create a new workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Training Report");
 
-    // Define headers
     const headers = [
         "Program",
         "Type of Training",
@@ -388,7 +370,6 @@ const exportToExcel = async () => {
         "Remarks",
     ];
 
-    // Add grouped header row first
     const groupedHeaders = [
         "",
         "",
@@ -433,10 +414,8 @@ const exportToExcel = async () => {
     ];
     worksheet.addRow(groupedHeaders);
 
-    // Add main headers to worksheet
     worksheet.addRow(headers);
 
-    // Style the grouped header row (row 1)
     const groupedHeaderRow = worksheet.getRow(1);
     groupedHeaderRow.height = 30;
 
@@ -466,12 +445,10 @@ const exportToExcel = async () => {
         }
     });
 
-    // Merge cells for grouped headers
     worksheet.mergeCells("P1:AC1"); // Assessed (columns P through AC)
     worksheet.mergeCells("AD1:AI1"); // Employment during Enrollment (columns AD through AI - includes Employed, Self Employed, Unemployed)
     worksheet.mergeCells("AJ1:AM1"); // Employment after Training (columns AJ through AM - includes Age 18-30, Employment Update, TOTAL EMPLOYED, Remarks)
 
-    // Merge cells for two-column spans in row 2
     worksheet.mergeCells("W2:X2"); // Assessed (spans 2 columns)
     worksheet.mergeCells("AB2:AC2"); // Competent after Assessment (spans 2 columns)
     worksheet.mergeCells("AD2:AE2"); // Employed (spans 2 columns)
@@ -479,7 +456,6 @@ const exportToExcel = async () => {
     worksheet.mergeCells("AH2:AI2"); // Unemployed (spans 2 columns)
     worksheet.mergeCells("AK2:AL2"); // Employment Update (spans 2 columns)
 
-    // Style the main header row (row 2)
     const headerRow = worksheet.getRow(2);
     headerRow.height = 35;
 
@@ -507,7 +483,6 @@ const exportToExcel = async () => {
         };
     });
 
-    // Set column widths
     const columnWidths = [
         30, 25, 20, 20, 18, 22, 18, 12, 18, 15, 12, 12, 12, 12, 15, 25, 18, 18,
         12, 28, 20, 18, 15, 15, 25, 25, 22, 15, 30, 15, 18, 15, 25, 22, 15, 15,
@@ -518,14 +493,11 @@ const exportToExcel = async () => {
         worksheet.getColumn(index + 1).width = width;
     });
 
-    // Add an empty data row (since current export only shows headers)
     worksheet.addRow(new Array(headers.length).fill(""));
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `training_program_report_${timestamp}.xlsx`;
 
-    // Write to buffer and save
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -35,7 +35,6 @@ const form = useForm({
     assessment_date: props.assessment.assessment_date
         ? props.assessment.assessment_date.split("T")[0]
         : "", // Format date for input
-    // Required fields for backend validation
     applicant_type: props.assessment.applicant_type || "enrolled_trainee",
     external_applicant_name: props.assessment.external_applicant_name || "",
     external_applicant_email: props.assessment.external_applicant_email || "",
@@ -49,11 +48,8 @@ const form = useForm({
     payment_notes: props.assessment.payment_notes || "",
 });
 
-// Track whether to use manual assessor input or select from trainers
-// Initialize based on whether assessor_name exists
 const useManualAssessor = ref(!!props.assessment.assessor_name && !props.assessment.trainer_id);
 
-// Watch for changes to numeric fields and ensure they remain strings
 watch(
     () => form.assessment_fee,
     (newValue) => {
@@ -63,7 +59,6 @@ watch(
     }
 );
 
-// Auto-update status when result is selected
 watch(
     () => form.result,
     (newResult) => {
@@ -76,7 +71,6 @@ watch(
 );
 
 const submit = () => {
-    // Convert numeric fields for backend
     form.transform((data) => {
         const transformed = {
             ...data,
@@ -85,15 +79,12 @@ const submit = () => {
                 : 0,
         };
         
-        // If using manual assessor, clear trainer_id and ensure assessor_name is set
         if (useManualAssessor.value) {
             transformed.trainer_id = null;
             if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
-                // This will be caught by validation
                 transformed.assessor_name = '';
             }
         } else {
-            // If using trainer selection, clear assessor_name
             transformed.assessor_name = null;
         }
         
@@ -105,7 +96,6 @@ const submit = () => {
             router.visit(route("officer.assessments"));
         },
         onError: (errors) => {
-            // Handle validation errors
         },
     });
 };
@@ -114,27 +104,22 @@ const cancel = () => {
     router.visit(route("officer.assessments"));
 };
 
-// Watch for manual assessor toggle to reset fields
 watch(
     () => useManualAssessor.value,
     (newValue) => {
         if (newValue) {
-            // Clear trainer_id when switching to manual input
             form.trainer_id = "";
         } else {
-            // Clear assessor_name when switching to trainer selection
             form.assessor_name = "";
         }
     }
 );
 
-// Computed property for filtered trainees based on selected program
 const filteredTrainees = computed(() => {
     if (!form.program_id || !props.trainees) {
         return [];
     }
 
-    // Find the selected program
     const selectedProgram = props.programs.find(
         (p) => p.program_id === form.program_id
     );
@@ -142,15 +127,12 @@ const filteredTrainees = computed(() => {
         return [];
     }
 
-    // Filter trainees who have completed the selected program or have that program qualification
     return props.trainees
         .filter((trainee) => {
-            // Check if trainee has this program qualification (legacy system)
             if (trainee.program_qualification === selectedProgram.name) {
                 return true;
             }
 
-            // Modern enrollment system: Check if trainee has completed enrollments for this program
             if (trainee.enrollments && Array.isArray(trainee.enrollments)) {
                 const hasCompletedThisProgram = trainee.enrollments.some(
                     (enrollment) =>
@@ -171,13 +153,11 @@ const filteredTrainees = computed(() => {
         }));
 });
 
-// Computed property for filtered trainers based on selected program
 const filteredTrainers = computed(() => {
     if (!form.program_id || !props.trainers) {
         return props.trainers; // Return all trainers if no program selected
     }
 
-    // Find the selected program
     const selectedProgram = props.programs.find(
         (p) => p.program_id === form.program_id
     );
@@ -185,7 +165,6 @@ const filteredTrainers = computed(() => {
         return []; // Return empty if program not found or no assigned trainers
     }
 
-    // Filter trainers who are assigned to the selected program
     return props.trainers.filter((trainer) =>
         selectedProgram.assigned_trainers.includes(trainer.id)
     );

@@ -52,7 +52,6 @@ const submitForm = () => {
     });
 };
 
-// Watch for modal show/hide to reset form
 watch(
     () => props.show,
     (newValue) => {

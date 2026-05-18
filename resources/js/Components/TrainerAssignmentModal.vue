@@ -36,12 +36,10 @@ const form = useForm({
     end_date: null,
 });
 
-// Filter trainers based on program expertise
 const availableTrainers = computed(() => {
     if (!props.program || !props.trainers) return [];
 
     return props.trainers.filter((trainer) => {
-        // Check if trainer has expertise that matches or relates to the program
         if (trainer.expertise && Array.isArray(trainer.expertise)) {
             return trainer.expertise.some(
                 (expertise) =>
@@ -57,7 +55,6 @@ const availableTrainers = computed(() => {
     });
 });
 
-// Watch for program changes to reset form
 watch(
     () => props.program,
     (newProgram) => {

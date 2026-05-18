@@ -62,26 +62,21 @@ const form = useForm({
     is_reassessment: false,
 });
 
-// Track whether to use manual assessor input or select from trainers
 const useManualAssessor = ref(false);
 
 const submit = () => {
-    // Transform data to ensure proper types for backend
     form.transform((data) => {
         const transformed = {
             ...data,
             assessment_fee: parseFloat(data.assessment_fee) || 0,
         };
         
-        // If using manual assessor, clear trainer_id and ensure assessor_name is set
         if (useManualAssessor.value) {
             transformed.trainer_id = null;
             if (!transformed.assessor_name || transformed.assessor_name.trim() === '') {
-                // This will be caught by validation
                 transformed.assessor_name = '';
             }
         } else {
-            // If using trainer selection, clear assessor_name
             transformed.assessor_name = null;
         }
         
@@ -96,7 +91,6 @@ const submit = () => {
             emit("close");
         },
         onError: (errors) => {
-            // Handle assessment creation errors
         },
     });
 };
@@ -108,7 +102,6 @@ const close = () => {
     emit("close");
 };
 
-// Reset form when modal is closed
 watch(
     () => props.show,
     (newValue) => {
@@ -119,7 +112,6 @@ watch(
     }
 );
 
-// Set default assessment date to today
 watch(
     () => props.show,
     (newValue) => {
@@ -130,12 +122,10 @@ watch(
     }
 );
 
-// Computed property to get selected trainee
 const selectedTrainee = computed(() => {
     return props.trainees.find((trainee) => trainee.id == form.trainee_id);
 });
 
-// Computed property to check if selected trainee is a scholar
 const isScholar = computed(() => {
     return (
         selectedTrainee.value &&
@@ -144,7 +134,6 @@ const isScholar = computed(() => {
     );
 });
 
-// Watch for trainee selection changes and automatically set fee to 0 for scholars
 watch(
     () => form.trainee_id,
     (newTraineeId) => {
@@ -160,7 +149,6 @@ watch(
                 form.payment_method = "scholarship_exemption";
                 form.payment_reference = `SCHOLAR-${trainee.scholarship_package.toUpperCase()}-${Date.now()}`;
             } else {
-                // Reset to default for non-scholars
                 form.assessment_fee = "0";
                 form.payment_status = "pending";
                 form.payment_method = "";
@@ -170,11 +158,9 @@ watch(
     }
 );
 
-// Watch for applicant type changes to reset fee when switching from external to trainee
 watch(
     () => form.applicant_type,
     (newType) => {
-        // Reset trainee selection when switching applicant types
         form.trainee_id = "";
 
         if (newType === "enrolled_trainee" && form.trainee_id) {
@@ -195,7 +181,6 @@ watch(
                 form.payment_reference = "";
             }
         } else if (newType === "external_applicant") {
-            // External applicant - reset to default and clear enrolled trainee data
             form.assessment_fee = "0"; // Default to 0, user can modify
             form.payment_status = "pending";
             form.payment_method = "";
@@ -204,7 +189,6 @@ watch(
             form.external_applicant_email = "";
             form.external_applicant_phone = "";
         } else {
-            // Default case
             form.payment_status = "pending";
             form.payment_method = "";
             form.payment_reference = "";
@@ -212,38 +196,31 @@ watch(
     }
 );
 
-// Watch for program selection changes to filter trainees and trainers
 watch(
     () => form.program_id,
     (newProgramId) => {
-        // Reset trainee and trainer selections when program changes
         form.trainee_id = "";
         form.trainer_id = "";
         form.assessor_name = "";
     }
 );
 
-// Watch for manual assessor toggle to reset fields
 watch(
     () => useManualAssessor.value,
     (newValue) => {
         if (newValue) {
-            // Clear trainer_id when switching to manual input
             form.trainer_id = "";
         } else {
-            // Clear assessor_name when switching to trainer selection
             form.assessor_name = "";
         }
     }
 );
 
-// Computed property for filtered trainees based on selected program
 const filteredTrainees = computed(() => {
     if (!form.program_id || !props.trainees) {
         return [];
     }
 
-    // Find the selected program
     const selectedProgram = props.programs.find(
         (p) => p.program_id === form.program_id
     );
@@ -251,29 +228,22 @@ const filteredTrainees = computed(() => {
         return [];
     }
 
-    // Build a Set of trainee IDs that are already competent in this program
     const competentTraineeIds = new Set(
         props.competentPairs
             .filter((pair) => pair.program_id === form.program_id)
             .map((pair) => pair.trainee_id)
     );
 
-    // Filter trainees who have completed the selected program or have that program qualification
-    // AND who have NOT already been graded as competent in that program
     return props.trainees
         .filter((trainee) => {
-            // Exclude trainees already graded as competent for this program
             if (competentTraineeIds.has(trainee.id)) {
                 return false;
             }
 
-            // Check if trainee has this program qualification (legacy system)
             if (trainee.program_qualification === selectedProgram.name) {
                 return true;
             }
 
-            // Modern enrollment system: Check if trainee has completed enrollments for this program
-            // Note: Backend should provide enrollment data for this to work
             if (trainee.enrollments && Array.isArray(trainee.enrollments)) {
                 const hasCompletedThisProgram = trainee.enrollments.some(
                     (enrollment) =>
@@ -294,13 +264,11 @@ const filteredTrainees = computed(() => {
         }));
 });
 
-// Computed property for filtered trainers based on selected program
 const filteredTrainers = computed(() => {
     if (!form.program_id || !props.trainers) {
         return props.trainers; // Return all trainers if no program selected
     }
 
-    // Find the selected program
     const selectedProgram = props.programs.find(
         (p) => p.program_id === form.program_id
     );
@@ -308,7 +276,6 @@ const filteredTrainers = computed(() => {
         return []; // Return empty if program not found or no assigned trainers
     }
 
-    // Filter trainers who are assigned to the selected program
     return props.trainers.filter((trainer) =>
         selectedProgram.assigned_trainers.includes(trainer.id)
     );

@@ -27,19 +27,16 @@ return new class extends Migration
             $table->string('payment_id'); // Reference to original payment ID (ENR-001, ASS-001, etc.)
             $table->enum('type', ['enrollment', 'assessment']);
             
-            // Trainee information
             $table->string('trainee_name');
             $table->string('trainee_id_number');
             $table->string('trainee_uli_number')->nullable();
             
-            // Receipt details that can be customized
             $table->json('fees'); // Array of fees with program, amount, account_code
             $table->decimal('total_amount', 10, 2);
             $table->date('date_generated');
             $table->time('time_generated');
             $table->string('status')->default('generated');
             
-            // Reference to original records
             $table->unsignedBigInteger('enrollment_id')->nullable();
             $table->unsignedBigInteger('assessment_id')->nullable();
             $table->unsignedBigInteger('trainee_model_id')->nullable();

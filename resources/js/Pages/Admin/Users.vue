@@ -21,7 +21,6 @@ const props = defineProps({
     flash: Object,
 });
 
-// Handle flash messages
 import { usePage } from "@inertiajs/vue3";
 const page = usePage();
 
@@ -94,7 +93,6 @@ const submitForm = () => {
                 form.reset();
             },
             onError: () => {
-                // Form errors will be displayed automatically
             },
         });
     } else {
@@ -104,7 +102,6 @@ const submitForm = () => {
                 form.reset();
             },
             onError: () => {
-                // Form errors will be displayed automatically
             },
         });
     }

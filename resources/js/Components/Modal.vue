@@ -78,7 +78,6 @@ onUnmounted(() => {
 });
 
 const maxWidthClass = computed(() => {
-    // If customWidth is provided, use it instead of predefined classes
     if (props.customWidth) {
         return "";
     }

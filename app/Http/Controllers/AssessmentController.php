@@ -38,10 +38,8 @@ class AssessmentController extends Controller
         $dateFrom = $request->get('date_from', '');
         $dateTo = $request->get('date_to', '');
 
-        // Build the query
         $query = Assessment::with(['program', 'trainee', 'trainer']);
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
@@ -57,12 +55,10 @@ class AssessmentController extends Controller
             });
         }
 
-        // Apply status filter if provided
         if ($status && $status !== 'All Statuses' && $status !== '') {
             $query->where('status', $status);
         }
 
-        // Apply result filter if provided
         if ($result && $result !== 'All Results' && $result !== '') {
             if ($result === 'Not Evaluated') {
                 $query->whereNull('result');
@@ -71,12 +67,10 @@ class AssessmentController extends Controller
             }
         }
 
-        // Apply program filter if provided
         if ($program && $program !== 'All Programs' && $program !== '') {
             $query->where('program_id', $program);
         }
 
-        // Apply date range filter if provided
         if ($dateFrom) {
             $query->whereDate('assessment_date', '>=', $dateFrom);
         }
@@ -84,17 +78,10 @@ class AssessmentController extends Controller
             $query->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        // Scalability fix: Instead of loading ALL assessments into memory and grouping
-        // in PHP (which OOMs at 1.5M records), use a DB subquery to find only the
-        // latest assessment per group, then paginate at the SQL level.
-        //
-        // Group key = COALESCE(original_assessment_id, id) — reassessments share
-        // the same group key as their original assessment.
         $latestIdsSubquery = \DB::table('assessments')
             ->selectRaw('MAX(id) as latest_id')
             ->groupByRaw('COALESCE(original_assessment_id, id)');
 
-        // Apply the same filters to the subquery so grouping respects filters
         if ($search) {
             $latestIdsSubquery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
@@ -122,7 +109,6 @@ class AssessmentController extends Controller
             $latestIdsSubquery->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        // Now paginate only the latest assessments from each group
         $paginatedAssessments = Assessment::with(['program', 'trainee', 'trainer'])
             ->joinSub($latestIdsSubquery, 'latest', function ($join) {
                 $join->on('assessments.id', '=', 'latest.latest_id');
@@ -179,9 +165,6 @@ class AssessmentController extends Controller
 
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
         
-        // Get trainees who have completed at least one enrollment (modern system)
-        // OR trainees with completed status (legacy system)
-        // Scalability: limit to a reasonable page size for the dropdown
         $trainees = Trainee::with(['enrollments.program' => function($query) {
             $query->select('program_id', 'name');
         }])->where(function($query) {
@@ -191,7 +174,6 @@ class AssessmentController extends Controller
                   });
         })->limit(5000)->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
         
-        // Build a list of trainee_id + program_id pairs that are already graded as competent.
         $competentPairs = Assessment::where('result', 'competent')
             ->whereNotNull('trainee_id')
             ->select('trainee_id', 'program_id')
@@ -226,7 +208,6 @@ class AssessmentController extends Controller
      */
     public function create()
     {
-        //
     }
 
     /**
@@ -261,12 +242,10 @@ class AssessmentController extends Controller
                 'payment_method' => 'nullable|string|required_if:payment_status,paid',
                 'payment_reference' => 'nullable|string|required_if:payment_status,paid',
                 'payment_notes' => 'nullable|string',
-                // Re-assessment fields
                 'original_assessment_id' => 'nullable|exists:assessments,id',
                 'is_reassessment' => 'nullable|boolean',
             ]);
 
-            // Validate that either trainer_id or assessor_name is provided
             if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
                 return redirect()->back()->withErrors([
                     'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
@@ -274,7 +253,6 @@ class AssessmentController extends Controller
                 ])->withInput();
             }
 
-            // Ensure only one is set (clear the other)
             if (!empty($validated['trainer_id'])) {
                 $validated['assessor_name'] = null;
             } else {
@@ -286,7 +264,6 @@ class AssessmentController extends Controller
                 'program_id' => $validated['program_id'],
             ]);
 
-            // Determine attempt number and re-assessment status
             if ($validated['original_assessment_id']) {
                 $originalAssessment = Assessment::find($validated['original_assessment_id']);
                 
@@ -299,7 +276,6 @@ class AssessmentController extends Controller
                 
                 $validated['is_reassessment'] = true;
                 
-                // Validate that re-assessment matches original assessment details
                 if ($validated['trainee_id'] && $validated['trainee_id'] !== $originalAssessment->trainee_id) {
                     Log::warning('Re-assessment trainee mismatch', [
                         'reassessment_trainee_id' => $validated['trainee_id'],
@@ -320,16 +296,13 @@ class AssessmentController extends Controller
                     ]);
                 }
                 
-                // Find the original assessment ID to determine the correct attempt number
                 $originalAssessmentId = $originalAssessment->is_reassessment ? $originalAssessment->original_assessment_id : $originalAssessment->id;
                 
-                // Get the highest attempt number for this assessment chain
                 $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
                     $query->where('id', $originalAssessmentId)
                           ->orWhere('original_assessment_id', $originalAssessmentId);
                 })->max('attempt_number');
                 
-                // Check if maximum attempts reached (typically 3 attempts)
                 if ($maxAttemptNumber >= 3) {
                     Log::warning('Maximum assessment attempts reached', [
                         'trainee_id' => $validated['trainee_id'] ?? 'external',
@@ -347,7 +320,6 @@ class AssessmentController extends Controller
                 $validated['attempt_number'] = 1;
             }
 
-            // Additional validation: If enrolled trainee, check if they are completed
             if ($validated['applicant_type'] === 'enrolled_trainee' && $validated['trainee_id']) {
                 $trainee = Trainee::find($validated['trainee_id']);
                 if ($trainee && $trainee->status !== 'completed') {
@@ -357,8 +329,6 @@ class AssessmentController extends Controller
                     ]);
                 }
                 
-                // Check for existing assessments for this trainee in the same program
-                // Only block if creating a NEW first assessment (not a reassessment)
                 if (!$validated['is_reassessment']) {
                     $existingAssessment = Assessment::where('trainee_id', $validated['trainee_id'])
                         ->where('program_id', $validated['program_id'])
@@ -377,7 +347,6 @@ class AssessmentController extends Controller
                     }
                 }
                 
-                // Check if trainee is a scholar - only exempt first attempt
                 if ($trainee && !empty($trainee->scholarship_package) && !$validated['is_reassessment']) {
                     $validated['assessment_fee'] = 0;
                     $validated['payment_status'] = 'paid';
@@ -386,12 +355,8 @@ class AssessmentController extends Controller
                 }
             }
 
-            // Additional validation: If external applicant, check for existing assessments in the same program
             if ($validated['applicant_type'] === 'external_applicant') {
-                // Only block if creating a NEW first assessment (not a reassessment)
                 if (!$validated['is_reassessment']) {
-                    // Check for existing assessments by email (primary identifier) for the same program
-                    // Email is the most reliable identifier for external applicants
                     $existingAssessment = Assessment::where('applicant_type', 'external_applicant')
                         ->where('program_id', $validated['program_id'])
                         ->where('is_reassessment', false)
@@ -413,16 +378,12 @@ class AssessmentController extends Controller
                 }
             }
 
-            // Set payment date if payment is made
             if ($validated['payment_status'] === 'paid') {
                 $validated['payment_date'] = now();
             }
 
-            // Clean up null values that shouldn't be null for external applicant fields
             if ($validated['applicant_type'] === 'external_applicant') {
-                // Keep external applicant fields
             } else {
-                // Remove external applicant fields when not needed
                 unset($validated['external_applicant_name']);
                 unset($validated['external_applicant_email']);
                 unset($validated['external_applicant_phone']);
@@ -462,15 +423,12 @@ class AssessmentController extends Controller
      */
     public function edit(Assessment $assessment)
     {
-        // Prevent editing graded assessments
         if ($assessment->isGraded()) {
             return redirect()->route('officer.assessments')->with('error', 'Cannot edit graded assessments. This assessment has already been finalized.');
         }
 
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
         
-        // Get trainees who have completed at least one enrollment (modern system)
-        // OR trainees with completed status (legacy system)
         $trainees = Trainee::with(['enrollments.program' => function($query) {
             $query->select('program_id', 'name');
         }])->where(function($query) {
@@ -495,14 +453,12 @@ class AssessmentController extends Controller
      */
     public function update(Request $request, Assessment $assessment)
     {
-        // Prevent updating graded assessments
         if ($assessment->isGraded()) {
             return redirect()->back()->withErrors([
                 'assessment' => 'Cannot update graded assessments. This assessment has already been finalized.'
             ]);
         }
 
-        // Prevent setting result if payment is not completed
         if ($request->has('result') && $request->result && $assessment->payment_status !== 'paid') {
             return redirect()->back()->withErrors([
                 'result' => 'Assessment cannot be evaluated until payment is completed.'
@@ -531,7 +487,6 @@ class AssessmentController extends Controller
             'payment_notes' => 'nullable|string',
         ]);
 
-        // Validate that either trainer_id or assessor_name is provided
         if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
             return redirect()->back()->withErrors([
                 'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
@@ -539,14 +494,12 @@ class AssessmentController extends Controller
             ])->withInput();
         }
 
-        // Ensure only one is set (clear the other)
         if (!empty($validated['trainer_id'])) {
             $validated['assessor_name'] = null;
         } else {
             $validated['trainer_id'] = null;
         }
 
-        // Additional validation: If enrolled trainee, check if they are completed
         if ($validated['applicant_type'] === 'enrolled_trainee' && $validated['trainee_id']) {
             $trainee = Trainee::find($validated['trainee_id']);
             if ($trainee && $trainee->status !== 'completed') {
@@ -555,7 +508,6 @@ class AssessmentController extends Controller
                 ]);
             }
             
-            // Check if trainee is a scholar - only exempt first attempt
             if ($trainee && !empty($trainee->scholarship_package) && $assessment->isFirstAttempt()) {
                 $validated['assessment_fee'] = 0;
                 $validated['payment_status'] = 'paid';
@@ -564,14 +516,12 @@ class AssessmentController extends Controller
             }
         }
 
-        // Set payment date if payment status changed to paid
         if ($validated['payment_status'] === 'paid' && $assessment->payment_status !== 'paid') {
             $validated['payment_date'] = now();
         } elseif ($validated['payment_status'] !== 'paid') {
             $validated['payment_date'] = null;
         }
 
-        // Auto-set status based on result
         if (isset($validated['result']) && $validated['result'] !== null) {
             $validated['status'] = 'completed';
         } else {
@@ -580,7 +530,6 @@ class AssessmentController extends Controller
 
         $assessment->update($validated);
 
-        // Create employment record if assessment is marked as competent
         if (isset($validated['result']) && $validated['result'] === 'competent') {
             try {
                 EmploymentController::createFromCompetentAssessment($assessment);
@@ -600,7 +549,6 @@ class AssessmentController extends Controller
      */
     public function destroy(Assessment $assessment)
     {
-        // Prevent deleting assessments that cannot be deleted
         if (!$assessment->isDeletable()) {
         if ($assessment->isGraded()) {
             return redirect()->back()->with('error', 'Cannot delete graded assessments. This assessment has already been finalized.');
@@ -623,7 +571,6 @@ class AssessmentController extends Controller
      */
     public function reassessment(Request $request, Assessment $assessment)
     {
-        // Verify that the original assessment can be re-assessed
         if (!$assessment->canBeReassessed()) {
             if ($assessment->requiresReenrollment()) {
                 return redirect()->back()->withErrors([
@@ -643,7 +590,6 @@ class AssessmentController extends Controller
             'assessment_fee' => 'required|numeric|min:0',
         ]);
 
-        // Validate that either trainer_id or assessor_name is provided
         if (empty($validated['trainer_id']) && empty($validated['assessor_name'])) {
             return redirect()->back()->withErrors([
                 'trainer_id' => 'Either a trainer must be selected or an assessor name must be provided.',
@@ -651,23 +597,19 @@ class AssessmentController extends Controller
             ])->withInput();
         }
 
-        // Ensure only one is set (clear the other)
         if (!empty($validated['trainer_id'])) {
             $validated['assessor_name'] = null;
         } else {
             $validated['trainer_id'] = null;
         }
 
-        // Find the original assessment ID to determine the correct attempt number
         $originalAssessmentId = $assessment->is_reassessment ? $assessment->original_assessment_id : $assessment->id;
         
-        // Get the highest attempt number for this assessment chain
         $maxAttemptNumber = Assessment::where(function($query) use ($originalAssessmentId) {
             $query->where('id', $originalAssessmentId)
                   ->orWhere('original_assessment_id', $originalAssessmentId);
         })->max('attempt_number');
 
-        // Create re-assessment with same basic data as original
         $reassessmentData = [
             'title' => $assessment->title,
             'description' => $assessment->description,
@@ -682,12 +624,10 @@ class AssessmentController extends Controller
             'original_assessment_id' => $originalAssessmentId,
             'is_reassessment' => true,
             'attempt_number' => $maxAttemptNumber + 1,
-            // New data from request
             'assessment_date' => $validated['assessment_date'],
             'trainer_id' => $validated['trainer_id'],
             'assessor_name' => $validated['assessor_name'],
             'assessment_fee' => $validated['assessment_fee'],
-            // Payment will be handled by cashier - set default values
             'payment_status' => 'pending',
             'payment_method' => null,
             'payment_reference' => null,
@@ -705,10 +645,8 @@ class AssessmentController extends Controller
      */
     public function assessmentHistory(Assessment $assessment)
     {
-        // Get the original assessment (in case this is called from a re-assessment)
         $originalAssessment = $assessment->is_reassessment ? $assessment->originalAssessment : $assessment;
         
-        // Get all re-assessments for this original assessment
         $reassessments = Assessment::with(['program', 'trainee', 'trainer'])
             ->where('original_assessment_id', $originalAssessment->id)
             ->orderBy('attempt_number', 'asc')
@@ -748,7 +686,6 @@ class AssessmentController extends Controller
                 ];
             });
 
-        // Format the original assessment data
         $originalAssessmentData = [
             'id' => $originalAssessment->id,
             'title' => $originalAssessment->title,
@@ -782,17 +719,14 @@ class AssessmentController extends Controller
             'payment_completed' => $originalAssessment->payment_completed,
         ];
 
-        // Get available trainers and programs for potential new re-assessment
         $trainers = Trainer::all(['id', 'full_name']);
         $programs = Program::where('status', 'active')->get(['program_id', 'name', 'assigned_trainers']);
 
-        // Get the latest assessment for the modal (highest attempt number)
         $latestAssessment = Assessment::where(function($query) use ($originalAssessment) {
             $query->where('id', $originalAssessment->id)
                   ->orWhere('original_assessment_id', $originalAssessment->id);
         })->orderByDesc('attempt_number')->first();
         
-        // Format the latest assessment data for the modal
         $latestAssessmentData = [
             'id' => $latestAssessment->id,
             'title' => $latestAssessment->title,

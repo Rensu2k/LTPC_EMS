@@ -80,7 +80,6 @@ class Trainer extends Model
     {
         $currentExpertise = $this->expertise ?? [];
         
-        // Ensure it's an array
         if (!is_array($currentExpertise)) {
             $currentExpertise = [];
         }
@@ -101,7 +100,6 @@ class Trainer extends Model
     {
         $currentExpertise = $this->expertise ?? [];
         
-        // Ensure it's an array
         if (!is_array($currentExpertise)) {
             $currentExpertise = [];
         }

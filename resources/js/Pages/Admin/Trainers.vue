@@ -31,7 +31,6 @@ const selectedTrainer = ref(null);
 const processing = ref(false);
 const perPage = ref(props.filters?.per_page || 10);
 
-// Add search functionality
 const performSearch = () => {
     router.get(
         route("admin.trainers"),
@@ -48,40 +47,32 @@ const performSearch = () => {
     );
 };
 
-// Check if any filters are active
 const hasActiveFilters = computed(() => {
     return searchQuery.value;
 });
 
-// Clear filters functionality
 const clearFilters = () => {
     searchQuery.value = "";
     performSearch();
 };
 
-// Add change per page functionality
 const changePerPage = () => {
     performSearch();
 };
 
-// Watch for search query changes and trigger search automatically
 let searchTimeout = null;
 watch(searchQuery, (newQuery, oldQuery) => {
-    // Clear previous timeout
     if (searchTimeout) {
         clearTimeout(searchTimeout);
     }
 
-    // If query hasn't changed significantly, don't search
     if (newQuery === oldQuery) return;
 
-    // Debounce search to avoid too many requests
     searchTimeout = setTimeout(() => {
         performSearch();
     }, 500); // 500ms delay
 });
 
-// Process trainers data to match the expected format
 const trainersList = ref(
     props.trainers?.data?.map((trainer) => ({
         id: trainer.id,
@@ -103,9 +94,7 @@ const trainersList = ref(
     })) || []
 );
 
-// Computed property for filtered trainers - using backend search results
 const filteredTrainers = computed(() => {
-    // Use pagination data if available, otherwise use processed trainers list
     if (props.trainers?.data) {
         return props.trainers.data;
     } else {
@@ -122,12 +111,10 @@ const closeRegistrationModal = () => {
 };
 
 const onTrainerSubmitted = () => {
-    // Refresh the page to show the new trainer
     window.location.reload();
 };
 
 const viewTrainer = (trainer) => {
-    // Find the actual trainer data from props
     const actualTrainer = props.trainers.data.find((t) => t.id === trainer.id);
     selectedTrainer.value = actualTrainer;
     showDetailsModal.value = true;
@@ -161,7 +148,6 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
-            // Refresh to show updated list
             window.location.reload();
         },
         onError: () => {

@@ -90,7 +90,6 @@ class PaymentSummary extends Model
         $results = [];
 
         DB::transaction(function () use (&$results) {
-            // Enrollment metrics
             $enrollmentPaidSum = (float) \App\Models\TraineeEnrollment::where('payment_status', 'paid')
                 ->sum('enrollment_fee');
             $enrollmentPaidCount = \App\Models\TraineeEnrollment::where('payment_status', 'paid')
@@ -104,7 +103,6 @@ class PaymentSummary extends Model
                 ->where('enrollment_fee', '>', 0)
                 ->count();
 
-            // Assessment metrics
             $assessmentPaidSum = (float) \App\Models\Assessment::where('payment_status', 'paid')
                 ->sum('assessment_fee');
             $assessmentPaidCount = \App\Models\Assessment::where('payment_status', 'paid')
@@ -118,7 +116,6 @@ class PaymentSummary extends Model
                 ->where('assessment_fee', '>', 0)
                 ->count();
 
-            // Write all values
             $metrics = [
                 'enrollment_paid_sum' => $enrollmentPaidSum,
                 'enrollment_paid_count' => $enrollmentPaidCount,

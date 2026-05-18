@@ -328,7 +328,6 @@ const form = useForm({
     maintain_scholarship: true, // Default to maintaining scholarship
 });
 
-// Check if trainee has scholarship package in their profile
 const traineeHasScholarship = computed(() => {
     return (
         props.trainee?.scholarship_package &&
@@ -336,12 +335,10 @@ const traineeHasScholarship = computed(() => {
     );
 });
 
-// Check if scholarship should be applied for this enrollment
 const isScholar = computed(() => {
     return traineeHasScholarship.value && form.maintain_scholarship;
 });
 
-// Enhanced programs with display text for SearchableSelect
 const enhancedPrograms = computed(() => {
     return (props.availablePrograms || []).map((program) => ({
         ...program,
@@ -349,20 +346,17 @@ const enhancedPrograms = computed(() => {
     }));
 });
 
-// Auto-set fee to 0 for scholars or reset when scholarship is disabled
 watch(
     () => isScholar.value,
     (newValue) => {
         if (newValue) {
             form.enrollment_fee = "0";
         } else if (traineeHasScholarship.value && !form.maintain_scholarship) {
-            // Reset fee to empty when scholarship is unchecked
             form.enrollment_fee = "";
         }
     }
 );
 
-// Initialize scholarship checkbox when modal opens
 watch(
     () => props.show,
     (newValue) => {
@@ -389,7 +383,6 @@ const close = () => {
     emit("close");
 };
 
-// Reset form when modal is closed
 watch(
     () => props.show,
     (newValue) => {

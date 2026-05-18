@@ -192,7 +192,6 @@ const props = defineProps({
 });
 
 const meta = computed(() => {
-    // Handle Laravel pagination structure directly
     return {
         total: props.data?.total || 0,
         per_page: props.data?.per_page || 20,
@@ -204,14 +203,12 @@ const meta = computed(() => {
 });
 
 const links = computed(() => {
-    // Force HTTPS for pagination URLs
     const prevUrl = props.data?.prev_page_url;
     const nextUrl = props.data?.next_page_url;
 
     let prev = prevUrl;
     let next = nextUrl;
 
-    // Force HTTPS if we're on HTTPS
     if (window.location.protocol === "https:") {
         if (prevUrl && prevUrl.startsWith("http://")) {
             prev = prevUrl.replace("http://", "https://");
@@ -227,7 +224,6 @@ const links = computed(() => {
 const pageLinks = computed(() => {
     if (!props.data?.links) return [];
 
-    // Force HTTPS for all pagination links
     return props.data.links
         .filter(
             (link) =>
@@ -235,7 +231,6 @@ const pageLinks = computed(() => {
                 link.label !== "Next &raquo;"
         )
         .map((link) => {
-            // Force HTTPS if we're on HTTPS
             if (
                 window.location.protocol === "https:" &&
                 link.url &&
@@ -250,17 +245,14 @@ const pageLinks = computed(() => {
 const changePage = (url) => {
     if (!url) return;
 
-    // Force HTTPS for the URL if we're on HTTPS
     let targetUrl = url;
     if (window.location.protocol === "https:" && url.startsWith("http://")) {
         targetUrl = url.replace("http://", "https://");
     }
 
-    // Create URL objects
     const currentUrl = new URL(window.location.href);
     const targetUrlObj = new URL(targetUrl);
 
-    // Preserve all query parameters from current URL (except page which comes from target)
     const currentUrlParams = {};
     currentUrl.searchParams.forEach((value, key) => {
         if (key !== 'page') {
@@ -268,16 +260,13 @@ const changePage = (url) => {
         }
     });
 
-    // Build new URL with preserved parameters
     const newUrl = new URL(targetUrlObj.pathname, targetUrlObj.origin);
     
-    // Add page from target URL
     const page = targetUrlObj.searchParams.get("page");
     if (page) {
         newUrl.searchParams.set("page", page);
     }
     
-    // Add all preserved parameters from current URL
     Object.keys(currentUrlParams).forEach(key => {
         newUrl.searchParams.set(key, currentUrlParams[key]);
     });
@@ -292,7 +281,6 @@ const changePage = (url) => {
 const changePerPage = (perPage) => {
     const currentUrl = new URL(window.location.href);
     
-    // Preserve all existing query parameters
     const allParams = {};
     currentUrl.searchParams.forEach((value, key) => {
         if (key !== 'page' && key !== 'per_page') {
@@ -300,11 +288,9 @@ const changePerPage = (perPage) => {
         }
     });
     
-    // Build new URL with preserved parameters and new per_page
     const newUrl = new URL(window.location.pathname, window.location.origin);
     newUrl.searchParams.set("per_page", perPage);
     
-    // Add back all preserved parameters
     Object.keys(allParams).forEach(key => {
         newUrl.searchParams.set(key, allParams[key]);
     });

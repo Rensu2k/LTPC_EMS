@@ -23,23 +23,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('assessments', function (Blueprint $table) {
-            // Support the COALESCE(original_assessment_id, id) GROUP BY
-            // used in the officer assessment listing
             if (!$this->indexExists('assessments', 'idx_assessments_original_id')) {
                 $table->index('original_assessment_id', 'idx_assessments_original_id');
             }
 
-            // Support the competentPairs query: WHERE result = 'competent' AND trainee_id IS NOT NULL
             if (!$this->indexExists('assessments', 'idx_assessments_competent_trainee')) {
                 $table->index(['result', 'trainee_id', 'program_id'], 'idx_assessments_competent_trainee');
             }
 
-            // Support the admin assessment results correlated subquery grouping
             if (!$this->indexExists('assessments', 'idx_assessments_grouping')) {
                 $table->index(['trainee_id', 'type', 'program_id', 'applicant_type'], 'idx_assessments_grouping');
             }
 
-            // Support the status + result aggregation for comprehensive stats
             if (!$this->indexExists('assessments', 'idx_assessments_status_result')) {
                 $table->index(['status', 'result'], 'idx_assessments_status_result');
             }

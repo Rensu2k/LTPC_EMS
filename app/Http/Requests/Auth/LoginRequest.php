@@ -65,7 +65,6 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        // Reject inactive users after successful credential check
         $user = Auth::user();
         if ($user && $user->status !== 'active') {
             Auth::logout();

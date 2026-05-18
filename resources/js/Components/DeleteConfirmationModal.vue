@@ -131,7 +131,6 @@ const confirmDelete = () => {
     emit("confirm");
 };
 
-// Reset processing state when modal is closed
 const handleClose = () => {
     processing.value = false;
     emit("close");
@@ -188,14 +187,12 @@ const getItemDetails = () => {
 
 const canDelete = () => {
     if (props.itemType === "trainee") {
-        // Cannot delete if status is active OR payment status is paid
         if (
             props.item?.status === "active" ||
             props.item?.payment_status === "paid"
         ) {
             return false;
         }
-        // Allow deletion if neither blocking condition is met
         return true;
     }
     if (props.itemType === "program" && props.item?.enrollments > 0) {
@@ -212,7 +209,6 @@ const canDelete = () => {
 
 const getWarningMessage = () => {
     if (props.itemType === "trainee") {
-        // Check if status is active OR payment status is paid
         if (
             props.item?.status === "active" ||
             props.item?.payment_status === "paid"

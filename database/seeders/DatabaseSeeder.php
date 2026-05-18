@@ -37,7 +37,6 @@ class DatabaseSeeder extends Seeder
         ]);
     }
 
-    // -------------------------------------------------------------------------
 
     private function seedAdmin(): void
     {
@@ -55,7 +54,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Fix role, status, and password on existing accounts
         $needsSave = false;
         if ($admin->role !== 'admin')   { $admin->role = 'admin';     $needsSave = true; }
         if ($admin->status !== 'active') { $admin->status = 'active'; $needsSave = true; }
@@ -124,7 +122,6 @@ class DatabaseSeeder extends Seeder
         $this->printAccountStatus('Cashier', 'cashier1@ltpc.gov.ph', $password, $generated, 'CASHIER_DEFAULT_PASSWORD');
     }
 
-    // -------------------------------------------------------------------------
 
     /**
      * Returns [password, wasGenerated].

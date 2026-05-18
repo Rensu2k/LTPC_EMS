@@ -638,7 +638,6 @@ const props = defineProps({
     programs: Array,
 });
 
-// Format date for input field
 const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -685,13 +684,11 @@ const form = useForm({
     status: props.trainee?.status || "active",
 });
 
-// Months array
 const months = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
 ];
 
-// Generate years (current year down to 1950)
 const years = computed(() => {
     const currentYear = new Date().getFullYear();
     const yearArray = [];
@@ -701,7 +698,6 @@ const years = computed(() => {
     return yearArray;
 });
 
-// Payment status display (read-only)
 const paymentStatusText = computed(() => {
     const status = props.trainee?.payment_status || 'unpaid';
     return status.charAt(0).toUpperCase() + status.slice(1);
@@ -715,7 +711,6 @@ const paymentStatusColor = computed(() => {
     };
 });
 
-// Function to calculate age based on birth date
 const calculateAge = () => {
     if (form.birth_year && form.birth_month && form.birth_day) {
         const birthDate = new Date(
@@ -728,7 +723,6 @@ const calculateAge = () => {
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
 
-        // Adjust age if birthday hasn't occurred this year yet
         if (
             monthDiff < 0 ||
             (monthDiff === 0 && today.getDate() < birthDate.getDate())
@@ -736,14 +730,12 @@ const calculateAge = () => {
             age--;
         }
 
-        // Only update if age is valid (positive number)
         if (age >= 0 && age <= 150) {
             form.age = age.toString();
         }
     }
 };
 
-// Watch for changes in birth date fields and auto-calculate age
 watch(
     [() => form.birth_year, () => form.birth_month, () => form.birth_day],
     () => {

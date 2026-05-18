@@ -40,7 +40,6 @@ class RebuildPaymentSummaries extends Command
         $results = PaymentSummary::rebuild();
         $elapsed = round((microtime(true) - $startTime) * 1000, 1);
 
-        // Display results in a table
         $rows = [];
         foreach ($results as $key => $value) {
             $rows[] = [$key, number_format($value, 2)];

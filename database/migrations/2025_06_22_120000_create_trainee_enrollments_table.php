@@ -38,14 +38,11 @@ return new class extends Migration
             $table->text('notes')->nullable(); // For any special notes about this enrollment
             $table->timestamps();
 
-            // Foreign key constraints
             $table->foreign('trainee_id')->references('id')->on('trainees')->onDelete('cascade');
             $table->foreign('program_id')->references('program_id')->on('programs')->onDelete('cascade');
             
-            // Ensure a trainee can only have one active enrollment per program
             $table->unique(['trainee_id', 'program_id', 'status'], 'unique_active_enrollment');
             
-            // Index for performance
             $table->index(['trainee_id', 'status']);
             $table->index(['program_id', 'status']);
         });

@@ -33,7 +33,6 @@ const dateTo = ref(props.filters?.date_to || "");
 const perPage = ref(props.filters?.per_page || 10);
 const showFilters = ref(false);
 
-// Add search functionality
 const performSearch = () => {
     router.get(
         route("admin.assessments"),
@@ -54,22 +53,18 @@ const performSearch = () => {
     );
 };
 
-// Add change per page functionality
 const changePerPage = () => {
     performSearch();
 };
 
-// Watch for filter changes and trigger search automatically
 let searchTimeout = null;
 watch(
     [selectedProgram, selectedResult, dateFrom, dateTo, searchQuery],
     () => {
-        // Clear previous timeout
         if (searchTimeout) {
             clearTimeout(searchTimeout);
         }
 
-        // Debounce search to avoid too many requests while user is typing
         searchTimeout = setTimeout(() => {
             performSearch();
         }, 500); // 500ms delay
@@ -77,7 +72,6 @@ watch(
     { deep: true }
 );
 
-// Use backend-filtered data directly (no frontend filtering needed)
 const filteredAssessments = computed(() => {
     return props.assessments?.data || [];
 });
@@ -96,7 +90,6 @@ const hasActiveFilters = computed(() => {
     );
 });
 
-// Use pre-computed stats from the server instead of filtering 1.5M records in-browser
 const stats = computed(() => props.comprehensive_stats || {
     total: 0, competent: 0, not_yet_competent: 0, absent: 0, not_evaluated: 0
 });
@@ -130,7 +123,6 @@ const openResultsModal = (assessment) => {
 };
 
 const viewAssessmentHistory = (assessment) => {
-    // Navigate to assessment history page
     router.visit(`/admin/assessments/${assessment.id}/assessment-history`);
 };
 
@@ -190,7 +182,6 @@ const formatDate = (date) => {
 };
 
 const exportAssessmentResults = () => {
-    // TODO: Implement export functionality
 };
 </script>
 

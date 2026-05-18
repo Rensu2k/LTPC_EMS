@@ -22,7 +22,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trainee_enrollments', function (Blueprint $table) {
-            //
         });
     }
 
@@ -32,7 +31,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('trainee_enrollments', function (Blueprint $table) {
-            //
         });
     }
 };

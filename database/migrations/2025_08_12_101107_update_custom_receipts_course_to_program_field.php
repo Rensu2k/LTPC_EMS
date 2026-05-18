@@ -22,7 +22,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update existing custom receipts to use 'program' field instead of 'course'
         $customReceipts = DB::table('custom_receipts')->get();
         
         foreach ($customReceipts as $receipt) {
@@ -32,7 +31,6 @@ return new class extends Migration
                 $updatedFees = [];
                 
                 foreach ($fees as $fee) {
-                    // If fee has 'course' field but no 'program' field, migrate it
                     if (isset($fee['course']) && !isset($fee['program'])) {
                         $fee['program'] = $fee['course'];
                         unset($fee['course']); // Remove old field
@@ -40,7 +38,6 @@ return new class extends Migration
                     $updatedFees[] = $fee;
                 }
                 
-                // Update the record
                 DB::table('custom_receipts')
                     ->where('id', $receipt->id)
                     ->update(['fees' => json_encode($updatedFees)]);
@@ -53,7 +50,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to 'course' field
         $customReceipts = DB::table('custom_receipts')->get();
         
         foreach ($customReceipts as $receipt) {
@@ -63,7 +59,6 @@ return new class extends Migration
                 $updatedFees = [];
                 
                 foreach ($fees as $fee) {
-                    // If fee has 'program' field, revert it back to 'course'
                     if (isset($fee['program'])) {
                         $fee['course'] = $fee['program'];
                         unset($fee['program']);
@@ -71,7 +66,6 @@ return new class extends Migration
                     $updatedFees[] = $fee;
                 }
                 
-                // Update the record
                 DB::table('custom_receipts')
                     ->where('id', $receipt->id)
                     ->update(['fees' => json_encode($updatedFees)]);

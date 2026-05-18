@@ -27,7 +27,6 @@ class PaymentController extends Controller
      */
     public function adminIndex()
     {
-        // Fetch all custom receipts (status: generated)
         $customReceipts = CustomReceipt::with(['trainee', 'program', 'trainee.enrollments.program'])
             ->where('status', 'generated')
             ->orderBy('date_generated', 'desc')
@@ -36,26 +35,21 @@ class PaymentController extends Controller
                 $traineeName = $receipt->trainee?->full_name ?? $receipt->trainee_name;
                 $uliNumber = $receipt->trainee?->uli_number ?? $receipt->trainee_uli_number;
                 
-                // Get program information - try multiple sources
                 $programName = 'Unknown Program';
                 $programId = 'N/A';
                 
-                // First try: direct program relationship
                 if ($receipt->program) {
                     $programName = $receipt->program->name;
                     $programId = $receipt->program->program_id;
                 }
-                // Second try: from enrollment relationship
                 elseif ($receipt->enrollment && $receipt->enrollment->program) {
                     $programName = $receipt->enrollment->program->name;
                     $programId = $receipt->enrollment->program->program_id;
                 }
-                // Third try: from trainee's current enrollment
                 elseif ($receipt->trainee && $receipt->trainee->currentEnrollment && $receipt->trainee->currentEnrollment->program) {
                     $programName = $receipt->trainee->currentEnrollment->program->name;
                     $programId = $receipt->trainee->currentEnrollment->program->program_id;
                 }
-                // Fourth try: from trainee's latest enrollment
                 elseif ($receipt->trainee && $receipt->trainee->enrollments->isNotEmpty()) {
                     $latestEnrollment = $receipt->trainee->enrollments->sortByDesc('enrollment_date')->first();
                     if ($latestEnrollment && $latestEnrollment->program) {
@@ -101,7 +95,6 @@ class PaymentController extends Controller
                 ];
             });
 
-        // Group receipts by trainee_name (more reliable than trainee_id for consistency)
         $groupedReceipts = $customReceipts->groupBy('trainee_name')->map(function ($receipts, $traineeName) {
             $first = $receipts->first();
             return [
@@ -139,7 +132,6 @@ class PaymentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        // Create a custom receipt for this payment
         $receipt = CustomReceipt::create([
             'trainee_model_id' => $validated['trainee_id'],
             'program_id' => $validated['program_id'],
@@ -175,7 +167,6 @@ class PaymentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        // Find the payment (could be enrollment or custom receipt)
         if (str_starts_with($id, 'ENR-')) {
             $enrollmentId = (int) str_replace('ENR-', '', $id);
             $enrollment = TraineeEnrollment::find($enrollmentId);
@@ -217,13 +208,11 @@ class PaymentController extends Controller
      */
     public function adminDestroy($id)
     {
-        // Find the payment (could be enrollment or custom receipt)
         if (str_starts_with($id, 'ENR-')) {
             $enrollmentId = (int) str_replace('ENR-', '', $id);
             $enrollment = TraineeEnrollment::find($enrollmentId);
             
             if ($enrollment) {
-                // Guard: prevent resetting payment on finalized enrollments
                 if ($enrollment->status === 'completed') {
                     return redirect()->back()->with('error', 'Cannot delete payment for a completed enrollment. This would break the audit trail.');
                 }
@@ -241,7 +230,6 @@ class PaymentController extends Controller
             $receipt = CustomReceipt::find($receiptId);
             
             if ($receipt) {
-                // Guard: prevent deletion of generated/finalized receipts
                 if ($receipt->status === 'generated') {
                     return redirect()->back()->with('error', 'Cannot delete a generated receipt. Use the cancellation feature instead to preserve the audit trail.');
                 }

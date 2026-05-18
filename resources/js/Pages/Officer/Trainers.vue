@@ -26,18 +26,15 @@ const showDeleteModal = ref(false);
 const selectedTrainer = ref(null);
 const processing = ref(false);
 
-// Helper function to get the actual trainers data (handles both paginated and non-paginated)
 const getTrainersData = () => {
     return props.trainers?.data || props.trainers || [];
 };
 
-// Helper function to find a trainer by ID
 const findTrainerById = (id) => {
     const trainersData = getTrainersData();
     return trainersData.find((t) => t.id === id);
 };
 
-// Process trainers data to match the expected format
 const trainersList = computed(() => {
     const trainersData = props.trainers?.data || props.trainers;
 
@@ -65,8 +62,6 @@ const trainersList = computed(() => {
     }));
 });
 
-// Server-side filtering is now handled by the backend
-// This computed property is kept for backward compatibility
 const filteredTrainers = computed(() => trainersList.value);
 
 const addTrainer = () => {
@@ -78,12 +73,10 @@ const closeRegistrationModal = () => {
 };
 
 const onTrainerSubmitted = () => {
-    // Refresh the page to show the new trainer
     window.location.reload();
 };
 
 const viewTrainer = (trainer) => {
-    // Find the actual trainer data from props
     const actualTrainer = findTrainerById(trainer.id);
     selectedTrainer.value = actualTrainer;
     showDetailsModal.value = true;
@@ -117,7 +110,6 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
-            // Refresh to show updated list
             window.location.reload();
         },
         onError: () => {
@@ -132,7 +124,6 @@ const handleEditFromDetails = (trainer) => {
     editTrainer(trainer);
 };
 
-// Debounced search function
 let searchTimeout;
 const performSearch = () => {
     clearTimeout(searchTimeout);
@@ -148,7 +139,6 @@ const performSearch = () => {
     }, 300);
 };
 
-// Watch for search changes
 watch(searchQuery, () => {
     performSearch();
 });

@@ -31,7 +31,6 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // Soft ambient + directional lighting (frosty feel)
     const ambient = new THREE.AmbientLight(0xb8d4e3, 0.6);
     scene.add(ambient);
 
@@ -43,7 +42,6 @@ function init() {
     fillLight.position.set(-3, 2, 4);
     scene.add(fillLight);
 
-    // Ice-like sphere (frosty accent)
     const sphereGeo = new THREE.SphereGeometry(1.2, 32, 32);
     const sphereMat = new THREE.MeshPhongMaterial({
         color: 0xb8d4e3,
@@ -56,7 +54,6 @@ function init() {
     iceSphere.position.set(-2, 0.5, -4);
     scene.add(iceSphere);
 
-    // Second smaller ice shape
     const boxGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
     const boxMat = new THREE.MeshPhongMaterial({
         color: 0xa8d8ea,
@@ -70,7 +67,6 @@ function init() {
     iceBox.rotation.y = 0.5;
     scene.add(iceBox);
 
-    // Particle system
     const particleCount = 400;
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);

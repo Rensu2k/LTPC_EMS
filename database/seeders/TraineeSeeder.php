@@ -24,7 +24,6 @@ class TraineeSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get available programs
         $programs = Program::all();
         if ($programs->isEmpty()) {
             $this->command->warn('No programs found. Please run ProgramSeeder first.');
@@ -41,7 +40,6 @@ class TraineeSeeder extends Seeder
         $cities = ['Manila', 'Quezon City', 'Makati', 'Pasig', 'Caloocan', 'Las Piñas', 'Malabon', 'Navotas', 'Valenzuela', 'Marikina'];
         $barangays = ['Barangay 1', 'Barangay 2', 'Barangay 3', 'Barangay 4', 'Barangay 5', 'Barangay 6', 'Barangay 7', 'Barangay 8'];
         
-        // Filipino first names
         $firstNames = [
             'Juan', 'Maria', 'Jose', 'Ana', 'Carlos', 'Rosa', 'Antonio', 'Carmen', 'Manuel', 'Dolores',
             'Pedro', 'Teresa', 'Francisco', 'Rosa', 'Miguel', 'Concepcion', 'Ramon', 'Josefa', 'Ricardo', 'Filomena',
@@ -50,7 +48,6 @@ class TraineeSeeder extends Seeder
             'Jose', 'Rosario', 'Luis', 'Soledad', 'Felipe', 'Consuelo', 'Jorge', 'Beatriz', 'Arturo', 'Dolores'
         ];
         
-        // Filipino last names
         $lastNames = [
             'Santos', 'Reyes', 'Cruz', 'Bautista', 'Ocampo', 'Garcia', 'Lopez', 'Rodriguez', 'Martinez', 'Torres',
             'Fernandez', 'Gonzalez', 'Sanchez', 'Perez', 'Gomez', 'Diaz', 'Ramos', 'Morales', 'Rivera', 'Mendoza',
@@ -60,7 +57,6 @@ class TraineeSeeder extends Seeder
         
         $middleNames = ['Dela', 'De', 'Mac', 'Van', 'San', 'Tan', 'Lim', 'Chua', 'Sy', 'Ng'];
 
-        // Create 20 Regular Trainees
         $this->command->info('Creating 20 regular trainees...');
         for ($i = 1; $i <= 20; $i++) {
             $birthYear = rand(1995, 2005);
@@ -122,7 +118,6 @@ class TraineeSeeder extends Seeder
             ]);
         }
 
-        // Create 20 Scholar Trainees
         $this->command->info('Creating 20 scholar trainees...');
         for ($i = 1; $i <= 20; $i++) {
             $birthYear = rand(1995, 2005);

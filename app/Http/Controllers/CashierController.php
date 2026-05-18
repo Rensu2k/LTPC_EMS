@@ -67,16 +67,12 @@ class CashierController extends Controller
         $perPage = min((int) $request->get('per_page', 3), 100);
         $page = $request->get('page', 1);
         
-        // Calculate statistics
         $stats = $this->calculateDashboardStats();
         
-        // Get recent payment status (active enrollments) with pagination
         $paymentStatus = $this->getPaymentStatus($perPage, $page);
 
-        // Get payment summaries by month
         $paymentSummaries = $this->getPaymentSummaries();
         
-        // Get recent activities
         $recentActivities = $this->getRecentActivities();
 
         return Inertia::render('Cashier/Dashboard', [
@@ -125,11 +121,7 @@ class CashierController extends Controller
         $status = $request->get('status', '');
         $currentPage = (int) $request->get('page', 1);
 
-        // Scalability: Only query the ACTIVE tab's data with DB-level pagination.
-        // Previously loaded ALL records from ALL 3 types into memory (~500MB at 1M rows).
-        // Now we query only the requested type and use COUNT() for the other tabs.
 
-        // --- Tab counts (lightweight COUNT queries for badges) ---
         $registrationCount = $this->getRegistrationPaymentsQuery($search)->count();
         $enrollmentCount = TraineeEnrollment::where(function ($query) {
                 $query->whereNotNull('enrollment_fee')
@@ -159,7 +151,6 @@ class CashierController extends Controller
             })
             ->count();
 
-        // --- Active tab data (paginated) ---
         $paginatedPayments = collect();
         $totalItems = 0;
 
@@ -270,7 +261,6 @@ class CashierController extends Controller
                     ];
                 });
         } else {
-            // Registration tab (default)
             $query = $this->getRegistrationPaymentsQuery($search);
             $paginated = $query->orderBy('created_at', 'desc')->paginate($perPage);
             $paginatedPayments = $paginated->through(function ($trainee) {
@@ -302,10 +292,8 @@ class CashierController extends Controller
             });
         }
 
-        // Calculate summary statistics
         $summaryStats = $this->calculatePaymentSummaryStats();
         
-        // Get collections by program
         $collectionsByProgram = $this->getCollectionsByProgram();
 
         return Inertia::render('Cashier/Payments', [
@@ -374,16 +362,12 @@ class CashierController extends Controller
      */
     public function receipts()
     {
-        // Get enrollment receipts - only show enrollments that have manually generated custom receipts
-        // Auto-enrollments should not appear as receipts until cashier manually generates a receipt
         $enrollmentReceipts = collect(); // Start with empty collection, only custom receipts will be shown
 
-        // Get assessment receipts (paid assessments) - exclude scholars' automatic assessments
         $assessmentReceipts = Assessment::with(['trainee', 'program'])
             ->where('payment_status', 'paid')
             ->whereNotNull('payment_reference')
             ->where(function ($query) {
-                // Exclude automatic scholar assessments - they have payment_method = 'scholarship_exemption'
                 $query->where('payment_method', '!=', 'scholarship_exemption')
                       ->orWhereNull('payment_method');
             })
@@ -416,7 +400,6 @@ class CashierController extends Controller
                 ];
             });
 
-        // Get custom receipts (user-edited receipts) - only generated ones
         $customEnrollmentReceipts = CustomReceipt::where('type', 'enrollment')
             ->where('status', 'generated')
             ->orderBy('created_at', 'desc')
@@ -429,20 +412,17 @@ class CashierController extends Controller
             ->get()
             ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
-        // Get custom registration receipts (newly registered trainees who got receipts)
         $customRegistrationReceipts = CustomReceipt::where('type', 'registration')
             ->where('status', 'generated')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
-        // Get cancelled receipts (for audit purposes)
         $cancelledReceipts = CustomReceipt::where('status', 'cancelled')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn($receipt) => $this->mapCustomReceipt($receipt));
 
-        // Merge custom receipts with default receipts, giving priority to custom receipts
         $customEnrollmentPaymentIds = $customEnrollmentReceipts->pluck('paymentId')->toArray();
         $customAssessmentPaymentIds = $customAssessmentReceipts->pluck('paymentId')->toArray();
         $customRegistrationPaymentIds = $customRegistrationReceipts->pluck('paymentId')->toArray();
@@ -455,10 +435,8 @@ class CashierController extends Controller
             return !in_array($receipt['paymentId'], $customAssessmentPaymentIds);
         })->concat($customAssessmentReceipts);
 
-        // Combine all receipts and group by trainee (including registration receipts)
         $allReceipts = $finalEnrollmentReceipts->concat($finalAssessmentReceipts)->concat($customRegistrationReceipts);
 
-        // Group receipts by trainee
         $groupedReceipts = $allReceipts->groupBy('trainee.trainee_id')->map(function ($receipts, $traineeId) {
             $firstReceipt = $receipts->first();
             $sortedReceipts = $receipts->sortByDesc(function ($receipt) {
@@ -481,7 +459,6 @@ class CashierController extends Controller
         return Inertia::render('Cashier/Receipts', [
             'groupedReceipts' => $groupedReceipts,
             'cancelledReceipts' => $cancelledReceipts->sortByDesc('dateGenerated')->values(),
-            // Keep the old format for backward compatibility during transition
             'enrollmentReceipts' => $finalEnrollmentReceipts->sortByDesc('dateGenerated')->values(),
             'assessmentReceipts' => $finalAssessmentReceipts->sortByDesc('dateGenerated')->values(),
         ]);
@@ -494,7 +471,6 @@ class CashierController extends Controller
     {
         $summaryStats = $this->calculatePaymentSummaryStats();
 
-        // Reuse existing aggregation by program
         $collectionsByProgram = $this->getCollectionsByProgram();
 
         return Inertia::render('Cashier/Reports', [
@@ -518,16 +494,13 @@ class CashierController extends Controller
             'skip_enrollment' => 'nullable|boolean',
         ]);
 
-        // Ensure one of enrollment_id, assessment_id, or trainee_id is provided
         if (!$request->enrollment_id && !$request->assessment_id && !$request->trainee_id) {
             return redirect()->back()->withErrors(['error' => 'Either enrollment, assessment, or trainee ID must be provided.']);
         }
 
         if ($request->enrollment_id) {
-            // Process enrollment payment
             $enrollment = TraineeEnrollment::findOrFail($request->enrollment_id);
 
-            // Idempotency guard: skip if already paid
             if ($enrollment->payment_status === 'paid') {
                 return redirect()->back()->with('success', 'Payment was already processed for this enrollment.');
             }
@@ -538,7 +511,6 @@ class CashierController extends Controller
                 $request->payment_notes
             );
 
-            // Keep trainee model in sync — use forceFill since payment fields are guarded
             if ($enrollment->trainee) {
                 $enrollment->trainee->forceFill([
                     'payment_status' => 'paid',
@@ -550,10 +522,8 @@ class CashierController extends Controller
                 ])->save();
             }
         } else if ($request->assessment_id) {
-            // Process assessment payment
             $assessment = Assessment::findOrFail($request->assessment_id);
 
-            // Idempotency guard: skip if already paid
             if ($assessment->payment_status === 'paid') {
                 return redirect()->back()->with('success', 'Payment was already processed for this assessment.');
             }
@@ -566,17 +536,13 @@ class CashierController extends Controller
                 'payment_notes' => $request->payment_notes
             ]);
         } else if ($request->trainee_id) {
-            // Process registration payment for newly registered trainee
             $trainee = Trainee::findOrFail($request->trainee_id);
 
-            // Idempotency guard: skip if already paid
             if ($trainee->payment_status === 'paid') {
                 return redirect()->back()->with('success', 'Payment was already processed for this trainee.');
             }
 
             if ($request->skip_enrollment) {
-                // Mark as paid and activate immediately to trigger auto-enrollment. Receipt can follow.
-                // Use forceFill since payment/status fields are guarded.
                 $trainee->forceFill([
                     'payment_status' => 'paid',
                     'status' => 'active',
@@ -586,11 +552,8 @@ class CashierController extends Controller
                     'payment_notes' => $request->payment_notes
                 ])->save();
                 
-                // Refresh the model to get the latest data
                 $trainee->refresh();
             } else {
-                // Standard flow: Update trainee payment status and activate them
-                // Use forceFill since payment/status fields are guarded.
                 $trainee->forceFill([
                     'payment_status' => 'paid',
                     'status' => 'active',
@@ -600,7 +563,6 @@ class CashierController extends Controller
                     'payment_notes' => $request->payment_notes
                 ])->save();
 
-                // The handleAutoEnrollment method will be triggered automatically via the model's boot method
             }
         }
 
@@ -635,27 +597,22 @@ class CashierController extends Controller
             'cancellation_reason' => 'nullable|string',
         ]);
 
-        // Determine if this is a cancelled receipt
         $isCancelled = $request->status === 'cancelled';
 
-        // Separate original fees (first fee, which is the system-generated one) from custom fees
         $originalFees = collect($request->fees)->take(1)->toArray(); // First fee is original
         $customFees = collect($request->fees)->skip(1)->toArray(); // Rest are custom
 
         $totalAmount = collect($request->fees)->sum('amount');
 
-        // Generate a unique receipt number if one is not provided or if it already exists
         $baseReceiptNo = $request->receiptNo;
         $receiptNo = $baseReceiptNo;
         $counter = 1;
         
-        // Check for existing receipt numbers and make sure we generate a unique one
         while (CustomReceipt::where('receipt_number', $receiptNo)->exists()) {
             $receiptNo = $baseReceiptNo . '-' . $counter;
             $counter++;
         }
 
-        // Always create a new custom receipt (allow multiple receipts per payment)
         $receipt = CustomReceipt::create([
             'receipt_number' => $receiptNo,
             'payment_id' => $request->paymentId,
@@ -676,17 +633,13 @@ class CashierController extends Controller
             'trainee_model_id' => $request->trainee_id,
         ]);
 
-        // Handle enrollment completion for registration payments (only for generated receipts, not cancelled)
         if (!$isCancelled && $request->complete_enrollment && $request->type === 'registration' && $request->trainee_id) {
             $trainee = Trainee::findOrFail($request->trainee_id);
             
-            // Activate the trainee and trigger enrollment — use forceFill since status is guarded
             $trainee->forceFill([
                 'status' => 'active'
             ])->save();
             
-            // The handleAutoEnrollment method will be triggered automatically via the model's boot method
-            // This will create the TraineeEnrollment record for the trainee and move them to "Additional Fees" tab
         }
 
         if ($isCancelled) {
@@ -710,7 +663,6 @@ class CashierController extends Controller
             'fees.*.accountCode' => 'required|string',
         ]);
 
-        // Calculate total amount including original fees
         $customFeesTotal = collect($request->fees)->sum('amount');
         $originalFeesTotal = collect($customReceipt->original_fees ?: [])->sum('amount');
         $totalAmount = $customFeesTotal + $originalFeesTotal;
@@ -733,7 +685,6 @@ class CashierController extends Controller
         $currentMonth = Carbon::now()->startOfMonth();
         $lastMonth = Carbon::now()->subMonth()->startOfMonth();
         
-        // Current month stats - Enrollments
         $currentEnrollmentTotal = TraineeEnrollment::where('payment_status', 'paid')
             ->where('payment_date', '>=', $currentMonth)
             ->sum('enrollment_fee');
@@ -748,7 +699,6 @@ class CashierController extends Controller
             ->where('payment_date', '>=', $currentMonth)
             ->count();
 
-        // Current month stats - Assessments
         $currentAssessmentTotal = Assessment::where('payment_status', 'paid')
             ->where('payment_date', '>=', $currentMonth)
             ->sum('assessment_fee');
@@ -763,21 +713,17 @@ class CashierController extends Controller
             ->where('payment_date', '>=', $currentMonth)
             ->count();
 
-        // Current month stats - Registration Payments (newly registered trainees)
         $currentRegistrationPending = Trainee::where('payment_status', 'unpaid')
             ->where('status', 'pending')
             ->where('created_at', '>=', $currentMonth)
             ->whereDoesntHave('enrollments')
             ->count();
 
-        // Current month stats - Registration Payments (paid trainees who became enrolled)
         $currentRegistrationPaid = Trainee::where('payment_status', 'paid')
             ->where('payment_date', '>=', $currentMonth)
             ->whereHas('enrollments')
             ->count();
 
-        // Include Custom Receipts (additional fees and finalized collections)
-        // Avoid double-counting by excluding enrollments/assessments that already have custom receipts
         $currentMonthCustomReceiptsTotal = CustomReceipt::where('status', 'generated')
             ->where('date_generated', '>=', $currentMonth)
             ->sum('total_amount');
@@ -794,7 +740,6 @@ class CashierController extends Controller
             ->pluck('assessment_id')
             ->toArray();
 
-        // Also exclude enrollments where the trainee has ANY custom receipt (registration, etc.)
         $currentMonthTraineeIdsWithAnyReceipts = CustomReceipt::where('status', 'generated')
             ->where('date_generated', '>=', $currentMonth)
             ->whereNotNull('trainee_model_id')
@@ -812,13 +757,11 @@ class CashierController extends Controller
             ->whereNotIn('id', $currentMonthAssessmentIdsWithReceipts)
             ->sum('assessment_fee');
 
-        // Current month registration totals (exclude trainees with ANY custom receipt to avoid double counting)
         $currentMonthTraineesWithReceipts = CustomReceipt::where('date_generated', '>=', $currentMonth)
             ->whereNotNull('trainee_model_id')
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use DB-level JOIN SUM instead of loading all trainees into PHP memory
         $currentRegistrationTotalNoReceipt = (float) DB::table('trainees as t')
             ->leftJoin('programs as p', 'p.name', '=', 't.program_qualification')
             ->where('t.payment_status', 'paid')
@@ -831,12 +774,10 @@ class CashierController extends Controller
             })
             ->sum(DB::raw('COALESCE(p.enrollment_fee, 0) + IF(t.scholarship_package IS NOT NULL AND t.scholarship_package != "" AND COALESCE(p.enrollment_fee, 0) = 0, 500, 0)'));
 
-        // Combined current month totals now include additional fees via Custom Receipts
         $currentTotal = $currentMonthCustomReceiptsTotal + $currentEnrollmentTotalNoReceipt + $currentAssessmentTotalNoReceipt + $currentRegistrationTotalNoReceipt;
         $currentPending = $currentEnrollmentPending + $currentAssessmentPending + $currentRegistrationPending;
         $currentReceipts = $currentEnrollmentReceipts + $currentAssessmentReceipts + $currentRegistrationPaid;
 
-        // Last month stats - Enrollments
         $lastEnrollmentTotal = TraineeEnrollment::where('payment_status', 'paid')
             ->whereBetween('payment_date', [$lastMonth, $currentMonth])
             ->sum('enrollment_fee');
@@ -851,7 +792,6 @@ class CashierController extends Controller
             ->whereBetween('payment_date', [$lastMonth, $currentMonth])
             ->count();
 
-        // Last month stats - Assessments
         $lastAssessmentTotal = Assessment::where('payment_status', 'paid')
             ->whereBetween('payment_date', [$lastMonth, $currentMonth])
             ->sum('assessment_fee');
@@ -866,7 +806,6 @@ class CashierController extends Controller
             ->whereBetween('payment_date', [$lastMonth, $currentMonth])
             ->count();
 
-        // Last month stats - Registration Payments
         $lastRegistrationPending = Trainee::where('payment_status', 'unpaid')
             ->where('status', 'pending')
             ->whereBetween('created_at', [$lastMonth, $currentMonth])
@@ -878,7 +817,6 @@ class CashierController extends Controller
             ->whereHas('enrollments')
             ->count();
 
-        // Include Custom Receipts for last month range as well (avoid double count similarly)
         $lastMonthCustomReceiptsTotal = CustomReceipt::where('status', 'generated')
             ->whereBetween('date_generated', [$lastMonth, $currentMonth])
             ->sum('total_amount');
@@ -895,7 +833,6 @@ class CashierController extends Controller
             ->pluck('assessment_id')
             ->toArray();
 
-        // Also exclude enrollments where the trainee has ANY custom receipt (registration, etc.) for last month
         $lastMonthTraineeIdsWithAnyReceipts = CustomReceipt::where('status', 'generated')
             ->whereBetween('date_generated', [$lastMonth, $currentMonth])
             ->whereNotNull('trainee_model_id')
@@ -913,13 +850,11 @@ class CashierController extends Controller
             ->whereNotIn('id', $lastMonthAssessmentIdsWithReceipts)
             ->sum('assessment_fee');
 
-        // Last month registration totals (exclude trainees with ANY custom receipt to avoid double counting)
         $lastMonthTraineesWithReceipts = CustomReceipt::whereBetween('date_generated', [$lastMonth, $currentMonth])
             ->whereNotNull('trainee_model_id')
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use DB-level JOIN SUM instead of loading all trainees into PHP memory
         $lastRegistrationTotalNoReceipt = (float) DB::table('trainees as t')
             ->leftJoin('programs as p', 'p.name', '=', 't.program_qualification')
             ->where('t.payment_status', 'paid')
@@ -932,7 +867,6 @@ class CashierController extends Controller
             })
             ->sum(DB::raw('COALESCE(p.enrollment_fee, 0) + IF(t.scholarship_package IS NOT NULL AND t.scholarship_package != "" AND COALESCE(p.enrollment_fee, 0) = 0, 500, 0)'));
 
-        // Combined last month totals include custom receipts
         $lastTotal = $lastMonthCustomReceiptsTotal + $lastEnrollmentTotalNoReceipt + $lastAssessmentTotalNoReceipt + $lastRegistrationTotalNoReceipt;
         $lastPending = $lastEnrollmentPending + $lastAssessmentPending + $lastRegistrationPending;
         $lastReceipts = $lastEnrollmentReceipts + $lastAssessmentReceipts + $lastRegistrationPaid;
@@ -949,11 +883,7 @@ class CashierController extends Controller
 
     private function getPaymentStatus($perPage = 9, $page = 1)
     {
-        // Scalability: Use DB-level LIMIT instead of loading ALL records into PHP memory.
-        // Previously loaded ALL enrollments + registrations + assessments (~500MB at 1M rows).
-        // Now uses a UNION ALL query with proper LIMIT/OFFSET for true DB pagination.
 
-        // Use raw UNION query to combine all payment types with DB-level pagination
         $enrollmentQuery = DB::table('trainee_enrollments as te')
             ->join('trainees as t', 't.id', '=', 'te.trainee_id')
             ->join('programs as p', 'p.program_id', '=', 'te.program_id')
@@ -1001,7 +931,6 @@ class CashierController extends Controller
                 DB::raw("IF(a.assessment_fee = 0 AND a.payment_method = 'scholarship_exemption', 1, 0) as is_scholarship")
             );
 
-        // UNION ALL + ORDER + LIMIT at the DB level
         $total = DB::query()->fromSub(
             $enrollmentQuery->unionAll($registrationQuery)->unionAll($assessmentQuery), 'combined'
         )->count();
@@ -1014,7 +943,6 @@ class CashierController extends Controller
             ->limit($perPage)
             ->get();
 
-        // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
         $path = request()->url();
         if (config('app.force_https') && str_starts_with(config('app.url', ''), 'https://')) {
             $path = str_replace('http://', 'https://', $path);
@@ -1041,7 +969,6 @@ class CashierController extends Controller
             $startOfMonth = $month->copy()->startOfMonth();
             $endOfMonth = $month->copy()->endOfMonth();
             
-            // Enrollment payments for this month
             $enrollmentAmount = TraineeEnrollment::where('payment_status', 'paid')
                 ->whereBetween('payment_date', [$startOfMonth, $endOfMonth])
                 ->sum('enrollment_fee');
@@ -1056,7 +983,6 @@ class CashierController extends Controller
                 ->where('enrollment_fee', '>', 0)
                 ->count();
 
-            // Assessment payments for this month
             $assessmentAmount = Assessment::where('payment_status', 'paid')
                 ->whereBetween('payment_date', [$startOfMonth, $endOfMonth])
                 ->sum('assessment_fee');
@@ -1071,7 +997,6 @@ class CashierController extends Controller
                 ->where('assessment_fee', '>', 0)
                 ->count();
 
-            // Combined totals
             $totalAmount = $enrollmentAmount + $assessmentAmount;
             $paid = $enrollmentPaid + $assessmentPaid;
             $pending = $enrollmentPending + $assessmentPending;
@@ -1092,7 +1017,6 @@ class CashierController extends Controller
      */
     private function getRecentActivities()
     {
-        // Get enrollment activities
         $enrollmentActivities = TraineeEnrollment::with(['trainee', 'program'])
             ->where('payment_status', 'paid')
             ->whereNotNull('payment_date')
@@ -1108,7 +1032,6 @@ class CashierController extends Controller
                 ];
             });
 
-        // Get registration activities (trainees who completed registration payment and enrolled)
         $registrationActivities = Trainee::where('payment_status', 'paid')
             ->whereNotNull('payment_date')
             ->whereHas('enrollments')
@@ -1127,7 +1050,6 @@ class CashierController extends Controller
                 ];
             });
 
-        // Get assessment activities
         $assessmentActivities = Assessment::with(['trainee', 'program'])
             ->where('payment_status', 'paid')
             ->whereNotNull('payment_date')
@@ -1153,12 +1075,10 @@ class CashierController extends Controller
                 ];
             });
 
-        // Combine and sort all activities
         return $enrollmentActivities->concat($registrationActivities)->concat($assessmentActivities)
             ->sortByDesc('payment_date')
             ->take(10)
             ->map(function ($activity) {
-                // Remove payment_date from final output
                 unset($activity['payment_date']);
                 return $activity;
             })
@@ -1170,29 +1090,21 @@ class CashierController extends Controller
      */
     private function calculatePaymentSummaryStats()
     {
-        // Custom receipt totals (primary source of truth for collections)
         $totalCustomReceiptCollections = CustomReceipt::where('status', 'generated')->sum('total_amount');
         
-        // Get enrollment totals for payments that haven't been processed into custom receipts yet
-        // Only count enrollments that don't have corresponding custom receipts
         $enrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('enrollment_id')
             ->pluck('enrollment_id')
             ->toArray();
 
-        // Also exclude enrollments where the trainee has ANY custom receipt (registration, etc.)
         $traineeIdsWithAnyReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('trainee_model_id')
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use cached totals for the global paid enrollment SUM/COUNT.
-        // These queries scan 2M+ rows (6.8s each). The cache is updated atomically
-        // by PaymentSummaryObserver on every payment event.
         $totalEnrollmentCollections = PaymentSummary::getValue('enrollment_paid_sum');
         $totalEnrollmentCollectionsCount = (int) PaymentSummary::getValue('enrollment_paid_count');
         
-        // Get assessment totals for payments that haven't been processed into custom receipts yet
         $assessmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('assessment_id')
             ->pluck('assessment_id')
@@ -1205,13 +1117,10 @@ class CashierController extends Controller
             ->whereNotIn('id', $assessmentsWithReceipts)
             ->count();
         
-        // Registration totals (new trainees who paid but haven't been processed into custom receipts)
-        // Exclude trainees who have ANY custom receipt (generated or cancelled) to avoid double counting
         $traineesWithReceipts = CustomReceipt::whereNotNull('trainee_model_id')
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use DB-level JOIN SUM instead of loading all trainees into PHP memory
         $totalRegistrationCollections = (float) DB::table('trainees as t')
             ->leftJoin('programs as p', 'p.name', '=', 't.program_qualification')
             ->where('t.payment_status', 'paid')
@@ -1229,25 +1138,21 @@ class CashierController extends Controller
             ->whereNotIn('id', $traineesWithReceipts)
             ->count();
         
-        // Combined totals (custom receipts are primary, add only unprocessed payments)
         $totalCollections = $totalCustomReceiptCollections + $totalEnrollmentCollections + $totalAssessmentCollections + $totalRegistrationCollections;
         $totalCollectionsCount = $totalEnrollmentCollectionsCount + $totalAssessmentCollectionsCount + $totalRegistrationCollectionsCount;
         
         $thisMonth = Carbon::now()->startOfMonth();
         
-        // This month custom receipts (primary source)
         $thisMonthCustomReceiptAmount = CustomReceipt::where('status', 'generated')
             ->where('date_generated', '>=', $thisMonth)
             ->sum('total_amount');
             
-        // This month enrollment (only those not processed into custom receipts)
         $thisMonthEnrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('enrollment_id')
             ->where('date_generated', '>=', $thisMonth)
             ->pluck('enrollment_id')
             ->toArray();
 
-        // Also exclude enrollments where the trainee has ANY custom receipt this month
         $thisMonthTraineeIdsWithAnyReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('trainee_model_id')
             ->where('date_generated', '>=', $thisMonth)
@@ -1265,7 +1170,6 @@ class CashierController extends Controller
             ->whereNotIn('trainee_id', $thisMonthTraineeIdsWithAnyReceipts) // Exclude if trainee has ANY receipt
             ->count();
             
-        // This month assessment (only those not processed into custom receipts)
         $thisMonthAssessmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('assessment_id')
             ->where('date_generated', '>=', $thisMonth)
@@ -1281,14 +1185,12 @@ class CashierController extends Controller
             ->whereNotIn('id', $thisMonthAssessmentsWithReceipts)
             ->count();
             
-        // This month registration (only those not processed into custom receipts)
         $thisMonthTraineesWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('trainee_model_id')
             ->where('date_generated', '>=', $thisMonth)
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use DB-level JOIN SUM instead of loading all trainees into PHP memory
         $thisMonthRegistrationAmount = (float) DB::table('trainees as t')
             ->leftJoin('programs as p', 'p.name', '=', 't.program_qualification')
             ->where('t.payment_status', 'paid')
@@ -1308,22 +1210,17 @@ class CashierController extends Controller
             ->whereNotIn('id', $thisMonthTraineesWithReceipts)
             ->count();
             
-        // Combined this month (custom receipts are primary, add only unprocessed payments)
         $thisMonthAmount = $thisMonthCustomReceiptAmount + $thisMonthEnrollmentAmount + $thisMonthAssessmentAmount + $thisMonthRegistrationAmount;
         $thisMonthCount = $thisMonthEnrollmentCount + $thisMonthAssessmentCount + $thisMonthRegistrationCount;
             
-        // Outstanding enrollment (only those not processed into custom receipts)
         $outstandingEnrollmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('enrollment_id')
             ->pluck('enrollment_id')
             ->toArray();
             
-        // Scalability: Use cached totals for outstanding enrollment aggregations.
-        // These queries scan 2M+ rows (6.2s each). Cache is maintained by observer.
         $outstandingEnrollmentAmount = PaymentSummary::getValue('enrollment_unpaid_sum');
         $outstandingEnrollmentCount = (int) PaymentSummary::getValue('enrollment_unpaid_count');
             
-        // Outstanding assessment (only those not processed into custom receipts)
         $outstandingAssessmentsWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('assessment_id')
             ->pluck('assessment_id')
@@ -1340,14 +1237,11 @@ class CashierController extends Controller
             ->whereNotIn('id', $outstandingAssessmentsWithReceipts)
             ->count();
             
-        // Outstanding registration (only those not processed into custom receipts)
         $outstandingTraineesWithReceipts = CustomReceipt::where('status', 'generated')
             ->whereNotNull('trainee_model_id')
             ->pluck('trainee_model_id')
             ->toArray();
             
-        // Scalability: Use DB-level JOIN SUM instead of loading all trainees into PHP memory
-        // Also fixes bug: $additionalFees was being set to empty string instead of 500
         $outstandingRegistrationAmount = (float) DB::table('trainees as t')
             ->leftJoin('programs as p', 'p.name', '=', 't.program_qualification')
             ->where('t.payment_status', '!=', 'paid')
@@ -1365,7 +1259,6 @@ class CashierController extends Controller
             ->whereNotIn('id', $outstandingTraineesWithReceipts)
             ->count();
             
-        // Combined outstanding
         $outstandingAmount = $outstandingEnrollmentAmount + $outstandingAssessmentAmount + $outstandingRegistrationAmount;
         $outstandingCount = $outstandingEnrollmentCount + $outstandingAssessmentCount + $outstandingRegistrationCount;
 
@@ -1390,9 +1283,6 @@ class CashierController extends Controller
      */
     private function getCollectionsByProgram()
     {
-        // Scalability: Use DB-level aggregations instead of loading all records per program.
-        // Previously loaded ALL enrollments, assessments, registrations, and receipts for each
-        // program into PHP memory — N×4 full-table scans with N programs.
 
         return Program::withCount([
                 'enrollments as enrollment_count',
@@ -1401,12 +1291,10 @@ class CashierController extends Controller
             ])
             ->get()
             ->map(function ($program) {
-                // Enrollment amount — single SUM at DB level
                 $enrollmentAmount = (float) TraineeEnrollment::where('program_id', $program->program_id)
                     ->where('payment_status', 'paid')
                     ->sum('enrollment_fee');
 
-                // Assessment stats — DB-level COUNT + SUM
                 $assessmentCount = Assessment::where('program_id', $program->program_id)
                     ->whereNotNull('assessment_fee')->count();
                 $assessmentPaid = Assessment::where('program_id', $program->program_id)
@@ -1416,7 +1304,6 @@ class CashierController extends Controller
                 $assessmentAmount = (float) Assessment::where('program_id', $program->program_id)
                     ->where('payment_status', 'paid')->sum('assessment_fee');
 
-                // Registration stats — DB-level COUNT
                 $registrationBase = Trainee::where('program_qualification', $program->name)
                     ->where('status', 'pending')
                     ->whereDoesntHave('enrollments');
@@ -1424,17 +1311,14 @@ class CashierController extends Controller
                 $registrationPaid = (clone $registrationBase)->where('payment_status', 'paid')->count();
                 $registrationUnpaid = (clone $registrationBase)->where('payment_status', 'unpaid')->count();
 
-                // Registration amount — for paid registrations, use program enrollment fee
                 $registrationAmount = $registrationPaid * ($program->enrollment_fee ?: 0);
 
-                // Custom receipt amount — sum only receipts linked to this program via enrollment_id
                 $customReceiptAmount = (float) CustomReceipt::where('status', 'generated')
                     ->whereHas('enrollment', function ($q) use ($program) {
                         $q->where('program_id', $program->program_id);
                     })
                     ->sum('total_amount');
 
-                // Combined totals
                 $totalPayments = $program->enrollment_count + $assessmentCount + $registrationCount;
                 $totalPaid = $program->enrollment_paid + $assessmentPaid + $registrationPaid;
                 $totalUnpaid = $program->enrollment_unpaid + $assessmentUnpaid + $registrationUnpaid;

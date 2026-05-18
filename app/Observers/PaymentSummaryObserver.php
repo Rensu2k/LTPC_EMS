@@ -25,7 +25,6 @@ use Illuminate\Support\Facades\Log;
  */
 class PaymentSummaryObserver
 {
-    // ─── TraineeEnrollment events ─────────────────────────────────
 
     /**
      * Handle the TraineeEnrollment "created" event.
@@ -60,7 +59,6 @@ class PaymentSummaryObserver
         $oldStatus = $enrollment->getOriginal('payment_status');
         $newStatus = $enrollment->payment_status;
 
-        // Transitioning from unpaid → paid
         if ($oldStatus !== 'paid' && $newStatus === 'paid') {
             PaymentSummary::incrementMetric('enrollment_paid_count');
             if ($fee > 0) {
@@ -70,7 +68,6 @@ class PaymentSummaryObserver
             }
         }
 
-        // Transitioning from paid → unpaid (reversal/refund)
         if ($oldStatus === 'paid' && $newStatus !== 'paid') {
             PaymentSummary::decrementMetric('enrollment_paid_count');
             if ($fee > 0) {
@@ -101,7 +98,6 @@ class PaymentSummaryObserver
         }
     }
 
-    // ─── Assessment events ────────────────────────────────────────
 
     /**
      * Handle the Assessment "created" event.
@@ -136,7 +132,6 @@ class PaymentSummaryObserver
         $oldStatus = $assessment->getOriginal('payment_status');
         $newStatus = $assessment->payment_status;
 
-        // Transitioning from unpaid → paid
         if ($oldStatus !== 'paid' && $newStatus === 'paid') {
             PaymentSummary::incrementMetric('assessment_paid_count');
             if ($fee > 0) {
@@ -146,7 +141,6 @@ class PaymentSummaryObserver
             }
         }
 
-        // Transitioning from paid → unpaid (reversal)
         if ($oldStatus === 'paid' && $newStatus !== 'paid') {
             PaymentSummary::decrementMetric('assessment_paid_count');
             if ($fee > 0) {

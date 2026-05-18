@@ -10,7 +10,6 @@ import { Head, router } from "@inertiajs/vue3";
 import { ref, computed, watch } from "vue";
 import Pagination from "@/Components/Pagination.vue";
 
-// Define props to receive data from backend
 const props = defineProps({
     stats: {
         type: Object,
@@ -41,13 +40,11 @@ const props = defineProps({
     },
 });
 
-// Convert props to reactive refs for template usage
 const stats = ref(props.stats);
 const paymentStatus = ref(props.paymentStatus);
 const paymentSummaries = ref(props.paymentSummaries);
 const recentActivities = ref(props.recentActivities);
 
-// Get payment status data with pagination support
 const paymentStatusData = computed(() => {
     return props.paymentStatus?.data || props.paymentStatus || [];
 });
@@ -71,11 +68,9 @@ const formatDate = (dateString) => {
 };
 
 const recordPayment = (paymentId) => {
-    // TODO: Implement payment recording logic
 };
 
 const viewDetails = (paymentId) => {
-    // Determine which tab the payment belongs to based on ID prefix
     let targetTab = "registrations"; // default
     if (paymentId.startsWith("ENR-")) {
         targetTab = "enrollments";
@@ -85,7 +80,6 @@ const viewDetails = (paymentId) => {
         targetTab = "registrations";
     }
 
-    // Redirect to payments page and switch to the appropriate tab
     router.visit(
         route("cashier.payments") + `?view=${paymentId}&tab=${targetTab}`,
         {
@@ -95,7 +89,6 @@ const viewDetails = (paymentId) => {
 };
 
 const generateReport = (period) => {
-    // TODO: Implement report generation logic
 };
 </script>
 

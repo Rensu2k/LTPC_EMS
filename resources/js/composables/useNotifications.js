@@ -8,7 +8,6 @@ import { useToast } from "vue-toastification";
 export function useNotifications() {
     const toast = useToast();
 
-    // Success notifications
     const success = (message, options = {}) => {
         toast.success(message, {
             icon: "✓",
@@ -16,7 +15,6 @@ export function useNotifications() {
         });
     };
 
-    // Error notifications
     const error = (message, options = {}) => {
         toast.error(message, {
             icon: "✗",
@@ -25,7 +23,6 @@ export function useNotifications() {
         });
     };
 
-    // Warning notifications
     const warning = (message, options = {}) => {
         toast.warning(message, {
             icon: "⚠",
@@ -34,7 +31,6 @@ export function useNotifications() {
         });
     };
 
-    // Info notifications
     const info = (message, options = {}) => {
         toast.info(message, {
             icon: "ℹ",
@@ -42,7 +38,6 @@ export function useNotifications() {
         });
     };
 
-    // Loading notification (returns toast ID for updating/dismissing)
     const loading = (message = "Processing...", options = {}) => {
         return toast.info(message, {
             icon: "⏳",
@@ -53,7 +48,6 @@ export function useNotifications() {
         });
     };
 
-    // Update a loading notification to success
     const updateToSuccess = (toastId, message, options = {}) => {
         toast.update(toastId, {
             content: message,
@@ -68,7 +62,6 @@ export function useNotifications() {
         });
     };
 
-    // Update a loading notification to error
     const updateToError = (toastId, message, options = {}) => {
         toast.update(toastId, {
             content: message,
@@ -83,17 +76,14 @@ export function useNotifications() {
         });
     };
 
-    // Dismiss a specific toast
     const dismiss = (toastId) => {
         toast.dismiss(toastId);
     };
 
-    // Clear all toasts
     const clear = () => {
         toast.clear();
     };
 
-    // Handle Laravel validation errors
     const handleValidationErrors = (
         errors,
         title = "Please fix the following errors:"
@@ -113,7 +103,6 @@ export function useNotifications() {
         }
     };
 
-    // Handle Laravel flash messages
     const handleFlash = (flash) => {
         if (!flash) return;
 

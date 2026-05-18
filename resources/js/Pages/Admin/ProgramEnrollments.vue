@@ -48,12 +48,10 @@ const filteredEnrollments = computed(() => {
         );
     }
 
-    // Filter by date range
     if (startDate.value) {
         filtered = filtered.filter((enrollment) => {
             if (!enrollment.enrollment_date) return false;
             
-            // Extract date-only string directly to avoid timezone conversion issues
             const enrollmentDateStr = String(enrollment.enrollment_date).split('T')[0].split(' ')[0];
             return enrollmentDateStr >= startDate.value;
         });
@@ -63,7 +61,6 @@ const filteredEnrollments = computed(() => {
         filtered = filtered.filter((enrollment) => {
             if (!enrollment.enrollment_date) return false;
             
-            // Extract date-only string directly to avoid timezone conversion issues
             const enrollmentDateStr = String(enrollment.enrollment_date).split('T')[0].split(' ')[0];
             return enrollmentDateStr <= endDate.value;
         });
@@ -72,7 +69,6 @@ const filteredEnrollments = computed(() => {
     return filtered;
 });
 
-// Percentage calculations for filtered results
 const completionPercentage = computed(() => {
     if (filteredEnrollments.value.length === 0) return 0;
     const completed = filteredEnrollments.value.filter(
@@ -144,11 +140,9 @@ const goBack = () => {
 const exportToPDF = () => {
     const doc = new jsPDF();
 
-    // Add title
     doc.setFontSize(18);
     doc.text(`${props.program?.name} - Enrollment Report`, 14, 22);
 
-    // Add subtitle with date range if filters are applied
     doc.setFontSize(12);
     let subtitle = "All Enrollments";
     if (startDate.value || endDate.value) {
@@ -158,7 +152,6 @@ const exportToPDF = () => {
     }
     doc.text(subtitle, 14, 32);
 
-    // Add summary statistics
     doc.setFontSize(10);
     doc.text(`Total Enrollments: ${filteredEnrollments.value.length}`, 14, 42);
 
@@ -184,13 +177,11 @@ const exportToPDF = () => {
     doc.text(`Dropped: ${droppedCount} (${droppedPercentage.value}%)`, 14, 66);
     doc.text(`Pending: ${pendingCount} (${pendingPercentage.value}%)`, 14, 74);
 
-    // Create a simple table without autotable
     let yPosition = 86;
     const lineHeight = 8;
     const pageHeight = 280;
     let currentPage = 1;
 
-    // Add headers
     doc.setFontSize(8);
     doc.setFillColor(34, 139, 34);
     doc.rect(14, yPosition - 5, 180, 8, "F");
@@ -205,9 +196,7 @@ const exportToPDF = () => {
     yPosition += 10;
     doc.setTextColor(0, 0, 0);
 
-    // Add data rows
     filteredEnrollments.value.forEach((enrollment, index) => {
-        // Check if we need a new page
         if (yPosition > pageHeight) {
             doc.addPage();
             currentPage++;
@@ -231,30 +220,25 @@ const exportToPDF = () => {
         yPosition += lineHeight;
     });
 
-    // Add page numbers
     for (let i = 1; i <= currentPage; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.text(`Page ${i} of ${currentPage}`, 14, pageHeight + 10);
     }
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `${props.program?.name.replace(
         /\s+/g,
         "_"
     )}_enrollments_${timestamp}.pdf`;
 
-    // Save the PDF
     doc.save(filename);
 };
 
 const exportToExcel = async () => {
-    // Create a new workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Enrollments");
 
-    // Calculate counts for summary
     const totalCount = filteredEnrollments.value.length;
     const completedCount = filteredEnrollments.value.filter(
         (e) => e.status === "completed"
@@ -269,7 +253,6 @@ const exportToExcel = async () => {
         (e) => e.status === "pending"
     ).length;
 
-    // Add summary information at the top
     worksheet.addRow(["Program:", props.program?.name]);
     worksheet.addRow(["Report Date:", new Date().toLocaleDateString()]);
     worksheet.addRow([""]);
@@ -293,7 +276,6 @@ const exportToExcel = async () => {
     ]);
     worksheet.addRow([""]);
 
-    // Add headers
     const headers = [
         "Student Name",
         "Email",
@@ -307,7 +289,6 @@ const exportToExcel = async () => {
     ];
     worksheet.addRow(headers);
 
-    // Style header row
     const headerRow = worksheet.getRow(12);
     headerRow.fill = {
         type: "pattern",
@@ -317,7 +298,6 @@ const exportToExcel = async () => {
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.alignment = { vertical: "middle", horizontal: "center" };
 
-    // Add data rows
     filteredEnrollments.value.forEach((enrollment) => {
         worksheet.addRow([
             enrollment.trainee?.full_name || "N/A",
@@ -338,7 +318,6 @@ const exportToExcel = async () => {
         ]);
     });
 
-    // Adjust column widths
     worksheet.getColumn(1).width = 25; // Student Name
     worksheet.getColumn(2).width = 30; // Email
     worksheet.getColumn(3).width = 15; // Contact Number
@@ -349,14 +328,12 @@ const exportToExcel = async () => {
     worksheet.getColumn(8).width = 15; // Enrollment Fee
     worksheet.getColumn(9).width = 15; // Completion Date
 
-    // Generate filename
     const timestamp = new Date().toISOString().split("T")[0];
     const filename = `${props.program?.name.replace(
         /\s+/g,
         "_"
     )}_enrollments_${timestamp}.xlsx`;
 
-    // Write to buffer and save
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -33,7 +33,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Seed the initial metric keys so observers can increment/decrement.
         $metrics = [
             'enrollment_paid_sum',
             'enrollment_paid_count',

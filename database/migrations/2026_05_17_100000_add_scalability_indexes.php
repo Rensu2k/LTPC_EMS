@@ -26,9 +26,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // ── trainees ─────────────────────────────────────────────────
-        // Previously had NO indexes besides PK. Every controller query
-        // (search, filter by status/program/scholarship) was a full scan.
         Schema::table('trainees', function (Blueprint $table) {
             $table->index('status', 'idx_trainees_status');
             $table->index('payment_status', 'idx_trainees_payment_status');
@@ -38,9 +35,6 @@ return new class extends Migration
             $table->index('created_at', 'idx_trainees_created_at');
         });
 
-        // ── assessments ──────────────────────────────────────────────
-        // Had only FK indexes. Dashboard aggregation queries and cashier
-        // payment queries filter by status and payment_status constantly.
         Schema::table('assessments', function (Blueprint $table) {
             $table->index('status', 'idx_assessments_status');
             $table->index('payment_status', 'idx_assessments_payment_status');
@@ -48,17 +42,11 @@ return new class extends Migration
             $table->index(['program_id', 'trainee_id'], 'idx_assessments_program_trainee');
         });
 
-        // ── custom_receipts ──────────────────────────────────────────
-        // Receipt queries always filter by type + status combination.
         Schema::table('custom_receipts', function (Blueprint $table) {
             $table->index(['type', 'status'], 'idx_receipts_type_status');
             $table->index(['trainee_model_id', 'type', 'status'], 'idx_receipts_trainee_type_status');
         });
 
-        // ── trainee_enrollments ──────────────────────────────────────
-        // Already had (trainee_id, status) and (program_id, status) indexes.
-        // Adding payment_status for cashier dashboard and batch+status for
-        // batch enrollment counting.
         Schema::table('trainee_enrollments', function (Blueprint $table) {
             $table->index('payment_status', 'idx_enrollments_payment_status');
             $table->index(['program_id', 'batch', 'status'], 'idx_enrollments_program_batch_status');

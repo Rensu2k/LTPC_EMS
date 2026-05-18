@@ -11,11 +11,9 @@ const model = defineModel({
     type: String,
     required: true,
     get: (value) => {
-        // Convert any non-string values to strings
         return typeof value === "string" ? value : String(value || "");
     },
     set: (value) => {
-        // Ensure we always store strings
         return typeof value === "string" ? value : String(value || "");
     },
 });

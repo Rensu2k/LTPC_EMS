@@ -30,9 +30,7 @@ const showAssignmentModal = ref(false);
 const selectedProgram = ref(null);
 const processing = ref(false);
 
-// Process programs data to match the expected format
 const programsList = computed(() => {
-    // Handle both paginated (object) and non-paginated (array) data structures
     const programsData = props.programs?.data || props.programs;
 
     if (!programsData || !Array.isArray(programsData)) {
@@ -66,7 +64,6 @@ const closeRegistrationModal = () => {
 };
 
 const onProgramSubmitted = () => {
-    // Refresh the page to show the new program
     window.location.reload();
 };
 
@@ -105,7 +102,6 @@ const closeAssignmentModal = () => {
 };
 
 const onTrainersAssigned = () => {
-    // Refresh the page to show updated trainers
     window.location.reload();
 };
 
@@ -131,7 +127,6 @@ const confirmDelete = () => {
                 loadingToast,
                 `Program "${programName}" deleted successfully!`
             );
-            // Refresh to show updated list
             window.location.reload();
         },
         onError: (errors) => {
@@ -164,7 +159,6 @@ const getAssignedTrainers = (assignedTrainerIds) => {
     return `${assignedTrainers[0].name} +${assignedTrainers.length - 1} more`;
 };
 
-// Watch for search query changes and send to server
 let searchTimeout;
 watch(searchQuery, (newValue) => {
     clearTimeout(searchTimeout);

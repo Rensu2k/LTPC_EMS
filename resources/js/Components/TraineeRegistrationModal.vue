@@ -1301,7 +1301,6 @@ const form = useForm({
     requirements: [],
 });
 
-// Function to calculate age based on birth date
 const calculateAge = () => {
     if (form.birth_year && form.birth_month && form.birth_day) {
         const birthDate = new Date(
@@ -1314,7 +1313,6 @@ const calculateAge = () => {
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
 
-        // Adjust age if birthday hasn't occurred this year yet
         if (
             monthDiff < 0 ||
             (monthDiff === 0 && today.getDate() < birthDate.getDate())
@@ -1322,14 +1320,12 @@ const calculateAge = () => {
             age--;
         }
 
-        // Only update if age is valid (positive number)
         if (age >= 0 && age <= 150) {
             form.age = age.toString();
         }
     }
 };
 
-// Watch for changes in birth date fields and auto-calculate age
 watch(
     [() => form.birth_year, () => form.birth_month, () => form.birth_day],
     () => {

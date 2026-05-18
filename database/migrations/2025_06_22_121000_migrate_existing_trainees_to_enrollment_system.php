@@ -22,12 +22,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Only proceed if trainees table exists and has data
         if (!Schema::hasTable('trainees') || !Schema::hasTable('programs') || !Schema::hasTable('trainee_enrollments')) {
             return;
         }
 
-        // Check if we've already migrated (avoid double migration)
         $existingMigration = DB::table('trainee_enrollments')
             ->where('notes', 'Migrated from legacy trainee system')
             ->first();
@@ -36,17 +34,14 @@ return new class extends Migration
             return; // Already migrated
         }
 
-        // Migrate existing trainees to the new enrollment system
         $trainees = DB::table('trainees')->get();
         
         foreach ($trainees as $trainee) {
-            // Find the corresponding program
             $program = DB::table('programs')
                 ->where('name', $trainee->program_qualification)
                 ->first();
             
             if ($program) {
-                // Determine payment status and method based on scholarship
                 $paymentStatus = 'unpaid';
                 $paymentMethod = null;
                 $paymentReference = null;
@@ -69,7 +64,6 @@ return new class extends Migration
                     $paymentDate = $trainee->entry_date ?? now();
                 }
                 
-                // Create enrollment record
                 DB::table('trainee_enrollments')->insert([
                     'trainee_id' => $trainee->id,
                     'program_id' => $program->program_id,
@@ -96,7 +90,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove all enrollment records that were created during migration
         DB::table('trainee_enrollments')
             ->where('notes', 'Migrated from legacy trainee system')
             ->delete();

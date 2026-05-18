@@ -57,9 +57,6 @@ class Trainee extends Model
         'batch',
         'scholarship_package',
         'requirements',
-        // 'status', 'payment_status', and payment fields are intentionally excluded
-        // from mass assignment to prevent privilege escalation. Set them explicitly
-        // in controllers via forceFill() or direct property assignment.
     ];
 
     protected $casts = [
@@ -164,40 +161,32 @@ class Trainee extends Model
      */
     public function enrollInProgram($programId, $batchNumber = null, $enrollmentFee = null, $maintainScholarship = null): TraineeEnrollment
     {
-        // Get the program
         $program = Program::find($programId);
         if (!$program) {
             throw new \Exception("Program not found");
         }
 
-        // Check if already enrolled in this program
         if ($this->isEnrolledInProgram($programId)) {
             throw new \Exception("Trainee is already enrolled in this program");
         }
 
-        // Check if trainee has already completed this program
         if ($this->hasCompletedProgram($programId)) {
             throw new \Exception("Trainee has already completed this program and cannot re-enroll");
         }
 
-        // Determine batch number
         if (!$batchNumber) {
             $batchNumber = $program->getNextAvailableBatch();
         }
 
-        // Determine enrollment fee
         if ($enrollmentFee === null) {
             $enrollmentFee = $program->enrollment_fee ?? 0;
         }
 
-        // Auto-set payment status for scholars based on scholarship choice
         $paymentStatus = 'unpaid';
         $paymentMethod = null;
         $paymentReference = null;
         $paymentNotes = null;
 
-        // Determine if scholarship should be applied
-        // Default to true if maintainScholarship is not specified (backward compatibility)
         $shouldApplyScholarship = $this->scholarship_package && ($maintainScholarship !== false);
 
         if ($shouldApplyScholarship) {
@@ -230,34 +219,26 @@ class Trainee extends Model
      */
     public function handleAutoEnrollment(): void
     {
-        // Only proceed if status is active and payment is paid
         if ($this->status !== 'active' || $this->payment_status !== 'paid') {
             return;
         }
 
-        // Check if program_qualification is set
         if (!$this->program_qualification) {
             return;
         }
 
-        // Find the program by name
         $program = Program::where('name', $this->program_qualification)->first();
         if (!$program) {
             return;
         }
 
-        // Check if already enrolled in this program (prevents duplicates)
         if ($this->isEnrolledInProgram($program->program_id)) {
             return;
         }
 
         try {
-            // Auto-enroll the trainee, preserving their current payment status
-            // For auto-enrollment, use the actual program fee (registration payment covers this)
             $enrollment = $this->enrollInProgram($program->program_id, null, null); // Use default program fee
             
-            // Update the enrollment to match trainee's current status and payment
-            // The registration payment covers the enrollment, so enrollment should be paid too
             $enrollment->update([
                 'status' => $this->status, // Match trainee's status (should be 'active')
                 'payment_status' => $this->payment_status, // Match trainee's payment status (should be 'paid')
@@ -268,7 +249,6 @@ class Trainee extends Model
             ]);
             
         } catch (\Exception $e) {
-            // Log error for debugging if needed
             Log::error("Failed to auto-enroll trainee {$this->id}: " . $e->getMessage());
         }
     }
@@ -280,17 +260,14 @@ class Trainee extends Model
     {
         $updateData = ['payment_status' => $paymentStatus];
 
-        // Update related fields if payment is completed
         if ($paymentStatus === 'paid') {
             $updateData['payment_method'] = $paymentMethod;
             $updateData['payment_reference'] = $paymentReference;
             $updateData['payment_notes'] = $paymentNotes;
         }
 
-        // Use forceFill since payment fields are guarded
         $result = $this->forceFill($updateData)->save();
         
-        // Handle auto-enrollment after payment status change
         if ($result) {
             $this->handleAutoEnrollment();
         }
@@ -305,32 +282,25 @@ class Trainee extends Model
     {
         parent::boot();
 
-        // Handle auto-enrollment on create
         static::created(function ($trainee) {
             $trainee->handleAutoEnrollment();
         });
 
-        // Handle auto-enrollment and enrollment status updates on update
         static::updated(function ($trainee) {
-            // Check if status changed
             if ($trainee->wasChanged('status')) {
-                // Update enrollment statuses to match trainee status
                 $activeEnrollments = $trainee->enrollments()->where('status', 'active')->get();
                 
                 foreach ($activeEnrollments as $enrollment) {
                     $enrollmentData = ['status' => $trainee->status];
                     
-                    // Set completion date if status is completed
                     if ($trainee->status === 'completed') {
                         $enrollmentData['completion_date'] = now()->toDateString();
                     }
                     
-                    // Enrollment model still has these in $fillable, so update() is fine
                     $enrollment->update($enrollmentData);
                 }
             }
             
-            // Check if status or payment_status changed to eligible values for auto-enrollment
             if ($trainee->wasChanged(['status', 'payment_status'])) {
                 $trainee->handleAutoEnrollment();
             }

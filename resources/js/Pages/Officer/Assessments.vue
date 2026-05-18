@@ -29,11 +29,9 @@ const props = defineProps({
     flash: Object,
 });
 
-// Access page props for flash messages
 const page = usePage();
 const notifications = useNotifications();
 
-// Watch for flash messages
 watch(
     () => page.props.flash,
     (flash) => {
@@ -56,18 +54,15 @@ const selectedAssessment = ref(null);
 const processing = ref(false);
 const assessmentErrors = ref({});
 
-// Helper function to get the actual assessments data (handles both paginated and non-paginated)
 const getAssessmentsData = () => {
     return props.assessments?.data || props.assessments || [];
 };
 
-// Helper function to find an assessment by ID
 const findAssessmentById = (id) => {
     const assessmentsData = getAssessmentsData();
     return assessmentsData.find((a) => a.id === id);
 };
 
-// Process assessments data
 const assessmentsList = computed(() => {
     const assessmentsData = props.assessments?.data || props.assessments;
 
@@ -114,17 +109,14 @@ function getGrade(percentage) {
     return "F";
 }
 
-// Check if assessment is graded (based on status)
 function isGraded(assessment) {
     return assessment.status === "completed";
 }
 
-// Check if assessment payment is completed
 function isPaid(assessment) {
     return assessment.payment_status === "paid";
 }
 
-// Check if assessment can be deleted
 function isDeletable(assessment) {
     return assessment.is_deletable !== undefined
         ? assessment.is_deletable
@@ -144,7 +136,6 @@ const closeRegistrationModal = () => {
 const onAssessmentSubmitted = () => {
     assessmentErrors.value = {};
     showRegistrationModal.value = false;
-    // Refresh the page to show the new assessment
     window.location.reload();
 };
 
@@ -227,7 +218,6 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
-            // Refresh to show updated list
             window.location.reload();
         },
         onError: () => {
@@ -247,24 +237,20 @@ const handleReassessmentFromDetails = (assessment) => {
 };
 
 const viewAssessmentHistory = (assessment) => {
-    // Use the original assessment ID for history navigation
     const originalId =
         assessment.original_assessment_for_history || assessment.id;
     router.visit(`/officer/assessments/${originalId}/assessment-history`);
 };
 
-// Computed property for filtered assessments
 const filteredAssessments = computed(() => {
     let filtered = assessmentsList.value;
 
-    // Filter by status
     if (selectedStatus.value !== "All Statuses") {
         filtered = filtered.filter(
             (assessment) => assessment.status === selectedStatus.value
         );
     }
 
-    // Filter by result
     if (selectedResult.value !== "All Results") {
         if (selectedResult.value === "Not Evaluated") {
             filtered = filtered.filter(
@@ -277,18 +263,15 @@ const filteredAssessments = computed(() => {
         }
     }
 
-    // Filter by program
     if (selectedProgram.value && selectedProgram.value !== "") {
         filtered = filtered.filter(
             (assessment) => assessment.program_id === selectedProgram.value
         );
     }
 
-    // Filter by date range
     if (dateFrom.value) {
         filtered = filtered.filter((assessment) => {
             if (!assessment.assessment_date) return false;
-            // Extract date-only string directly to avoid timezone conversion issues
             const assessmentDateStr = String(assessment.assessment_date)
                 .split("T")[0]
                 .split(" ")[0];
@@ -299,7 +282,6 @@ const filteredAssessments = computed(() => {
     if (dateTo.value) {
         filtered = filtered.filter((assessment) => {
             if (!assessment.assessment_date) return false;
-            // Extract date-only string directly to avoid timezone conversion issues
             const assessmentDateStr = String(assessment.assessment_date)
                 .split("T")[0]
                 .split(" ")[0];
@@ -307,7 +289,6 @@ const filteredAssessments = computed(() => {
         });
     }
 
-    // Filter by search query
     if (searchQuery.value) {
         filtered = filtered.filter(
             (assessment) =>
@@ -330,10 +311,8 @@ const filteredAssessments = computed(() => {
 });
 
 const exportData = () => {
-    // TODO: Implement export functionality
 };
 
-// Debounced search function
 let searchTimeout;
 const performSearch = () => {
     clearTimeout(searchTimeout);
@@ -360,7 +339,6 @@ const performSearch = () => {
     }, 300);
 };
 
-// Watch for search and filter changes
 watch(searchQuery, () => {
     performSearch();
 });
@@ -381,7 +359,6 @@ watch([dateFrom, dateTo], () => {
     performSearch();
 });
 
-// Check if any filters are active
 const hasActiveFilters = computed(() => {
     return (
         searchQuery.value ||
@@ -393,7 +370,6 @@ const hasActiveFilters = computed(() => {
     );
 });
 
-// Clear all filters
 const clearFilters = () => {
     searchQuery.value = "";
     selectedStatus.value = "All Statuses";
@@ -404,7 +380,6 @@ const clearFilters = () => {
     performSearch();
 };
 
-// Helper function to load image as base64
 const loadImageAsBase64 = (url) => {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -427,7 +402,6 @@ const loadImageAsBase64 = (url) => {
     });
 };
 
-// Print certificate for competent assessments
 const printCertificate = async (assessment) => {
     if (!assessment || assessment.result !== "competent") {
         notifications.warning(
@@ -441,11 +415,9 @@ const printCertificate = async (assessment) => {
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 20;
 
-    // Blue color for borders and title (dark blue: RGB 0, 51, 102)
     const blueColor = [0, 51, 102];
     const borderMargin = 15;
 
-    // Draw outer blue border (thicker)
     doc.setLineWidth(2);
     doc.setDrawColor(...blueColor);
     doc.rect(
@@ -455,7 +427,6 @@ const printCertificate = async (assessment) => {
         pageHeight - 2 * borderMargin
     );
 
-    // Draw inner blue border (thinner)
     doc.setLineWidth(1);
     doc.setDrawColor(...blueColor);
     doc.rect(
@@ -465,7 +436,6 @@ const printCertificate = async (assessment) => {
         pageHeight - 2 * borderMargin - 6
     );
 
-    // Load logos
     try {
         const ltpcLogoUrl = "/images/ltpc-logo.png";
         const pesdoLogoUrl = "/images/pesdo-logo.png";
@@ -473,12 +443,10 @@ const printCertificate = async (assessment) => {
         const ltpcLogo = await loadImageAsBase64(ltpcLogoUrl);
         const pesdoLogo = await loadImageAsBase64(pesdoLogoUrl);
 
-        // Add logos at the top
         const logoHeight = 18; // Height in mm
         const logoWidth = 22; // Width in mm
         const logoTopY = borderMargin + 8;
 
-        // LTPC logo at top left
         doc.addImage(
             ltpcLogo,
             "PNG",
@@ -488,7 +456,6 @@ const printCertificate = async (assessment) => {
             logoHeight
         );
 
-        // PESDO logo at top right
         doc.addImage(
             pesdoLogo,
             "PNG",
@@ -499,10 +466,8 @@ const printCertificate = async (assessment) => {
         );
     } catch (error) {
         console.warn("Could not load logos:", error);
-        // Continue without logos if they fail to load
     }
 
-    // Title - "CERTIFICATE OF COMPETENCY" (styled like TESDA)
     doc.setFontSize(32);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...blueColor);
@@ -515,7 +480,6 @@ const printCertificate = async (assessment) => {
     const titlePart2Width = doc.getTextWidth(titlePart2);
     doc.text(titlePart2, (pageWidth - titlePart2Width) / 2, borderMargin + 55);
 
-    // Main body text - "This is to certify that"
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
@@ -527,7 +491,6 @@ const printCertificate = async (assessment) => {
         borderMargin + 75
     );
 
-    // Applicant Name (prominent, bold)
     doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
@@ -535,7 +498,6 @@ const printCertificate = async (assessment) => {
     const nameWidth = doc.getTextWidth(applicantName);
     doc.text(applicantName, (pageWidth - nameWidth) / 2, borderMargin + 90);
 
-    // Program information - "has completed the assessment for"
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
@@ -547,7 +509,6 @@ const printCertificate = async (assessment) => {
         borderMargin + 105
     );
 
-    // Program name (bold, larger)
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
@@ -559,7 +520,6 @@ const printCertificate = async (assessment) => {
         borderMargin + 120
     );
 
-    // "on" text
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
@@ -567,7 +527,6 @@ const printCertificate = async (assessment) => {
     const onTextWidth = doc.getTextWidth(onText);
     doc.text(onText, (pageWidth - onTextWidth) / 2, borderMargin + 135);
 
-    // Assessment date (bold, larger)
     const assessmentDate = assessment.assessment_date
         ? new Date(assessment.assessment_date).toLocaleDateString("en-US", {
               year: "numeric",
@@ -581,7 +540,6 @@ const printCertificate = async (assessment) => {
     const dateWidth = doc.getTextWidth(assessmentDate);
     doc.text(assessmentDate, (pageWidth - dateWidth) / 2, borderMargin + 150);
 
-    // Result - "RESULT: COMPETENT" (green, bold)
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(34, 139, 34); // Green color
@@ -589,7 +547,6 @@ const printCertificate = async (assessment) => {
     const resultTextWidth = doc.getTextWidth(resultText);
     doc.text(resultText, (pageWidth - resultTextWidth) / 2, borderMargin + 170);
 
-    // Disclaimer text (centered, smaller, gray)
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 120, 120);
@@ -602,10 +559,8 @@ const printCertificate = async (assessment) => {
         borderMargin + 185
     );
 
-    // Footer section
     const footerY = pageHeight - borderMargin - 25;
 
-    // Left side - Verification details
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
@@ -614,7 +569,6 @@ const printCertificate = async (assessment) => {
     doc.text("ltpc@example.com", borderMargin + 8, footerY + 10);
     doc.text("(02) 123 - 4567", borderMargin + 8, footerY + 15);
 
-    // Right side - Certificate number
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150, 150, 150);
@@ -626,13 +580,11 @@ const printCertificate = async (assessment) => {
         footerY + 10
     );
 
-    // Generate filename
     const sanitizedName = applicantName
         .replace(/[^a-z0-9]/gi, "_")
         .toLowerCase();
     const filename = `certificate_${sanitizedName}_${assessment.id}.pdf`;
 
-    // Save the PDF
     doc.save(filename);
 };
 </script>

@@ -94,7 +94,6 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         
-        // Prevent admin from deleting themselves
         if ($user->id === Auth::id()) {
             return redirect()->back()->with('error', 'You cannot delete your own account.');
         }
@@ -108,7 +107,6 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         
-        // Prevent admin from deactivating themselves
         if ($user->id === Auth::id()) {
             return redirect()->back()->with('error', 'You cannot change your own account status.');
         }

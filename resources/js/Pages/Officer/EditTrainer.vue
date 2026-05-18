@@ -29,7 +29,6 @@ const days = [
     "Sunday",
 ];
 
-// Initialize form with existing trainer data
 const form = useForm({
     full_name: props.trainer?.full_name || "",
     expertise: props.trainer?.expertise || [],

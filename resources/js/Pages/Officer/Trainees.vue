@@ -26,7 +26,6 @@ const props = defineProps({
     filters: Object,
 });
 
-// Initialize from props filters
 const searchQuery = ref(props.filters?.search || "");
 const selectedProgram = ref(props.filters?.program || "");
 const selectedStatus = ref(props.filters?.status || "");
@@ -46,7 +45,6 @@ const statusForm = ref({
     processing: false,
 });
 
-// Helper function to format trainer names
 const getTrainerNames = (assignedTrainers) => {
     if (!assignedTrainers || assignedTrainers.length === 0) {
         return "No trainers assigned";
@@ -59,18 +57,15 @@ const getTrainerNames = (assignedTrainers) => {
     return `${assignedTrainers[0]} +${assignedTrainers.length - 1} more`;
 };
 
-// Helper function to get the actual trainees data (handles both paginated and non-paginated)
 const getTraineesData = () => {
     return props.trainees?.data || props.trainees || [];
 };
 
-// Helper function to find a trainee by ID
 const findTraineeById = (id) => {
     const traineesData = getTraineesData();
     return traineesData.find((t) => t.id === id);
 };
 
-// Process trainees data to match the expected format
 const traineesList = computed(() => {
     const traineesData = props.trainees?.data || props.trainees;
 
@@ -103,11 +98,9 @@ const traineesList = computed(() => {
 const exportToExcel = async () => {
     const traineesData = props.trainees?.data || props.trainees || [];
 
-    // Create a new workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Trainees Report");
 
-    // Add title section
     const titleRow1 = worksheet.addRow(["Republic of the Philippines"]);
     titleRow1.font = { name: "Times New Roman", size: 15 };
     titleRow1.alignment = { horizontal: "center", vertical: "middle" };
@@ -125,10 +118,8 @@ const exportToExcel = async () => {
     titleRow3.alignment = { horizontal: "center", vertical: "middle" };
     worksheet.mergeCells(3, 1, 3, 20);
 
-    // Add empty row
     worksheet.addRow([]);
 
-    // Get current year
     const currentYear = new Date().getFullYear();
     const programName = selectedProgram.value || "All Programs";
 
@@ -144,10 +135,8 @@ const exportToExcel = async () => {
     titleRow5.alignment = { horizontal: "center", vertical: "middle" };
     worksheet.mergeCells(6, 1, 6, 20);
 
-    // Add empty row
     worksheet.addRow([]);
 
-    // Define headers
     const headers = [
         "No.",
         "Last Name",
@@ -171,10 +160,8 @@ const exportToExcel = async () => {
         "Employment Status Before the Training",
     ];
 
-    // Add header row (now at row 8)
     worksheet.addRow(headers);
 
-    // Style the header row
     const headerRow = worksheet.getRow(8);
     headerRow.height = 25;
 
@@ -202,7 +189,6 @@ const exportToExcel = async () => {
         };
     });
 
-    // Set column widths
     const columnWidths = [
         8, // No.
         20, // Last Name
@@ -230,7 +216,6 @@ const exportToExcel = async () => {
         worksheet.getColumn(index + 1).width = width;
     });
 
-    // Helper function to format date
     const formatDate = (date) => {
         if (!date) return "N/A";
         const d = new Date(date);
@@ -240,7 +225,6 @@ const exportToExcel = async () => {
         return `${month}/${day}/${year}`;
     };
 
-    // Helper function to get date of birth
     const getDateOfBirth = (trainee) => {
         if (trainee.birth_month && trainee.birth_day && trainee.birth_year) {
             return `${String(trainee.birth_month).padStart(2, "0")}/${String(
@@ -250,13 +234,11 @@ const exportToExcel = async () => {
         return "N/A";
     };
 
-    // Helper function to get highest education
     const getHighestEducation = (education) => {
         if (!education) {
             return "N/A";
         }
 
-        // Education mapping
         const educationMap = {
             elementary_graduate: "Elementary Graduate",
             elementary_undergraduate: "Elementary Undergraduate",
@@ -271,7 +253,6 @@ const exportToExcel = async () => {
             post_graduate: "Post Graduate",
         };
 
-        // If education is a string (e.g., 'college_undergraduate')
         if (typeof education === "string") {
             return (
                 educationMap[education] ||
@@ -281,11 +262,8 @@ const exportToExcel = async () => {
             );
         }
 
-        // If education is an array
         if (Array.isArray(education) && education.length > 0) {
-            // Check if array contains strings (e.g., ['college_undergraduate'])
             if (typeof education[0] === "string") {
-                // Get the highest education from the array
                 const educationLevels = {
                     elementary: 1,
                     junior_high: 2,
@@ -315,7 +293,6 @@ const exportToExcel = async () => {
                 );
             }
 
-            // If education is an array of objects (legacy format)
             const educationLevels = {
                 elementary: 1,
                 junior_high: 2,
@@ -365,7 +342,6 @@ const exportToExcel = async () => {
         return "N/A";
     };
 
-    // Add data rows
     traineesData.forEach((trainee, index) => {
         const row = [
             index + 1, // No.
@@ -409,7 +385,6 @@ const exportToExcel = async () => {
 
         const dataRow = worksheet.addRow(row);
 
-        // Style data rows
         dataRow.eachCell((cell) => {
             cell.alignment = {
                 vertical: "middle",
@@ -423,7 +398,6 @@ const exportToExcel = async () => {
             };
         });
 
-        // Center align specific columns
         dataRow.getCell(1).alignment = {
             vertical: "middle",
             horizontal: "center",
@@ -442,7 +416,6 @@ const exportToExcel = async () => {
         }; // Age
     });
 
-    // Generate filename with current filters info
     const timestamp = new Date().toISOString().split("T")[0];
     let filename = `trainees_report_${timestamp}`;
 
@@ -458,7 +431,6 @@ const exportToExcel = async () => {
 
     filename += ".xlsx";
 
-    // Write to buffer and save
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -475,28 +447,22 @@ const closeRegistrationModal = () => {
 };
 
 const onTraineeSubmitted = () => {
-    // Refresh the page to show the new trainee
     window.location.reload();
 };
 
 const viewTrainee = (trainee) => {
-    // Find the actual trainee data from props
     const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
     showDetailsModal.value = true;
 };
 
 const editTrainee = (trainee) => {
-    // For now, we'll reuse the registration modal for editing
-    // Find the actual trainee data from props
     const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
-    // TODO: Implement edit modal or redirect to edit page
     router.visit(`/officer/trainees/${trainee.id}/edit`);
 };
 
 const viewEnrollmentHistory = (trainee) => {
-    // Find the actual trainee data from props
     const actualTrainee = findTraineeById(trainee.id);
     if (actualTrainee) {
         router.visit(
@@ -506,7 +472,6 @@ const viewEnrollmentHistory = (trainee) => {
 };
 
 const deleteTrainee = (trainee) => {
-    // Double check if trainee can be deleted
     if (!canDeleteTrainee(trainee)) {
         const actualTrainee = findTraineeById(trainee.id);
         const status = actualTrainee?.status || trainee.status || "active";
@@ -540,7 +505,6 @@ const confirmDelete = () => {
         onSuccess: () => {
             processing.value = false;
             closeDeleteModal();
-            // Refresh to show updated list
             window.location.reload();
         },
         onError: () => {
@@ -554,7 +518,6 @@ const handleEditFromDetails = (trainee) => {
     editTrainee({ id: trainee.id });
 };
 
-// Status change functionality
 const changeStatus = (trainee) => {
     const actualTrainee = findTraineeById(trainee.id);
     selectedTrainee.value = actualTrainee;
@@ -581,7 +544,6 @@ const confirmStatusChange = () => {
             onSuccess: () => {
                 statusForm.value.processing = false;
                 closeStatusModal();
-                // Refresh to show updated status
                 window.location.reload();
             },
             onError: () => {
@@ -591,53 +553,42 @@ const confirmStatusChange = () => {
     );
 };
 
-// Helper function to check if trainee status can be changed
 const canChangeStatus = (trainee) => {
     const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     const paymentStatus =
         actualTrainee?.payment_status || trainee.payment_status || "unpaid";
 
-    // Once completed or dropped, do not allow any further status changes
     if (status === "completed" || status === "dropped") {
         return false;
     }
 
-    // Officers can change status if:
-    // 1. Trainee is active and paid (can mark as completed or dropped)
-    // 2. Trainee is pending and paid (can activate)
     return (
         (status === "active" && paymentStatus === "paid") ||
         (status === "pending" && paymentStatus === "paid")
     );
 };
 
-// Helper function to check if trainee can be deleted
 const canDeleteTrainee = (trainee) => {
-    // Find the actual trainee data from props to get the real status
     const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     const paymentStatus =
         actualTrainee?.payment_status || trainee.payment_status || "unpaid";
 
-    // Cannot delete if status is active OR payment status is paid
     return !(status === "active" || paymentStatus === "paid");
 };
 
-// Helper function to get trainee status for display
 const getTraineeStatus = (trainee) => {
     const actualTrainee = findTraineeById(trainee.id);
     const status = actualTrainee?.status || trainee.status || "active";
     return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-// Helper function to get the actual status value (lowercase)
 const getTraineeActualStatus = (trainee) => {
     const actualTrainee = findTraineeById(trainee.id);
     return actualTrainee?.status || trainee.status || "active";
 };
 
-// Clear all filters
 const clearFilters = () => {
     searchQuery.value = "";
     selectedProgram.value = "";
@@ -648,7 +599,6 @@ const clearFilters = () => {
     performSearch();
 };
 
-// Check if any filters are active
 const hasActiveFilters = computed(() => {
     return (
         searchQuery.value ||
@@ -660,10 +610,8 @@ const hasActiveFilters = computed(() => {
     );
 });
 
-// Server-side filtering is now handled by the backend
 const filteredTrainees = computed(() => traineesList.value);
 
-// Status options
 const statusOptions = [
     { value: "", label: "All Statuses" },
     { value: "active", label: "Active" },
@@ -671,7 +619,6 @@ const statusOptions = [
     { value: "dropped", label: "Dropped" },
 ];
 
-// Perform search with all filters
 const performSearch = () => {
     router.get(
         route("officer.trainees"),
@@ -693,12 +640,10 @@ const performSearch = () => {
     );
 };
 
-// Change per page functionality
 const changePerPage = () => {
     performSearch();
 };
 
-// Watch for filter changes and trigger search
 watch(
     [selectedProgram, selectedStatus, selectedEnrollmentType, dateFrom, dateTo],
     () => {
@@ -707,15 +652,12 @@ watch(
     { deep: true }
 );
 
-// Watch search query with debounce for auto-search
 let searchTimeout = null;
 watch(searchQuery, (newValue) => {
-    // Clear previous timeout
     if (searchTimeout) {
         clearTimeout(searchTimeout);
     }
 
-    // Set new timeout to search after 500ms of no typing
     searchTimeout = setTimeout(() => {
         performSearch();
     }, 500);

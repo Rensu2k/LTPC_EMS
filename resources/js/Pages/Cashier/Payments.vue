@@ -11,20 +11,16 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useNotifications } from "@/composables/useNotifications";
 import Pagination from "@/Components/Pagination.vue";
 
-// Get URL parameters
 const page = usePage();
 const notifications = useNotifications();
 
-// Payment type from props
 const paymentType = computed(
     () => props.paymentType || props.filters?.type || "registration"
 );
 
-// Payment details modal state
 const showPaymentDetails = ref(false);
 const selectedPayment = ref(null);
 
-// Define props to receive data from backend
 const props = defineProps({
     enrollmentPayments: {
         type: [Object, Array], // Support both pagination object and legacy array
@@ -64,42 +60,32 @@ const props = defineProps({
     },
 });
 
-// Convert props to reactive refs and separate registration vs enrollment payments
 const allPayments = computed(() => {
-    // Handle pagination object
     if (
         props.enrollmentPayments &&
         typeof props.enrollmentPayments === "object"
     ) {
-        // Check if it's a pagination object with data property
         if (props.enrollmentPayments.data !== undefined) {
-            // Laravel pagination object - data is an array
             if (Array.isArray(props.enrollmentPayments.data)) {
                 return props.enrollmentPayments.data;
             }
-            // If data exists but is not an array, it might be empty or malformed
             return [];
         }
-        // Check if it's already an array (legacy support)
         if (Array.isArray(props.enrollmentPayments)) {
             return props.enrollmentPayments;
         }
     }
-    // Fallback to empty array
     return [];
 });
 
-// Since we're now doing server-side filtering, we just display what's received
 const currentPayments = computed(() => {
     return allPayments.value;
 });
 
-// Server already filters, so filteredPayments is just currentPayments
 const filteredPayments = computed(() => {
     return currentPayments.value;
 });
 
-// Keep these for backward compatibility with code that might reference them
 const registrationPayments = computed(() => {
     return allPayments.value.filter((p) => p.type === "registration");
 });
@@ -122,7 +108,6 @@ const formatCurrency = (amount) => {
     }).format(amount);
 };
 
-// Computed properties for page title and description
 const pageTitle = computed(() => {
     if (paymentType.value === "registration") {
         return "Enrollment Fees - New Trainees";
@@ -146,15 +131,12 @@ const pageDescription = computed(() => {
 });
 
 const exportReport = () => {
-    // TODO: Implement export functionality
 };
 
 const recordPayment = () => {
-    // TODO: Implement payment recording
 };
 
 const viewPayment = (paymentId) => {
-    // Search in current payments (already filtered by server)
     const payment = currentPayments.value.find((p) => p.id === paymentId);
 
     if (payment) {
@@ -169,16 +151,13 @@ const closePaymentDetails = () => {
 };
 
 const markAsPaid = (paymentId) => {
-    // Search in current payments (already filtered by server)
     const payment = currentPayments.value.find((p) => p.id === paymentId);
 
     if (!payment) return;
 
     const paymentType = payment.type;
 
-    // For registration payments (New Trainees), mark as paid first and then automatically show receipt modal
     if (paymentType === "registration") {
-        // Prepare payment data for registration
         const paymentData = {
             payment_method: "cash",
             payment_reference: `RN-${Date.now()}`,
@@ -187,16 +166,12 @@ const markAsPaid = (paymentId) => {
             skip_enrollment: true, // Flag to indicate we'll enroll after receipt generation
         };
 
-        // Call the backend to process the payment
         router.post(route("cashier.payments.process"), paymentData, {
             onSuccess: () => {
-                // Close payment details modal
                 closePaymentDetails();
 
-                // Update the payment status locally
                 payment.status = "paid";
 
-                // Automatically show receipt modal for registration payments
                 generateReceiptForPaidPayment(payment);
             },
             onError: (errors) => {
@@ -207,30 +182,24 @@ const markAsPaid = (paymentId) => {
             },
         });
     } else {
-        // For other payment types (enrollment/assessment), use existing flow
         const paymentData = {
             payment_method: "cash",
             payment_reference: `RN-${Date.now()}`,
             payment_notes: "Payment processed via cashier interface",
         };
 
-        // Add the appropriate ID based on payment type
         if (paymentType === "enrollment") {
             paymentData.enrollment_id = payment.enrollment_id;
         } else if (paymentType === "assessment") {
             paymentData.assessment_id = payment.assessment_id;
         }
 
-        // Call the backend to process the payment
         router.post(route("cashier.payments.process"), paymentData, {
             onSuccess: () => {
-                // Close payment details modal
                 closePaymentDetails();
 
-                // Update the payment status locally
                 payment.status = "paid";
 
-                // Automatically show receipt modal for enrollment payments too
                 generateReceiptForPaidPayment(payment);
             },
             onError: (errors) => {
@@ -243,7 +212,6 @@ const markAsPaid = (paymentId) => {
     }
 };
 
-// Check for incoming payment ID from dashboard
 onMounted(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const viewParam = urlParams.get("view");
@@ -252,7 +220,6 @@ onMounted(() => {
     }
 });
 
-// Receipt modal state
 const showReceiptModal = ref(false);
 const selectedReceiptData = ref(null);
 const editableReceiptData = ref({
@@ -273,13 +240,10 @@ const editableReceiptData = ref({
     ],
 });
 
-// Receipt modal validation errors
 const receiptModalErrors = ref({
     amount: false,
 });
-// task: make another type of Receipt "regular/trust" fund
 const generateReceipt = (paymentId) => {
-    // Search in all payment arrays
     let payment = registrationPayments.value.find((p) => p.id === paymentId);
     if (!payment) {
         payment = enrollmentPaymentsList.value.find((p) => p.id === paymentId);
@@ -298,7 +262,6 @@ const generateReceipt = (paymentId) => {
 };
 
 const generateReceiptForPaidPayment = (payment) => {
-    // Prepare editable receipt data
     editableReceiptData.value = {
         receiptNo: "",
         fundType: "General Fund", // Default to General Fund
@@ -329,7 +292,6 @@ const generateReceiptForPaidPayment = (payment) => {
 };
 
 const closeReceiptModal = (isSuccessfulSave = false) => {
-    // Only show cancel warning if it's NOT a successful save and receipt number assigned
     if (!isSuccessfulSave && editableReceiptData.value.receiptNo) {
         const confirmCancel = confirm(
             "A receipt number has been assigned to this transaction. " +
@@ -342,7 +304,6 @@ const closeReceiptModal = (isSuccessfulSave = false) => {
             return; // Don't close modal, let user continue
         }
 
-        // Save the cancelled receipt for audit trail
         saveCancelledReceipt();
     }
 
@@ -351,7 +312,6 @@ const closeReceiptModal = (isSuccessfulSave = false) => {
     editableReceiptData.value = {};
 };
 
-// Function to simply close the modal without any confirmation (for X button)
 const closeReceiptModalDirectly = () => {
     showReceiptModal.value = false;
     selectedReceiptData.value = null;
@@ -359,10 +319,8 @@ const closeReceiptModalDirectly = () => {
 };
 
 const saveCancelledReceipt = () => {
-    // Extract trainee ID from the correct location based on payment type
     let traineeId = selectedReceiptData.value.trainee_id;
 
-    // If trainee_id is not available at top level, try other locations
     if (!traineeId) {
         if (selectedReceiptData.value.type === "enrollment") {
             traineeId = selectedReceiptData.value.trainee.trainee_id;
@@ -373,7 +331,6 @@ const saveCancelledReceipt = () => {
         }
     }
 
-    // Prepare cancelled receipt data
     const cancelledReceiptData = {
         receiptNo: editableReceiptData.value.receiptNo,
         paymentId: selectedReceiptData.value.id,
@@ -393,7 +350,6 @@ const saveCancelledReceipt = () => {
         cancellation_reason: "Cancelled by cashier",
     };
 
-    // Save the cancelled receipt
     router.post(route("cashier.receipts.save"), cancelledReceiptData, {
         onSuccess: () => {
             notifications.success(
@@ -433,11 +389,9 @@ const getTotalAmount = () => {
 const saveReceipt = () => {
     const totalAmount = getTotalAmount();
 
-    // Validate required fields
     let hasErrors = false;
     receiptModalErrors.value.amount = false;
 
-    // Check if all fees have amounts
     editableReceiptData.value.fees.forEach((fee, index) => {
         if (
             !fee.amount ||
@@ -450,7 +404,6 @@ const saveReceipt = () => {
         }
     });
 
-    // If there are validation errors, show error and return
     if (hasErrors) {
         notifications.error(
             "Please fill in all required fields, including the Amount for each fee."
@@ -458,11 +411,9 @@ const saveReceipt = () => {
         return;
     }
 
-    // Check if this is a registration payment that needs enrollment after receipt generation
     const isRegistrationPayment =
         selectedReceiptData.value.type === "registration";
 
-    // Prepare the data to send to the backend
     const receiptData = {
         receiptNo: editableReceiptData.value.receiptNo,
         paymentId: selectedReceiptData.value.id,
@@ -481,10 +432,8 @@ const saveReceipt = () => {
         complete_enrollment: isRegistrationPayment, // Flag to trigger enrollment after receipt generation
     };
 
-    // Use Inertia router for proper CSRF handling
     router.post(route("cashier.receipts.save"), receiptData, {
         onSuccess: (page) => {
-            // Show appropriate success message
             if (isRegistrationPayment) {
                 notifications.success(
                     `Receipt ${receiptData.receiptNo} has been saved successfully! The trainee has been officially enrolled and will now appear in the Additional Fees - Enrolled Trainees tab.`
@@ -495,10 +444,8 @@ const saveReceipt = () => {
                 );
             }
 
-            // Close the modal after successful save
             closeReceiptModal(true);
 
-            // Refresh the page to show updated data
             window.location.reload();
         },
         onError: (errors) => {
@@ -588,7 +535,6 @@ const convertNumberToWords = (num) => {
         groupIndex++;
     }
 
-    // Handle decimal part
     const parts = num.toString().split(".");
     if (parts[1]) {
         result += "and " + parts[1] + "/100";
@@ -597,12 +543,10 @@ const convertNumberToWords = (num) => {
     return result.trim() + " pesos only";
 };
 
-// Debounced search function
 let searchTimeout;
 const performSearch = () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        // Determine the correct route based on payment type
         let routeName = "cashier.payments.enrollment";
         if (paymentType.value === "enrollment") {
             routeName = "cashier.payments.additional";
@@ -621,7 +565,6 @@ const performSearch = () => {
     }, 300);
 };
 
-// Watch for search changes
 watch(searchQuery, () => {
     performSearch();
 });

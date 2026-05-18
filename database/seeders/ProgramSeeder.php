@@ -56,7 +56,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(95),
             ],
 
-            // Automotive Programs
             [
                 'program_id' => 'PROG-AS-NCII-001',
                 'name' => 'Automotive Servicing NCII',
@@ -80,7 +79,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(90),
             ],
 
-            // Construction Programs
             [
                 'program_id' => 'PROG-CONPAINT-NCII-001',
                 'name' => 'Construction Painting NCII',
@@ -115,7 +113,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(130),
             ],
 
-            // Electronics Programs
             [
                 'program_id' => 'PROG-CES-NCII-001',
                 'name' => 'Consumer Electronics Servicing NCII',
@@ -139,7 +136,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(115),
             ],
 
-            // Electrical Programs
             [
                 'program_id' => 'PROG-EIM-NCII-001',
                 'name' => 'Electrical Installation and Maintenance NCII',
@@ -152,7 +148,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(110),
             ],
 
-            // Food and Beverage Programs
             [
                 'program_id' => 'PROG-BPP-NCII-001',
                 'name' => 'Bread and Pastry Production NCII',
@@ -187,7 +182,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(85),
             ],
 
-            // Tourism and Hospitality Programs
             [
                 'program_id' => 'PROG-HK-NCII-001',
                 'name' => 'Housekeeping NCII',
@@ -211,7 +205,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(90),
             ],
 
-            // Beauty and Wellness Programs
             [
                 'program_id' => 'PROG-BC-NCII-001',
                 'name' => 'Beauty Care (Nail Care) NCII',
@@ -235,7 +228,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(85),
             ],
 
-            // Agriculture Programs
             [
                 'program_id' => 'PROG-OAP-NCII-001',
                 'name' => 'Organic Agriculture Production NCII',
@@ -248,7 +240,6 @@ class ProgramSeeder extends Seeder
                 'end_date' => Carbon::now()->addDays(120),
             ],
 
-            // Welding and Fabrication Programs
             [
                 'program_id' => 'PROG-SMAW-NCII-001',
                 'name' => 'Shielded Metal Arc Welding (SMAW) NCII',

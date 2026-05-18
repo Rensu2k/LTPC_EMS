@@ -118,15 +118,12 @@ class Assessment extends Model
      */
     public function canBeReassessed()
     {
-        // Only allow re-assessment if the result is 'not_yet_competent' or 'absent'
         if (!($this->result === 'not_yet_competent' || $this->result === 'absent')) {
             return false;
         }
 
-        // Check if this is a re-assessment - if so, use the original assessment ID
         $originalAssessmentId = $this->is_reassessment ? $this->original_assessment_id : $this->id;
 
-        // Check if there's already a pending re-assessment for this original assessment
         $hasPendingReassessment = Assessment::where('original_assessment_id', $originalAssessmentId)
             ->where('status', 'pending')
             ->exists();
@@ -140,7 +137,6 @@ class Assessment extends Model
      */
     public function requiresReenrollment()
     {
-        // Unlimited reassessments allowed - re-enrollment never required
         return false;
     }
 
@@ -165,12 +161,10 @@ class Assessment extends Model
      */
     public function isDeletable()
     {
-        // Cannot delete if assessment is graded (completed)
         if ($this->isGraded()) {
             return false;
         }
 
-        // Cannot delete if payment has been made
         if ($this->payment_status === 'paid') {
             return false;
         }
@@ -226,17 +220,14 @@ class Assessment extends Model
      */
     public function shouldApplyScholarExemption()
     {
-        // Only for enrolled trainees
         if ($this->applicant_type !== 'enrolled_trainee' || !$this->trainee) {
             return false;
         }
 
-        // Only if trainee has scholarship
         if (empty($this->trainee->scholarship_package)) {
             return false;
         }
 
-        // Only for first attempt
         return $this->isFirstAttempt();
     }
 

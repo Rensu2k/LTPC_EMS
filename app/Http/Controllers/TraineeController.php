@@ -61,7 +61,6 @@ class TraineeController extends Controller
             'disability_causes' => 'nullable|array',
             'scholarship_package' => 'nullable|string|max:255',
             'requirements' => 'nullable|array',
-            // 'status' is intentionally excluded — use the dedicated updateStatus endpoint.
         ];
     }
 
@@ -72,9 +71,6 @@ class TraineeController extends Controller
      */
     private function processTraineeData(array &$validated, ?Trainee $existingTrainee = null)
     {
-        // Auto-manage payment status and status based on scholarship.
-        // These fields are NOT in $fillable, so they are stored separately
-        // and applied via forceFill() after create/update.
         if (!empty($validated['scholarship_package'])) {
             $validated['_payment_status'] = 'paid';
             $validated['_status'] = 'active';
@@ -83,19 +79,16 @@ class TraineeController extends Controller
             $validated['_status'] = 'pending';
         }
 
-        // Enrollment validation: Can only be active if payment is paid
         if ($validated['_status'] === 'active' && $validated['_payment_status'] !== 'paid') {
             return redirect()->back()->with('error', 'Trainee cannot be enrolled (active status) until payment is completed. Current payment status: ' . ucfirst($validated['_payment_status']));
         }
 
-        // For updates: if payment becomes unpaid and trainee was active, set to pending
         if ($existingTrainee && $validated['_payment_status'] !== 'paid' && $existingTrainee->status === 'active') {
             $existingTrainee->update($validated);
             $existingTrainee->forceFill(['status' => 'pending', 'payment_status' => $validated['_payment_status']])->save();
             return redirect()->back()->with('warning', 'Trainee has been set to pending due to payment status change. Payment status: ' . ucfirst($validated['_payment_status']));
         }
 
-        // Handle batch assignment for new trainees or program changes
         $needsBatch = !$existingTrainee || ($existingTrainee && $validated['program_qualification'] !== $existingTrainee->program_qualification);
         if ($needsBatch) {
             $program = Program::where('name', $validated['program_qualification'])->first();
@@ -130,7 +123,6 @@ class TraineeController extends Controller
             }
         ]);
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -140,9 +132,6 @@ class TraineeController extends Controller
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
                   ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
 
-                // Scalability: Use prefix matching for ULI numbers when possible.
-                // LIKE 'ULI-5000%' uses the idx_trainees_uli_number index (~200ms)
-                // whereas LIKE '%ULI-5000%' forces a full table scan (~2.4s).
                 if (preg_match('/^(ULI|STRESSTEST|T-)/i', $search)) {
                     $q->orWhere('uli_number', 'like', "{$search}%");
                 } else {
@@ -151,17 +140,14 @@ class TraineeController extends Controller
             });
         }
 
-        // Apply program filter if provided
         if ($program && $program !== 'All Programs') {
             $query->where('program_qualification', $program);
         }
 
-        // Apply status filter if provided
         if ($status && $status !== 'All Statuses') {
             $query->where('status', $status);
         }
 
-        // Apply enrollment type filter if provided (based on scholarship_package)
         if ($enrollmentType && $enrollmentType !== 'All Types') {
             if ($enrollmentType === 'scholar') {
                 $query->whereNotNull('scholarship_package')
@@ -174,13 +160,11 @@ class TraineeController extends Controller
             }
         }
 
-        // Apply date range filter if provided - filter by enrollment_date from enrollments
         if ($dateFrom) {
             $query->where(function($q) use ($dateFrom) {
                 $q->whereHas('enrollments', function($subQ) use ($dateFrom) {
                     $subQ->whereDate('enrollment_date', '>=', $dateFrom);
                 })->orWhere(function($subQ) use ($dateFrom) {
-                    // Fallback for legacy trainees without enrollments
                     $subQ->whereDoesntHave('enrollments')
                           ->whereDate('entry_date', '>=', $dateFrom);
                 });
@@ -191,18 +175,15 @@ class TraineeController extends Controller
                 $q->whereHas('enrollments', function($subQ) use ($dateTo) {
                     $subQ->whereDate('enrollment_date', '<=', $dateTo);
                 })->orWhere(function($subQ) use ($dateTo) {
-                    // Fallback for legacy trainees without enrollments
                     $subQ->whereDoesntHave('enrollments')
                           ->whereDate('entry_date', '<=', $dateTo);
                 });
             });
         }
 
-        // Get paginated results
         $trainees = $query->latest()
             ->paginate($perPage)
             ->through(function ($trainee) {
-                // Determine current active enrollment; if none, use the most recent enrollment
                 $activeEnrollment = $trainee->enrollments
                     ->where('status', 'active')
                     ->sortByDesc('created_at')
@@ -214,18 +195,15 @@ class TraineeController extends Controller
 
                 $selectedEnrollment = $activeEnrollment ?: $latestEnrollment;
 
-                // Compute display program name based on enrollment, fallback to legacy field
                 $displayProgramName = $selectedEnrollment && $selectedEnrollment->program
                     ? $selectedEnrollment->program->name
                     : $trainee->program_qualification;
 
-                // Assigned trainers should come from the selected enrollment's program when available
                 $assignedTrainerNames = [];
                 if ($selectedEnrollment && $selectedEnrollment->program && $selectedEnrollment->program->assigned_trainers) {
                     $trainers = \App\Models\Trainer::whereIn('id', $selectedEnrollment->program->assigned_trainers)->get();
                     $assignedTrainerNames = $trainers->pluck('full_name')->toArray();
                 } else {
-                    // Fallback to legacy program_qualification mapping
                     $legacyProgram = Program::where('name', $trainee->program_qualification)->first();
                     if ($legacyProgram && $legacyProgram->assigned_trainers) {
                         $trainers = \App\Models\Trainer::whereIn('id', $legacyProgram->assigned_trainers)->get();
@@ -233,39 +211,30 @@ class TraineeController extends Controller
                     }
                 }
 
-                // Mutate properties used by the frontend list for display
-                // Frontend reads trainee.program_qualification to show Program column
                 $trainee->program_qualification = $displayProgramName;
 
-                // Frontend shows Batch from trainee.batch; use enrollment batch when present
                 if ($selectedEnrollment) {
                     $trainee->batch = $selectedEnrollment->batch;
                 }
 
-                // Frontend shows Enrollment Date from trainee.entry_date; prefer enrollment_date
                 if ($selectedEnrollment && $selectedEnrollment->enrollment_date) {
                     $trainee->entry_date = $selectedEnrollment->enrollment_date;
                 }
 
-                // Frontend shows Payment pill from trainee.payment_status; prefer enrollment payment_status
                 if ($selectedEnrollment && $selectedEnrollment->payment_status) {
                     $trainee->payment_status = $selectedEnrollment->payment_status;
                 }
 
-                // Frontend shows Status from trainee.status; prefer enrollment status for current program
                 if ($selectedEnrollment && $selectedEnrollment->status) {
                     $trainee->status = $selectedEnrollment->status;
                 }
 
-                // Attach enrollment dates for export
                 if ($selectedEnrollment) {
                     $trainee->date_started = $selectedEnrollment->date_started;
                     $trainee->date_ended = $selectedEnrollment->date_ended;
                     $trainee->completion_date = $selectedEnrollment->completion_date;
                 }
 
-                // Attach latest assessment data for export
-                // Get assessments for the current program
                 $latestAssessment = $trainee->assessments
                     ->where('program_id', $selectedEnrollment ? $selectedEnrollment->program_id : null)
                     ->sortByDesc('attempt_number')
@@ -279,7 +248,6 @@ class TraineeController extends Controller
                     $trainee->latest_assessment_result = null;
                 }
 
-                // Attach trainer names for display
                 $trainee->assigned_trainers = array_values(array_unique($assignedTrainerNames));
 
                 return $trainee;
@@ -310,7 +278,6 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
-        // Apply guarded fields explicitly after creation
         $trainee->forceFill([
             'status' => $validated['_status'],
             'payment_status' => $validated['_payment_status'],
@@ -322,7 +289,6 @@ class TraineeController extends Controller
 
     public function show(Trainee $trainee)
     {
-        // Redirect to trainees list since we use modals for viewing
         return redirect()->route('officer.trainees');
     }
 
@@ -344,7 +310,6 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee->update($validated);
-        // Apply guarded fields explicitly after update
         $trainee->forceFill([
             'status' => $validated['_status'],
             'payment_status' => $validated['_payment_status'],
@@ -356,8 +321,6 @@ class TraineeController extends Controller
 
     public function destroy(Trainee $trainee)
     {
-        // Check if trainee can be deleted
-        // Cannot delete if: status is active OR payment status is paid
         if ($trainee->status === 'active' || $trainee->payment_status === 'paid') {
             return redirect()->back()->with('error', 'Cannot delete trainee. Trainees with active status or paid payment status cannot be deleted. Current status: ' . ucfirst($trainee->status) . ', Payment: ' . ucfirst($trainee->payment_status));
         }
@@ -382,7 +345,6 @@ class TraineeController extends Controller
 
         $query = Trainee::with('enrollments');
 
-        // Apply search filter if provided
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -391,7 +353,6 @@ class TraineeController extends Controller
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
                   ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
 
-                // Scalability: Use prefix matching for ULI numbers when possible.
                 if (preg_match('/^(ULI|STRESSTEST|T-)/i', $search)) {
                     $q->orWhere('uli_number', 'like', "{$search}%");
                 } else {
@@ -400,20 +361,16 @@ class TraineeController extends Controller
             });
         }
 
-        // Apply program filter if provided
         if ($program && $program !== 'All Programs') {
-            // Filter by program_id from enrollments relationship
             $query->whereHas('enrollments', function($q) use ($program) {
                 $q->where('program_id', $program);
             });
         }
 
-        // Apply status filter if provided
         if ($status && $status !== 'All Statuses') {
             $query->where('status', $status);
         }
 
-        // Apply enrollment type filter if provided (based on scholarship_package)
         if ($enrollmentType && $enrollmentType !== 'All Types') {
             if ($enrollmentType === 'scholar') {
                 $query->whereNotNull('scholarship_package')
@@ -426,13 +383,11 @@ class TraineeController extends Controller
             }
         }
 
-        // Apply date range filter if provided - filter by enrollment_date from enrollments
         if ($dateFrom) {
             $query->where(function($q) use ($dateFrom) {
                 $q->whereHas('enrollments', function($subQ) use ($dateFrom) {
                     $subQ->whereDate('enrollment_date', '>=', $dateFrom);
                 })->orWhere(function($subQ) use ($dateFrom) {
-                    // Fallback for legacy trainees without enrollments
                     $subQ->whereDoesntHave('enrollments')
                           ->whereDate('entry_date', '>=', $dateFrom);
                 });
@@ -443,7 +398,6 @@ class TraineeController extends Controller
                 $q->whereHas('enrollments', function($subQ) use ($dateTo) {
                     $subQ->whereDate('enrollment_date', '<=', $dateTo);
                 })->orWhere(function($subQ) use ($dateTo) {
-                    // Fallback for legacy trainees without enrollments
                     $subQ->whereDoesntHave('enrollments')
                           ->whereDate('entry_date', '<=', $dateTo);
                 });
@@ -453,10 +407,8 @@ class TraineeController extends Controller
         $trainees = $query->latest()
             ->paginate($perPage)
             ->through(function ($trainee) {
-                // Get trainer information from the trainee's enrollments
                 $trainerNames = [];
                 
-                // Check if trainee has enrollments with programs that have assigned trainers
                 foreach ($trainee->enrollments as $enrollment) {
                     $program = Program::where('program_id', $enrollment->program_id)->first();
                     if ($program && $program->assigned_trainers) {
@@ -465,7 +417,6 @@ class TraineeController extends Controller
                     }
                 }
                 
-                // If no trainers found from enrollments, try to get from program_qualification (legacy)
                 if (empty($trainerNames)) {
                     $program = Program::where('name', $trainee->program_qualification)->first();
                     if ($program && $program->assigned_trainers) {
@@ -474,13 +425,10 @@ class TraineeController extends Controller
                     }
                 }
                 
-                // Get the most recent enrollment date from the new enrollment system
                 $latestEnrollment = $trainee->enrollments->sortByDesc('enrollment_date')->first();
                 
-                // Use the enrollment date from the new system if available, otherwise fall back to the old system
                 $actualEnrollmentDate = $latestEnrollment ? $latestEnrollment->enrollment_date : $trainee->date_enrolled;
                 
-                // Add trainer information and actual enrollment date to the trainee data
                 $trainee->assigned_trainers = array_unique($trainerNames);
                 $trainee->actual_enrollment_date = $actualEnrollmentDate;
                 
@@ -512,7 +460,6 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee = Trainee::create($validated);
-        // Apply guarded fields explicitly after creation
         $trainee->forceFill([
             'status' => $validated['_status'],
             'payment_status' => $validated['_payment_status'],
@@ -530,7 +477,6 @@ class TraineeController extends Controller
         if ($redirect) return $redirect;
 
         $trainee->update($validated);
-        // Apply guarded fields explicitly after update
         $trainee->forceFill([
             'status' => $validated['_status'],
             'payment_status' => $validated['_payment_status'],
@@ -542,8 +488,6 @@ class TraineeController extends Controller
 
     public function adminDestroy(Trainee $trainee)
     {
-        // Check if trainee can be deleted
-        // Cannot delete if: status is active OR payment status is paid
         if ($trainee->status === 'active' || $trainee->payment_status === 'paid') {
             return redirect()->back()->with('error', 'Cannot delete trainee. Trainees with active status or paid payment status cannot be deleted. Current status: ' . ucfirst($trainee->status) . ', Payment: ' . ucfirst($trainee->payment_status));
         }
@@ -559,44 +503,35 @@ class TraineeController extends Controller
             'status' => 'required|in:active,completed,dropped,pending'
         ]);
 
-        // Get the current/latest enrollment to operate on
         $currentEnrollment = $trainee->enrollments()
             ->with('program')
             ->orderBy('created_at', 'desc')
             ->first();
 
         if (!$currentEnrollment) {
-            // Fallback to legacy behavior if no enrollments exist
             if (in_array($trainee->status, ['completed', 'dropped'])) {
                 return redirect()->back()->with('error', 'This trainee\'s status can no longer be changed after being marked as completed or dropped.');
             }
         } else {
-            // New enrollment system: check the current enrollment status instead of overall trainee status
             if (in_array($currentEnrollment->status, ['completed', 'dropped'])) {
                 return redirect()->back()->with('error', 'This enrollment\'s status can no longer be changed after being marked as completed or dropped.');
             }
         }
 
-        // Guard: cannot set to active unless payment is paid (check current enrollment if available)
         $paymentStatus = $currentEnrollment ? $currentEnrollment->payment_status : $trainee->payment_status;
         if ($validated['status'] === 'active' && $paymentStatus !== 'paid') {
             return redirect()->back()->with('error', 'Trainee cannot be set to Active until payment is completed. Current payment status: ' . ucfirst($paymentStatus));
         }
 
-        // Update the appropriate enrollment and trainee records
         if ($currentEnrollment) {
-            // New enrollment system: update the current enrollment
             $enrollmentData = ['status' => $validated['status']];
             
-            // Set completion date if status is completed
             if ($validated['status'] === 'completed') {
                 $enrollmentData['completion_date'] = now()->toDateString();
             }
             
             $currentEnrollment->update($enrollmentData);
 
-            // Also update the trainee's overall status to match current enrollment
-            // Use forceFill since status and payment_status are guarded on Trainee
             $trainee->forceFill([
                 'status' => $validated['status'],
                 'payment_status' => $currentEnrollment->payment_status
@@ -604,7 +539,6 @@ class TraineeController extends Controller
 
             return redirect()->back()->with('success', 'Trainee enrollment status updated successfully for ' . ($currentEnrollment->program ? $currentEnrollment->program->name : 'current program') . '!');
         } else {
-            // Legacy system: update trainee directly
             $trainee->forceFill($validated)->save();
             return redirect()->back()->with('success', 'Trainee status updated successfully!');
         }

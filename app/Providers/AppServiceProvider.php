@@ -28,7 +28,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
     }
 
     /**
@@ -38,8 +37,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
-        // ── Payment summary cache observers ──────────────────────────
-        // Keep the payment_summaries table in sync on every payment event.
         $observer = new PaymentSummaryObserver();
 
         TraineeEnrollment::created(fn ($e) => $observer->enrollmentCreated($e));
@@ -50,22 +47,15 @@ class AppServiceProvider extends ServiceProvider
         Assessment::updated(fn ($a) => $observer->assessmentUpdated($a));
         Assessment::deleted(fn ($a) => $observer->assessmentDeleted($a));
 
-        // When exposing the app via HTTPS (e.g., ngrok), Laravel may
-        // think requests are HTTP and generate http:// asset URLs,
-        // causing mixed-content errors. Allow forcing HTTPS via env.
         if (config('app.force_https')) {
-            // Force HTTPS scheme for all URL generation
             URL::forceScheme('https');
             
-            // Force root URL to ensure all generated URLs use HTTPS
             $appUrl = config('app.url');
             if ($appUrl && str_starts_with($appUrl, 'https://')) {
                 URL::forceRootUrl($appUrl);
             }
             
-            // Force HTTPS for all generated URLs
             if (App::environment('local')) {
-                // Ensure the current request is treated as HTTPS
                 if (request()->isSecure()) {
                     URL::forceScheme('https');
                 }

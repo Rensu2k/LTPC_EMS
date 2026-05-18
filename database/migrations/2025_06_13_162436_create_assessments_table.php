@@ -32,12 +32,10 @@ return new class extends Migration
             $table->integer('max_score');
             $table->integer('passing_score')->nullable()->comment('Minimum score required to pass');
             
-            // Fix foreign key constraints to match actual table structures  
             $table->string('course_id', 50); // Will be renamed to program_id later
             $table->unsignedBigInteger('trainee_id'); // Match trainees.id
             $table->unsignedBigInteger('trainer_id'); // Match trainers.id
             
-            // Add foreign key constraints with correct references
             $table->foreign('course_id')->references('course_id')->on('courses')->onDelete('cascade');
             $table->foreign('trainee_id')->references('id')->on('trainees')->onDelete('cascade');
             $table->foreign('trainer_id')->references('id')->on('trainers')->onDelete('cascade');

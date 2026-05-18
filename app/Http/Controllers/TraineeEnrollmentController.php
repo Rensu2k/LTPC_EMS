@@ -25,7 +25,6 @@ class TraineeEnrollmentController extends Controller
      */
     public function create(Trainee $trainee)
     {
-        // Block enrollment form if trainee already has any active enrollment
         $hasActiveEnrollment = $trainee
             ->enrollments()
             ->where("status", "active")
@@ -39,21 +38,18 @@ class TraineeEnrollmentController extends Controller
                 );
         }
 
-        // Get available programs (exclude programs trainee is already enrolled in OR has completed)
         $enrolledProgramIds = $trainee
             ->enrollments()
             ->where("status", "active")
             ->pluck("program_id")
             ->toArray();
 
-        // Get programs trainee has already completed
         $completedProgramIds = $trainee
             ->enrollments()
             ->where("status", "completed")
             ->pluck("program_id")
             ->toArray();
 
-        // Combine both lists to exclude from available programs
         $excludedProgramIds = array_unique(
             array_merge($enrolledProgramIds, $completedProgramIds),
         );
@@ -68,7 +64,6 @@ class TraineeEnrollmentController extends Controller
                 "enrollment_fee",
             ]);
 
-        // Get trainee's enrollment history
         $enrollmentHistory = $trainee
             ->enrollments()
             ->with("program")
@@ -87,7 +82,6 @@ class TraineeEnrollmentController extends Controller
      */
     public function store(Request $request, Trainee $trainee)
     {
-        // Server-side guard: prevent enrolling while any active enrollment exists
         if ($trainee->enrollments()->where("status", "active")->exists()) {
             return redirect()
                 ->back()
@@ -106,10 +100,8 @@ class TraineeEnrollmentController extends Controller
         ]);
 
         try {
-            // Get the program
             $program = Program::find($validated["program_id"]);
 
-            // Check if trainee has already completed this program
             if ($trainee->hasCompletedProgram($validated["program_id"])) {
                 return redirect()
                     ->back()
@@ -119,18 +111,10 @@ class TraineeEnrollmentController extends Controller
                     );
             }
 
-            // TODO: Enable prerequisite checking when implemented
-            // if ($program->prerequisites && !$this->checkPrerequisites($trainee, $program)) {
-            //     return redirect()->back()->with('error', 'Trainee has not completed required prerequisites.');
-            // }
 
-            // Determine the batch for enrollment.
-            // getNextAvailableBatch() loops through batches starting from current_batch
-            // and returns the first one that still has room (< 25 trainees).
             $assignedBatch =
                 $validated["batch"] ?? $program->getNextAvailableBatch();
 
-            // Enroll the trainee in the assigned batch
             $enrollment = $trainee->enrollInProgram(
                 $validated["program_id"],
                 $assignedBatch,
@@ -138,7 +122,6 @@ class TraineeEnrollmentController extends Controller
                 $validated["maintain_scholarship"] ?? null,
             );
 
-            // Add any additional notes
             if ($validated["notes"]) {
                 $enrollment->update(["notes" => $validated["notes"]]);
             }
@@ -149,7 +132,6 @@ class TraineeEnrollmentController extends Controller
                     ". Previous batch(es) were full (25 trainees each), enrolled in next available batch.";
             }
 
-            // Add scholarship message based on the choice made
             if (
                 $trainee->scholarship_package &&
                 ($validated["maintain_scholarship"] ?? true)
@@ -191,7 +173,6 @@ class TraineeEnrollmentController extends Controller
             $updateData["completion_date"] = $validated["completion_date"];
         }
 
-        // Automatically set date_ended when status is changed to "dropped"
         if ($validated["status"] === "dropped") {
             $updateData["date_ended"] = now();
         }
@@ -223,7 +204,6 @@ class TraineeEnrollmentController extends Controller
         if ($validated["payment_status"] === "paid") {
             $updateData["payment_date"] = now();
 
-            // If payment is completed and trainee was pending due to payment, reactivate
             if ($enrollment->status === "pending") {
                 $updateData["status"] = "active";
                 $wasActivated = true;
@@ -232,7 +212,6 @@ class TraineeEnrollmentController extends Controller
             $validated["payment_status"] !== "paid" &&
             $enrollment->status === "active"
         ) {
-            // If payment becomes unpaid and enrollment is active, set to pending
             $updateData["status"] = "pending";
         }
 
@@ -250,7 +229,6 @@ class TraineeEnrollmentController extends Controller
                 "Payment status updated and enrollment set to pending due to payment issue.";
         }
 
-        // Also check if trainee has other eligibility for auto-enrollment
         $trainee = $enrollment->trainee;
         if (
             $trainee->status === "active" &&
@@ -273,21 +251,18 @@ class TraineeEnrollmentController extends Controller
             ->orderBy("created_at", "desc")
             ->get();
 
-        // Get available programs for new enrollment (exclude active enrollments and completed programs)
         $enrolledProgramIds = $trainee
             ->enrollments()
             ->where("status", "active")
             ->pluck("program_id")
             ->toArray();
 
-        // Get programs trainee has already completed
         $completedProgramIds = $trainee
             ->enrollments()
             ->where("status", "completed")
             ->pluck("program_id")
             ->toArray();
 
-        // Combine both lists to exclude from available programs
         $excludedProgramIds = array_unique(
             array_merge($enrolledProgramIds, $completedProgramIds),
         );
@@ -316,10 +291,6 @@ class TraineeEnrollmentController extends Controller
         Trainee $trainee,
         Program $program,
     ): bool {
-        // TODO: Implement prerequisite checking logic:
-        // - Check completed prerequisite programs
-        // - Verify required certifications
-        // - Validate age/education requirements
 
         return true; // Currently allows all enrollments
     }
@@ -335,14 +306,12 @@ class TraineeEnrollmentController extends Controller
             ->pluck("program_id")
             ->toArray();
 
-        // Get programs trainee has already completed
         $completedProgramIds = $trainee
             ->enrollments()
             ->where("status", "completed")
             ->pluck("program_id")
             ->toArray();
 
-        // Combine both lists to exclude from available programs
         $excludedProgramIds = array_unique(
             array_merge($enrolledProgramIds, $completedProgramIds),
         );

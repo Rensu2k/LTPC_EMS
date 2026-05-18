@@ -13,6 +13,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Program extends Model
 {
@@ -194,23 +196,24 @@ class Program extends Model
 
     /**
      * Get enrollment count (only active trainees) - Updated for new system
+     * Scalability: Uses DB-level count() instead of loading IDs into memory.
      */
     public function getEnrollmentCountAttribute()
     {
-        // Single query to get enrolled trainee IDs (reused for both counts)
-        $enrolledTraineeIds = $this->activeEnrollments()
-            ->pluck("trainee_id")
-            ->toArray();
-
-        $newSystemCount = count($enrolledTraineeIds);
+        $newSystemCount = $this->activeEnrollments()->count();
 
         // Count legacy active trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->where("status", "active")
-            ->whereNotIn("id", $enrolledTraineeIds)
+        // Uses NOT EXISTS for short-circuit evaluation at scale.
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->where('status', 'active')
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+                AND trainee_enrollments.status = ?
+            )', [$programId, 'active'])
             ->count();
 
         return $newSystemCount + $legacyCount;
@@ -218,22 +221,21 @@ class Program extends Model
 
     /**
      * Get total enrollment count (all enrollments, all statuses) - Updated for new system
+     * Scalability: Uses DB-level count() instead of loading IDs into memory.
      */
     public function getTotalEnrollmentCountAttribute()
     {
-        // Single query to get all enrolled trainee IDs (reused for both counts)
-        $enrolledTraineeIds = $this->enrollments()
-            ->pluck("trainee_id")
-            ->toArray();
-
-        $newSystemCount = count($enrolledTraineeIds);
+        $newSystemCount = $this->enrollments()->count();
 
         // Count legacy trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->whereNotIn("id", $enrolledTraineeIds)
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+            )', [$programId])
             ->count();
 
         return $newSystemCount + $legacyCount;
@@ -280,34 +282,33 @@ class Program extends Model
     {
         // Count all non-terminal enrollments (active + pending) for this batch.
         // 'completed' and 'dropped' enrollments free their slot.
-        $enrolledTraineeIds = $this->enrollments()
+        // Scalability: Uses DB-level count() instead of loading IDs into memory.
+        $newSystemCount = $this->enrollments()
             ->whereIn("status", ["active", "pending"])
             ->where("batch", $batch)
-            ->pluck("trainee_id")
-            ->toArray();
-
-        $newSystemCount = count($enrolledTraineeIds);
-
-        // Exclude ALL trainees who have ANY enrollment record (any batch) in
-        // the new system for this program. Without this, a trainee whose
-        // legacy trainees.batch=1 but whose enrollment record is in batch 2
-        // would be double-counted — once correctly via enrollment and once
-        // incorrectly as a "legacy batch 1" trainee.
-        $allEnrolledTraineeIds = $this->enrollments()
-            ->whereIn("status", ["active", "pending"])
-            ->pluck("trainee_id")
-            ->toArray();
+            ->count();
 
         // Count legacy trainees (active OR pending) for this batch,
         // excluding any trainee already in the enrollment system.
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->whereIn("status", ["active", "pending"])
-            ->where("batch", $batch)
-            ->whereNotIn("id", $allEnrolledTraineeIds)
+        // Uses NOT EXISTS correlated subquery for short-circuit evaluation.
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->whereIn('status', ['active', 'pending'])
+            ->where('batch', $batch)
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+                AND trainee_enrollments.status IN (?, ?)
+            )', [$programId, 'active', 'pending'])
             ->count();
+
+        // Log legacy hits to track migration progress — deprecate this path
+        // only when evidence shows zero legacy hits over a sustained period.
+        if ($legacyCount > 0) {
+            Log::info("[LEGACY-BATCH-HIT] Program '{$this->name}' batch {$batch}: {$legacyCount} legacy trainees counted (not yet in enrollment system)");
+        }
 
         return $newSystemCount + $legacyCount;
     }
@@ -330,14 +331,57 @@ class Program extends Model
 
     /**
      * Get the next available batch for new enrollment.
-     * Loops through batches starting from current_batch until it finds one with fewer than 25 trainees.
+     *
+     * Scalability fix: replaces N-loop (each calling 2 queries) with a single
+     * GROUP BY aggregation. Uses NOT EXISTS for the legacy trainee check which
+     * allows MariaDB to short-circuit (stop scanning as soon as one match is found).
      */
     public function getNextAvailableBatch()
     {
+        // Aggregate ALL batch counts in a SINGLE query.
+        $batchCounts = $this->enrollments()
+            ->whereIn('status', ['active', 'pending'])
+            ->select('batch', DB::raw('COUNT(*) as count'))
+            ->groupBy('batch')
+            ->pluck('count', 'batch');
+
+        // Legacy trainee counts per batch: use NOT EXISTS correlated subquery.
+        // NOT EXISTS short-circuits per-row (stops once 1 enrollment is found),
+        // whereas LEFT JOIN + IS NULL must fully probe the hash/index.
+        $programId = $this->program_id;
+        $programName = $this->name;
+        $legacyBatchCounts = DB::table('trainees')
+            ->where('program_qualification', $programName)
+            ->whereIn('status', ['active', 'pending'])
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+                AND trainee_enrollments.status IN (?, ?)
+            )', [$programId, 'active', 'pending'])
+            ->select('batch', DB::raw('COUNT(*) as count'))
+            ->groupBy('batch')
+            ->pluck('count', 'batch');
+
+        // Log if any legacy trainees were found (migration progress tracking).
+        $totalLegacy = $legacyBatchCounts->sum();
+        if ($totalLegacy > 0) {
+            Log::info("[LEGACY-BATCH-HIT] Program '{$this->name}': {$totalLegacy} total legacy trainees across " . $legacyBatchCounts->count() . " batches during getNextAvailableBatch()");
+        }
+
+        // Merge counts: combine new system + legacy for each batch.
+        $mergedCounts = [];
+        $allBatches = $batchCounts->keys()->merge($legacyBatchCounts->keys())->unique();
+        foreach ($allBatches as $b) {
+            $mergedCounts[$b] = ($batchCounts[$b] ?? 0) + ($legacyBatchCounts[$b] ?? 0);
+        }
+
+        // Find the first batch (starting from current_batch) with capacity.
         $batch = $this->current_batch;
-        while ($this->getEnrollmentCountForBatch($batch) >= 25) {
+        while (isset($mergedCounts[$batch]) && $mergedCounts[$batch] >= 25) {
             $batch++;
         }
+
         return $batch;
     }
 
@@ -379,22 +423,20 @@ class Program extends Model
      */
     public function getCompletedTraineesCountAttribute()
     {
-        // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()
-            ->pluck("trainee_id")
-            ->toArray();
-
         $newSystemCount = $this->enrollments()
             ->where("status", "completed")
             ->count();
 
         // Count legacy completed trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->where("status", "completed")
-            ->whereNotIn("id", $enrolledTraineeIds)
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->where('status', 'completed')
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+            )', [$programId])
             ->count();
 
         return $newSystemCount + $legacyCount;
@@ -405,22 +447,20 @@ class Program extends Model
      */
     public function getDroppedTraineesCountAttribute()
     {
-        // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()
-            ->pluck("trainee_id")
-            ->toArray();
-
         $newSystemCount = $this->enrollments()
             ->where("status", "dropped")
             ->count();
 
         // Count legacy dropped trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->where("status", "dropped")
-            ->whereNotIn("id", $enrolledTraineeIds)
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->where('status', 'dropped')
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+            )', [$programId])
             ->count();
 
         return $newSystemCount + $legacyCount;
@@ -431,22 +471,20 @@ class Program extends Model
      */
     public function getPendingTraineesCountAttribute()
     {
-        // Single query for enrolled trainee IDs
-        $enrolledTraineeIds = $this->enrollments()
-            ->pluck("trainee_id")
-            ->toArray();
-
         $newSystemCount = $this->enrollments()
             ->where("status", "pending")
             ->count();
 
         // Count legacy pending trainees excluding those already in new system
-        $legacyCount = \App\Models\Trainee::where(
-            "program_qualification",
-            $this->name,
-        )
-            ->where("status", "pending")
-            ->whereNotIn("id", $enrolledTraineeIds)
+        $programId = $this->program_id;
+        $legacyCount = DB::table('trainees')
+            ->where('program_qualification', $this->name)
+            ->where('status', 'pending')
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM trainee_enrollments 
+                WHERE trainee_enrollments.trainee_id = trainees.id 
+                AND trainee_enrollments.program_id = ?
+            )', [$programId])
             ->count();
 
         return $newSystemCount + $legacyCount;
@@ -473,9 +511,18 @@ class Program extends Model
      */
     public function getBatches()
     {
-        return \App\Models\Trainee::where("program_qualification", $this->name)
+        // Get batches from the new enrollment system (preferred)
+        $enrollmentBatches = $this->enrollments()
             ->distinct()
-            ->pluck("batch")
+            ->pluck("batch");
+
+        // Also get legacy batches from trainees table
+        $legacyBatches = \App\Models\Trainee::where("program_qualification", $this->name)
+            ->distinct()
+            ->pluck("batch");
+
+        return $enrollmentBatches->merge($legacyBatches)
+            ->unique()
             ->sort()
             ->values();
     }

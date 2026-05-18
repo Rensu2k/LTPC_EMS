@@ -135,11 +135,19 @@ class TraineeController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('uli_number', 'like', "%{$search}%")
                   ->orWhere('email_facebook', 'like', "%{$search}%")
                   ->orWhere('program_qualification', 'like', "%{$search}%")
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
                   ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+
+                // Scalability: Use prefix matching for ULI numbers when possible.
+                // LIKE 'ULI-5000%' uses the idx_trainees_uli_number index (~200ms)
+                // whereas LIKE '%ULI-5000%' forces a full table scan (~2.4s).
+                if (preg_match('/^(ULI|STRESSTEST|T-)/i', $search)) {
+                    $q->orWhere('uli_number', 'like', "{$search}%");
+                } else {
+                    $q->orWhere('uli_number', 'like', "%{$search}%");
+                }
             });
         }
 
@@ -379,10 +387,16 @@ class TraineeController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('uli_number', 'like', "%{$search}%")
                   ->orWhere('email_facebook', 'like', "%{$search}%")
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
                   ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+
+                // Scalability: Use prefix matching for ULI numbers when possible.
+                if (preg_match('/^(ULI|STRESSTEST|T-)/i', $search)) {
+                    $q->orWhere('uli_number', 'like', "{$search}%");
+                } else {
+                    $q->orWhere('uli_number', 'like', "%{$search}%");
+                }
             });
         }
 

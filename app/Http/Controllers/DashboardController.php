@@ -19,6 +19,7 @@ use App\Models\Program;
 use App\Models\TraineeEnrollment;
 use App\Models\Assessment;
 use App\Models\CustomReceipt;
+use App\Models\PaymentSummary;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -43,12 +44,13 @@ class DashboardController extends Controller
         $regularTrainees = Trainee::whereNull('scholarship_package')->orWhere('scholarship_package', '')->count();
         $scholarTrainees = Trainee::whereNotNull('scholarship_package')->where('scholarship_package', '!=', '')->count();
         
-        // Get payment data from both enrollment system and custom receipts
-        $paidTrainingPayments = TraineeEnrollment::where('payment_status', 'paid')->count();
-        $pendingTrainingPayments = TraineeEnrollment::where('payment_status', 'unpaid')->count();
+        // Payment statistics — use cached totals to avoid scanning 2M+ rows.
+        // These caches are maintained by PaymentSummaryObserver.
+        $paidTrainingPayments = (int) PaymentSummary::getValue('enrollment_paid_count');
+        $pendingTrainingPayments = (int) PaymentSummary::getValue('enrollment_unpaid_count');
         
-        $paidAssessmentPayments = Assessment::where('payment_status', 'paid')->count();
-        $pendingAssessmentPayments = Assessment::where('payment_status', 'unpaid')->count();
+        $paidAssessmentPayments = (int) PaymentSummary::getValue('assessment_paid_count');
+        $pendingAssessmentPayments = (int) PaymentSummary::getValue('assessment_unpaid_count');
         
         $totalPendingPayments = $pendingTrainingPayments + $pendingAssessmentPayments;
         

@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use App\Models\TraineeEnrollment;
+use App\Models\Assessment;
+use App\Observers\PaymentSummaryObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +37,18 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // ── Payment summary cache observers ──────────────────────────
+        // Keep the payment_summaries table in sync on every payment event.
+        $observer = new PaymentSummaryObserver();
+
+        TraineeEnrollment::created(fn ($e) => $observer->enrollmentCreated($e));
+        TraineeEnrollment::updated(fn ($e) => $observer->enrollmentUpdated($e));
+        TraineeEnrollment::deleted(fn ($e) => $observer->enrollmentDeleted($e));
+
+        Assessment::created(fn ($a) => $observer->assessmentCreated($a));
+        Assessment::updated(fn ($a) => $observer->assessmentUpdated($a));
+        Assessment::deleted(fn ($a) => $observer->assessmentDeleted($a));
 
         // When exposing the app via HTTPS (e.g., ngrok), Laravel may
         // think requests are HTTP and generate http:// asset URLs,

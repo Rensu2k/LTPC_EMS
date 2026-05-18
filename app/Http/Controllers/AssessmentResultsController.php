@@ -129,73 +129,62 @@ class AssessmentResultsController extends Controller
                 ];
             });
 
-        // Get comprehensive statistics data (ALL assessments, not just latest)
-        $comprehensiveQuery = Assessment::query()
-            ->where('status', 'completed'); // Only show completed assessments
+        // Scalability fix: Instead of loading ALL completed assessments into memory
+        // for statistics (which OOMs at 1.5M rows), compute aggregates at the DB level.
+        $statsBaseQuery = Assessment::query()->where('status', 'completed');
 
-        // Apply the same filters to comprehensive statistics
+        // Apply the same filters to statistics
         if ($search) {
-            $comprehensiveQuery->where(function ($q) use ($search) {
+            $statsBaseQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('applicant_name', 'like', "%{$search}%")
-                  ->orWhereHas('program', function ($programQuery) use ($search) {
-                      $programQuery->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('trainer', function ($trainerQuery) use ($search) {
-                      $trainerQuery->where('full_name', 'like', "%{$search}%");
-                  });
+                  ->orWhere('applicant_name', 'like', "%{$search}%");
             });
         }
-
         if ($program && $program !== 'All Programs') {
-            $comprehensiveQuery->where('program_id', $program);
+            $statsBaseQuery->where('program_id', $program);
         }
-
         if ($result && $result !== 'All Results' && $result !== '') {
             if ($result === 'Not Evaluated') {
-                $comprehensiveQuery->whereNull('result');
+                $statsBaseQuery->whereNull('result');
             } else {
-                $comprehensiveQuery->where('result', $result);
+                $statsBaseQuery->where('result', $result);
             }
         }
-
         if ($dateFrom) {
-            $comprehensiveQuery->whereDate('assessment_date', '>=', $dateFrom);
+            $statsBaseQuery->whereDate('assessment_date', '>=', $dateFrom);
         }
         if ($dateTo) {
-            $comprehensiveQuery->whereDate('assessment_date', '<=', $dateTo);
+            $statsBaseQuery->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        $comprehensiveAssessments = $comprehensiveQuery->with(['trainee', 'program', 'trainer'])->get()->map(function ($assessment) {
-            return [
-                'id' => $assessment->id,
-                'title' => $assessment->title,
-                'description' => $assessment->description,
-                'type' => $assessment->type,
-                'status' => $assessment->status,
-                'result' => $assessment->result,
-                'result_status' => $assessment->result_status,
-                'result_color' => $assessment->result_color,
-                'program_id' => $assessment->program_id,
-                'program_name' => $assessment->program->name ?? 'N/A',
-                'applicant_name' => $assessment->applicant_name ?: ($assessment->trainee ? $assessment->trainee->first_name . ' ' . $assessment->trainee->last_name : ($assessment->external_applicant_name ?: 'Unknown')),
-                'applicant_type' => $assessment->applicant_type,
-                'trainee_id' => $assessment->trainee_id,
-                'external_applicant_email' => $assessment->external_applicant_email,
-                'external_applicant_name' => $assessment->external_applicant_name,
-                'assessment_date' => $assessment->assessment_date,
-                'trainer_name' => $assessment->trainer->full_name ?? 'N/A',
-                'created_at' => $assessment->created_at,
-                'updated_at' => $assessment->updated_at,
-            ];
-        });
+        // Aggregate statistics at the DB level
+        $resultCounts = (clone $statsBaseQuery)
+            ->selectRaw("result, COUNT(*) as count")
+            ->groupBy('result')
+            ->pluck('count', 'result')
+            ->toArray();
+
+        $totalCompleted = array_sum($resultCounts);
+        $competentCount = $resultCounts['competent'] ?? 0;
+        $notYetCompetentCount = $resultCounts['not_yet_competent'] ?? 0;
+        $absentCount = $resultCounts['absent'] ?? 0;
+        $notEvaluatedCount = $resultCounts[null] ?? $resultCounts[''] ?? 0;
+
+        $comprehensiveStats = [
+            'total' => $totalCompleted,
+            'competent' => $competentCount,
+            'not_yet_competent' => $notYetCompetentCount,
+            'absent' => $absentCount,
+            'not_evaluated' => $notEvaluatedCount,
+        ];
 
         $programs = Program::where('status', 'active')->get(['program_id', 'name']);
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
 
         return Inertia::render('Admin/AssestmentResults', [
             'assessments' => $assessments,
-            'comprehensive_assessments' => $comprehensiveAssessments,
+            'comprehensive_assessments' => [], // Deprecated: stats now in comprehensive_stats
+            'comprehensive_stats' => $comprehensiveStats,
             'programs' => $programs,
             'trainers' => $trainers,
             'filters' => [

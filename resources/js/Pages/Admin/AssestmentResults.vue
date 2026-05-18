@@ -15,7 +15,8 @@ import { useForm } from "@inertiajs/vue3";
 
 const props = defineProps({
     assessments: Object, // Changed from Array to Object to support pagination
-    comprehensive_assessments: Array, // All assessments for statistics (including all attempts)
+    comprehensive_assessments: Array, // Deprecated: kept for backwards compat, now empty
+    comprehensive_stats: Object, // Pre-aggregated stats from server
     programs: Array,
     trainers: Array,
     flash: Object,
@@ -95,87 +96,30 @@ const hasActiveFilters = computed(() => {
     );
 });
 
-// Percentage calculations for comprehensive results (UNIQUE applicants only)
+// Use pre-computed stats from the server instead of filtering 1.5M records in-browser
+const stats = computed(() => props.comprehensive_stats || {
+    total: 0, competent: 0, not_yet_competent: 0, absent: 0, not_evaluated: 0
+});
+
 const assessmentPercentages = computed(() => {
-    const assessments = props.comprehensive_assessments || [];
-
-    // Group assessments by unique applicants and get their latest attempt
-    const uniqueApplicants = new Map();
-
-    assessments.forEach((assessment) => {
-        // Create unique key based on applicant type and identifier
-        let applicantKey;
-        if (assessment.applicant_type === "enrolled_trainee") {
-            applicantKey = `trainee_${assessment.trainee_id}`;
-        } else {
-            applicantKey = `external_${assessment.external_applicant_email}`;
-        }
-
-        // Keep only the latest assessment for each unique applicant
-        if (
-            !uniqueApplicants.has(applicantKey) ||
-            new Date(assessment.assessment_date) >
-                new Date(uniqueApplicants.get(applicantKey).assessment_date)
-        ) {
-            uniqueApplicants.set(applicantKey, assessment);
-        }
-    });
-
-    // Convert to array of unique applicant assessments
-    const uniqueAssessments = Array.from(uniqueApplicants.values());
-    const total = uniqueAssessments.length;
-
-    if (total === 0) {
-        return {
-            completedVsAssessed: 0,
-            competentVsNotCompetent: 0,
-            completedCount: 0,
-            assessedCount: 0,
-            competentCount: 0,
-            notCompetentCount: 0,
-        };
-    }
-
-    // Completed applicants vs total assessed (exclude absent applicants)
-    // Ensure we only count completed assessments that are not absent
-    const completedCount = uniqueAssessments.filter(
-        (a) => a.status === "completed" && a.result !== "absent"
-    ).length;
-    const assessedCount = uniqueAssessments.filter(
-        (a) => a.result !== "absent"
-    ).length; // Only count applicants who actually took the assessment
-
-    // Competent vs not competent among applicants with actual results (exclude absent and pending)
-    const competentCount = uniqueAssessments.filter(
-        (a) => a.result === "competent"
-    ).length;
-    const notCompetentCount = uniqueAssessments.filter(
-        (a) => a.result === "not_yet_competent"
-    ).length;
-    // Only include assessments that have actual results (competent or not_yet_competent)
-    const totalWithResults = uniqueAssessments.filter(
-        (a) => a.result === "competent" || a.result === "not_yet_competent"
-    ).length;
+    const s = stats.value;
+    const totalWithResults = s.competent + s.not_yet_competent;
+    const assessedCount = s.total - s.absent;
+    const completedCount = assessedCount; // completed status is already filtered server-side
 
     return {
         completedVsAssessed:
             assessedCount > 0
-                ? Math.min(
-                      Math.round((completedCount / assessedCount) * 100),
-                      100
-                  )
+                ? Math.min(Math.round((completedCount / assessedCount) * 100), 100)
                 : 0,
         competentVsNotCompetent:
             totalWithResults > 0
-                ? Math.min(
-                      Math.round((competentCount / totalWithResults) * 100),
-                      100
-                  )
+                ? Math.min(Math.round((s.competent / totalWithResults) * 100), 100)
                 : 0,
         completedCount,
         assessedCount,
-        competentCount,
-        notCompetentCount,
+        competentCount: s.competent,
+        notCompetentCount: s.not_yet_competent,
         totalWithResults,
     };
 });
@@ -433,31 +377,12 @@ const exportAssessmentResults = () => {
                                 Competent
                             </p>
                             <p class="text-sm font-semibold text-green-900">
-                                {{
-                                    (
-                                        props.comprehensive_assessments || []
-                                    ).filter((a) => a.result === "competent")
-                                        .length
-                                }}
+                                {{ stats.competent }}
                                 <span
-                                    v-if="hasActiveFilters"
+                                    v-if="hasActiveFilters && stats.total > 0"
                                     class="text-xs text-green-700 ml-1"
                                 >
-                                    ({{
-                                        Math.round(
-                                            ((
-                                                props.comprehensive_assessments ||
-                                                []
-                                            ).filter(
-                                                (a) => a.result === "competent"
-                                            ).length /
-                                                (
-                                                    props.comprehensive_assessments ||
-                                                    []
-                                                ).length) *
-                                                100
-                                        )
-                                    }}%)
+                                    ({{ Math.round((stats.competent / stats.total) * 100) }}%)
                                 </span>
                             </p>
                         </div>
@@ -469,34 +394,12 @@ const exportAssessmentResults = () => {
                                 Not Yet Competent
                             </p>
                             <p class="text-sm font-semibold text-red-900">
-                                {{
-                                    (
-                                        props.comprehensive_assessments || []
-                                    ).filter(
-                                        (a) => a.result === "not_yet_competent"
-                                    ).length
-                                }}
+                                {{ stats.not_yet_competent }}
                                 <span
-                                    v-if="hasActiveFilters"
+                                    v-if="hasActiveFilters && stats.total > 0"
                                     class="text-xs text-red-700 ml-1"
                                 >
-                                    ({{
-                                        Math.round(
-                                            ((
-                                                props.comprehensive_assessments ||
-                                                []
-                                            ).filter(
-                                                (a) =>
-                                                    a.result ===
-                                                    "not_yet_competent"
-                                            ).length /
-                                                (
-                                                    props.comprehensive_assessments ||
-                                                    []
-                                                ).length) *
-                                                100
-                                        )
-                                    }}%)
+                                    ({{ Math.round((stats.not_yet_competent / stats.total) * 100) }}%)
                                 </span>
                             </p>
                         </div>
@@ -508,31 +411,12 @@ const exportAssessmentResults = () => {
                                 Absent
                             </p>
                             <p class="text-sm font-semibold text-gray-900">
-                                {{
-                                    (
-                                        props.comprehensive_assessments || []
-                                    ).filter((a) => a.result === "absent")
-                                        .length
-                                }}
+                                {{ stats.absent }}
                                 <span
-                                    v-if="hasActiveFilters"
+                                    v-if="hasActiveFilters && stats.total > 0"
                                     class="text-xs text-gray-700 ml-1"
                                 >
-                                    ({{
-                                        Math.round(
-                                            ((
-                                                props.comprehensive_assessments ||
-                                                []
-                                            ).filter(
-                                                (a) => a.result === "absent"
-                                            ).length /
-                                                (
-                                                    props.comprehensive_assessments ||
-                                                    []
-                                                ).length) *
-                                                100
-                                        )
-                                    }}%)
+                                    ({{ Math.round((stats.absent / stats.total) * 100) }}%)
                                 </span>
                             </p>
                         </div>
@@ -544,10 +428,7 @@ const exportAssessmentResults = () => {
                                 Total Assessments
                             </p>
                             <p class="text-sm font-semibold text-blue-900">
-                                {{
-                                    (props.comprehensive_assessments || [])
-                                        .length
-                                }}
+                                {{ stats.total }}
                                 <span
                                     v-if="hasActiveFilters"
                                     class="text-xs text-blue-700 ml-1"

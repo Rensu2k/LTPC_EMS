@@ -84,22 +84,53 @@ class AssessmentController extends Controller
             $query->whereDate('assessment_date', '<=', $dateTo);
         }
 
-        // Get all assessments and group them by their original assessment
-        $allAssessments = $query->latest()->get();
+        // Scalability fix: Instead of loading ALL assessments into memory and grouping
+        // in PHP (which OOMs at 1.5M records), use a DB subquery to find only the
+        // latest assessment per group, then paginate at the SQL level.
+        //
+        // Group key = COALESCE(original_assessment_id, id) — reassessments share
+        // the same group key as their original assessment.
+        $latestIdsSubquery = \DB::table('assessments')
+            ->selectRaw('MAX(id) as latest_id')
+            ->groupByRaw('COALESCE(original_assessment_id, id)');
 
-        // Group assessments by their original assessment ID
-        $groupedAssessments = $allAssessments->groupBy(function ($assessment) {
-            // Use original_assessment_id if it's a re-assessment, otherwise use its own ID
-            return $assessment->is_reassessment ? $assessment->original_assessment_id : $assessment->id;
-        });
+        // Apply the same filters to the subquery so grouping respects filters
+        if ($search) {
+            $latestIdsSubquery->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('applicant_name', 'like', "%{$search}%")
+                  ->orWhere('external_applicant_name', 'like', "%{$search}%");
+            });
+        }
+        if ($status && $status !== 'All Statuses' && $status !== '') {
+            $latestIdsSubquery->where('status', $status);
+        }
+        if ($result && $result !== 'All Results' && $result !== '') {
+            if ($result === 'Not Evaluated') {
+                $latestIdsSubquery->whereNull('result');
+            } else {
+                $latestIdsSubquery->where('result', $result);
+            }
+        }
+        if ($program && $program !== 'All Programs' && $program !== '') {
+            $latestIdsSubquery->where('program_id', $program);
+        }
+        if ($dateFrom) {
+            $latestIdsSubquery->whereDate('assessment_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $latestIdsSubquery->whereDate('assessment_date', '<=', $dateTo);
+        }
 
-        // Get the latest assessment from each group
-        $assessments = $groupedAssessments->map(function ($group) {
-            // Return the assessment with the highest attempt_number (most recent)
-            return $group->sortByDesc('attempt_number')->first();
-        })->values()
-            ->map(function ($assessment) {
-                // Get the original assessment ID for history navigation
+        // Now paginate only the latest assessments from each group
+        $paginatedAssessments = Assessment::with(['program', 'trainee', 'trainer'])
+            ->joinSub($latestIdsSubquery, 'latest', function ($join) {
+                $join->on('assessments.id', '=', 'latest.latest_id');
+            })
+            ->select('assessments.*')
+            ->latest('assessments.created_at')
+            ->paginate($perPage)
+            ->through(function ($assessment) {
                 $originalAssessmentId = $assessment->is_reassessment ? $assessment->original_assessment_id : $assessment->id;
                 
                 return [
@@ -107,17 +138,17 @@ class AssessmentController extends Controller
                     'title' => $assessment->title,
                     'description' => $assessment->description,
                     'type' => $assessment->type,
-                                    'status' => $assessment->status,
-                'result' => $assessment->result,
-                'result_status' => $assessment->result_status,
-                'result_color' => $assessment->result_color,
-                'can_be_reassessed' => $assessment->canBeReassessed(),
+                    'status' => $assessment->status,
+                    'result' => $assessment->result,
+                    'result_status' => $assessment->result_status,
+                    'result_color' => $assessment->result_color,
+                    'can_be_reassessed' => $assessment->canBeReassessed(),
                     'requires_reenrollment' => $assessment->requiresReenrollment(),
                     'is_deletable' => $assessment->isDeletable(),
                     'is_reassessment' => $assessment->is_reassessment,
                     'attempt_number' => $assessment->attempt_number,
                     'original_assessment_id' => $assessment->original_assessment_id,
-                    'original_assessment_for_history' => $originalAssessmentId, // For history navigation
+                    'original_assessment_for_history' => $originalAssessmentId,
                     'program_id' => $assessment->program_id,
                     'program_name' => $assessment->program->name ?? 'N/A',
                     'applicant_name' => $assessment->applicant_name,
@@ -150,6 +181,7 @@ class AssessmentController extends Controller
         
         // Get trainees who have completed at least one enrollment (modern system)
         // OR trainees with completed status (legacy system)
+        // Scalability: limit to a reasonable page size for the dropdown
         $trainees = Trainee::with(['enrollments.program' => function($query) {
             $query->select('program_id', 'name');
         }])->where(function($query) {
@@ -157,12 +189,9 @@ class AssessmentController extends Controller
                   ->orWhereHas('enrollments', function($enrollmentQuery) {
                       $enrollmentQuery->where('status', 'completed');
                   });
-        })->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
+        })->limit(5000)->get(['id', 'first_name', 'last_name', 'scholarship_package', 'status', 'program_qualification']);
         
         // Build a list of trainee_id + program_id pairs that are already graded as competent.
-        // The most recent assessment in each chain determines the competency status.
-        // A trainee is considered competent for a program if ANY assessment in their chain
-        // (including re-assessments) has result = 'competent'.
         $competentPairs = Assessment::where('result', 'competent')
             ->whereNotNull('trainee_id')
             ->select('trainee_id', 'program_id')
@@ -173,25 +202,6 @@ class AssessmentController extends Controller
             ->toArray();
         
         $trainers = Trainer::where('status', 'active')->get(['id', 'full_name']);
-
-        // Paginate the grouped assessments
-        $assessmentsCollection = collect($assessments);
-        $currentPage = $request->get('page', 1);
-        $perPage = min((int) $request->get('per_page', 20), 100);
-        
-        // Ensure HTTPS URLs for pagination when FORCE_HTTPS is enabled
-        $path = $request->url();
-        if (config('app.force_https') && str_starts_with(config('app.url', ''), 'https://')) {
-            $path = str_replace('http://', 'https://', $path);
-        }
-        
-        $paginatedAssessments = new \Illuminate\Pagination\LengthAwarePaginator(
-            $assessmentsCollection->forPage($currentPage, $perPage),
-            $assessmentsCollection->count(),
-            $perPage,
-            $currentPage,
-            ['path' => $path]
-        );
 
         return Inertia::render('Officer/Assessments', [
             'assessments' => $paginatedAssessments,
